@@ -94,40 +94,6 @@ namespace EntityFramework.GraphQL
             public List<MemberMapInfo> Children;
         }
 
-        //private static MemberInitExpression GetMemberInit(IEnumerable<Field> fields, Type fromType, Expression baseBindingExpr)
-        //{
-        //    var infos = GetMemberMapInfo(fields, fromType);
-        //    //var members = fromType.GetProperties();
-        //    //var matchingFields = fields.Select(f => new MemberMapInfo
-        //    //{
-        //    //    Prop = members.First(m => string.Equals(m.Name, f.Name, StringComparison.InvariantCultureIgnoreCase)),
-        //    //    Field = f,
-        //    //    Binding = null
-        //    //}).ToList();
-
-        //    //var dType = GetDynamicType(matchingFields);
-        //    //var props = matchingFields.ToDictionary(m => m.Field.Alias, m => m.Prop.PropertyType);
-        //    //var dType = _dBuilder.CreateDynamicType(Guid.NewGuid().ToString(), props);
-
-        //    foreach (var info in infos.Item1)
-        //    {
-        //        if (!IsGQLPrimitive(info.Prop.PropertyType))
-        //        {
-        //            var selector = Expression.Call(baseBindingExpr, info.Prop.GetGetMethod());
-        //            var memberInit = GetMemberInit(info.Field.Fields, info.Prop.PropertyType, selector);
-        //            var bindingExpression = Expression.Bind(dType.GetMember(info.Field.Alias)[0], memberInit);
-        //            info.Binding = bindingExpression;
-        //        }
-        //        else
-        //        {
-        //            info.Binding = GetBindingExpr(info.Prop, dType.GetMember(info.Field.Alias)[0], baseBindingExpr);
-        //        }
-        //    }
-
-        //    var bindings = matchingFields.Select(f => f.Binding).ToArray();
-        //    return Expression.MemberInit(Expression.New(dType), bindings);
-        //}
-
         private static MemberInitExpression GetMemberInit(IEnumerable<MemberMapInfo> members, Type fromType, Type toType, Expression baseBindingExpr)
         {
             foreach (var info in members)

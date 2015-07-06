@@ -10,44 +10,21 @@ namespace ConsoleParser
     {
         static void Main(string[] args)
         {
-            //using (var db = new TestContext())
-            //{
-            //    var account = new Account
-            //    {
-            //        Name = "My Test Account",
-            //        Paid = true
-            //    };
-            //    db.Accounts.Add(account);
-            //    var user = new User
-            //    {
-            //        Name = "Joe User",
-            //        Account = account
-            //    };
-            //    db.Users.Add(user);
-            //    db.SaveChanges();
-            //}
-                var queryStr = @"
+            //Initialize();
+
+            var queryStr = @"
 query user {
     idAlias : id,
     nameAlias : name,
     account {
         id
     }
-}
-";
-                var query = new Parser().Parse(queryStr);
-                var executor = new Executor<TestContext>();
+}";
+            var query = new Parser().Parse(queryStr);
+            var executor = new Executor<TestContext>();
             var objs = executor.Execute(query);
             Console.WriteLine(JsonConvert.SerializeObject(objs));
-                /*
-                var expr = GetSelectorExpr(query.Fields, typeof(User));
 
-            using (var db = new TestContext())
-            {
-                var users = Enumerable.ToList(Queryable.Select(db.Users, (dynamic)expr));
-                var serialized = JsonConvert.SerializeObject(users);
-                Console.WriteLine(serialized);
-            }
             /*
             var parser = new Parser();
             parser.Parse(@"
@@ -63,6 +40,26 @@ query user {
     }");
     */
             Console.ReadLine();
+        }
+
+        private static void Initialize()
+        {
+            using (var db = new TestContext())
+            {
+                var account = new Account
+                {
+                    Name = "My Test Account",
+                    Paid = true
+                };
+                db.Accounts.Add(account);
+                var user = new User
+                {
+                    Name = "Joe User",
+                    Account = account
+                };
+                db.Users.Add(user);
+                db.SaveChanges();
+            }
         }
     }
 

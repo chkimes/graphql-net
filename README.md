@@ -28,7 +28,7 @@ This should be fairly simple to hook into a Web API endpoint.
 There isn't a NuGet package set up yet since it is only marginally useful at the moment. See the TODO section.
 
 ## TODO
-Query Parameterization - Hard to make useful queries without this at the moment
-Flesh out the parsing options - only field selection from queries is currently supported
-Custom resolvers
-Introspection
+Query Parameterization - Hard to make useful queries without this at the moment  
+Flesh out the parsing options - only field selection from queries is currently supported  
+Custom resolvers  
+Introspection  

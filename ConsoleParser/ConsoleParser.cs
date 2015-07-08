@@ -8,37 +8,52 @@ namespace ConsoleParser
 {
     class ConsoleParser
     {
-        static void Main(string[] args)
+        static void Main()
         {
+            GraphQL<TestContext>.Schema.CreateQuery("users", db => db.Users, list: true);
+            GraphQL<TestContext>.Schema.CreateQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
             //Initialize();
 
-            var queryStr = @"
-query user {
+            var queryStr1 = @"
+query user(id:1) {
     idAlias : id,
     nameAlias : name,
     account {
         id
     }
 }";
-            var query = new Parser().Parse(queryStr);
+
+            var queryStr2 = @"
+query user(id:0) {
+    idAlias : id,
+    nameAlias : name,
+    account {
+        id
+    }
+}";
+
+            var queryStr3 = @"
+query users {
+    idAlias : id,
+    nameAlias : name,
+    account {
+        id
+    }
+}";
+            var dict = GraphQL<TestContext>.Execute(queryStr1);
+            Console.WriteLine(JsonConvert.SerializeObject(dict));
+
+            dict = GraphQL<TestContext>.Execute(queryStr2);
+            Console.WriteLine(JsonConvert.SerializeObject(dict));
+
+            dict = GraphQL<TestContext>.Execute(queryStr3);
+            Console.WriteLine(JsonConvert.SerializeObject(dict));
+
+            var query = new Parser().Parse(queryStr1);
             var executor = new Executor<TestContext>();
             var objs = executor.Execute(query);
             Console.WriteLine(JsonConvert.SerializeObject(objs));
 
-            /*
-            var parser = new Parser();
-            parser.Parse(@"
-    query test {
-        field1 : aliased (id: x) @directive @directive:value {
-            nestedField
-            anotherNested
-        }
-        field2
-        field3 {
-            moreNests
-        }
-    }");
-    */
             Console.ReadLine();
         }
 

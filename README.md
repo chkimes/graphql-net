@@ -3,7 +3,7 @@ Query an Entity Framework model with GraphQL
 
 ## Usage
 For a DbContext named MyContext with a User model in the database:
-```
+```csharp
 var queryStr = @"
   query user {
     id
@@ -18,7 +18,7 @@ Console.WriteLine(JsonConvert.SerializeObject(obj));
 ```
 
 Output:
-```
+```json
 [{ "id": 1, "name": "Test User" }]
 ```
 

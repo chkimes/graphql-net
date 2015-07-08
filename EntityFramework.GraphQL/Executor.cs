@@ -46,7 +46,7 @@ namespace EntityFramework.GraphQL
             return typeof(TContext)
                 .GetProperties()
                 .Where(p => p.PropertyType.IsGenericType
-                    && IsAssignableToGenericType(p.PropertyType, typeof(IDbSet<>)))
+                    && TypeHelpers.IsAssignableToGenericType(p.PropertyType, typeof(IDbSet<>)))
                 .Select(p => new QuerySchema
                 {
                     Name = p.PropertyType.GetGenericArguments()[0].Name.ToLower(),
@@ -55,25 +55,6 @@ namespace EntityFramework.GraphQL
                     QueryableGetter = (Func<TContext, IQueryable>)Delegate.CreateDelegate(typeof(Func<TContext, IQueryable>), p.GetGetMethod())
                 })
                 .ToList();
-        }
-
-        public static bool IsAssignableToGenericType(Type givenType, Type genericType)
-        {
-            var interfaceTypes = givenType.GetInterfaces();
-
-            foreach (var it in interfaceTypes)
-            {
-                if (it.IsGenericType && it.GetGenericTypeDefinition() == genericType)
-                    return true;
-            }
-
-            if (givenType.IsGenericType && givenType.GetGenericTypeDefinition() == genericType)
-                return true;
-
-            Type baseType = givenType.BaseType;
-            if (baseType == null) return false;
-
-            return IsAssignableToGenericType(baseType, genericType);
         }
 
         private static DynamicTypeBuilder _dBuilder = new DynamicTypeBuilder();

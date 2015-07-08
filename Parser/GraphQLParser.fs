@@ -5,16 +5,20 @@ open FParsec.CharParsers
 
 type Alias = string option
 
-type Argument = string * string
+type Input = Int of int
+           | Float of single
+           | String of string
+           | Boolean of bool
+type Argument = string * Input
 type Arguments = Argument list
 
-type Directive = string * string option
+type Directive = string * Arguments option
 type Directives = Directive list
 
 type Selection = Field of alias : Alias * name : string * arguments : Arguments * directives : Directives * selectionSet : SelectionSet
 and SelectionSet = Selection list
 
-type Query = string * SelectionSet
+type Query = string * Arguments * SelectionSet
 
 type Definition = QueryOperation of Query
                 | MutationOperation
@@ -26,20 +30,27 @@ type Definition = QueryOperation of Query
 type Document = Definition List
 
 let str s = pstring s
-let ws = many ((str "," >>= (fun a -> preturn ())) <|> spaces1)
+let ws = many (skipChar ',' <|> spaces1)
 
 let name =
     let isNameFirstChar c = isLetter c || c = '_'
     let isNameChar c = isLetter c || isDigit c || c = '_'
     many1Satisfy2L isNameFirstChar isNameChar "name" .>> ws
 
-let value = name // todo fix
+let pnum = numberLiteral (NumberLiteralOptions.AllowExponent ||| NumberLiteralOptions.AllowMinusSign) "number" .>> ws
+        |>> fun n ->
+            if (n.IsInteger) then Int(int32 n.String)
+            else Float(single n.String)
+let pbool = str "true" .>> ws |>> (fun a -> Boolean(true)) <|> (str "false" .>> ws |>> (fun a -> Boolean(false)))
+// TODO pstr
+// TODO pguid
+let value = pbool <|> pnum
 
 let alias = name .>> str ":" .>> ws
 let argument = name .>>. (ws >>. str ":" >>. ws >>. value .>> ws)
 let arguments = str "(" >>. ws >>. many argument .>> str ")" .>> ws
 
-let directive = str "@" >>. name .>>. opt (attempt (str ":" >>. ws >>. value))
+let directive = str "@" >>. name .>>. opt (attempt arguments)
 let directives = many1 directive
 
 let field, fieldref = createParserForwardedToRef<Selection, unit>()
@@ -59,10 +70,11 @@ do fieldref := pipe5
     (fun alias name args dirs set ->
         Field(alias, name, coalesce args, coalesce dirs, coalesce set))
 let query =
-    pipe2
+    pipe3
         (ws >>. str "query" >>. ws >>. name)
+        (opt (attempt arguments))
         selectionset
-        (fun name set -> QueryOperation((name, set)))
+        (fun name args set -> QueryOperation((name, coalesce args, set)))
 let parse str = 
         match run query str with
         | Success(result, _, _) -> Some result

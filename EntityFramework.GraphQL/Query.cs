@@ -5,6 +5,7 @@ namespace EntityFramework.GraphQL
     public class Query
     {
         public string Name { get; set; }
+        public List<Input> Inputs { get; set; }
         public List<Field> Fields { get; set; }
     }
 
@@ -13,5 +14,11 @@ namespace EntityFramework.GraphQL
         public string Name { get; set; }
         public string Alias { get; set; }
         public List<Field> Fields { get; set; }
+    }
+
+    public class Input
+    {
+        public string Name { get; set; }
+        public object Value { get; set; }
     }
 }

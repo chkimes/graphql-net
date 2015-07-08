@@ -10,8 +10,8 @@ let main argv =
         | Failure(errorMsg, _, _) -> printfn "Failure: %s" errorMsg
 
     test query "
-    query test {
-        field1 : aliased (id: x) @directive @directive:value {
+    query test (id: 4.5) {
+        field1 : aliased (id: 1) @directive @directive(test: 3) {
             nestedField
             anotherNested
         }

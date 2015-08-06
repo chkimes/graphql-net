@@ -49,7 +49,7 @@ query users {
             dict = GraphQL<TestContext>.Execute(queryStr3);
             Console.WriteLine(JsonConvert.SerializeObject(dict));
 
-            var query = new Parser().Parse(queryStr1);
+            var query = Parser.Parse(queryStr1);
             var executor = new Executor<TestContext>();
             var objs = executor.Execute(query);
             Console.WriteLine(JsonConvert.SerializeObject(objs));

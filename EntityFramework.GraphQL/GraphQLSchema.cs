@@ -55,12 +55,12 @@ namespace EntityFramework.GraphQL
             return GetGQLType(type, _types);
         }
 
-        private GraphQLType GetGQLType(Type type, List<GraphQLType> types)
+        private static GraphQLType GetGQLType(Type type, List<GraphQLType> types)
         {
             return types.First(t => t.CLRType == type);
         }
 
-        private List<GraphQLType> LoadSchema()
+        private static List<GraphQLType> LoadSchema()
         {
             var types = typeof(TContext)
                 .GetProperties()

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace EntityFramework.GraphQL
 {
@@ -8,27 +9,19 @@ namespace EntityFramework.GraphQL
         {
             var interfaceTypes = givenType.GetInterfaces();
 
-            foreach (var it in interfaceTypes)
-            {
-                if (it.IsGenericType && it.GetGenericTypeDefinition() == genericType)
-                    return true;
-            }
+            if (interfaceTypes.Any(it => it.IsGenericType && it.GetGenericTypeDefinition() == genericType))
+                return true;
 
             if (givenType.IsGenericType && givenType.GetGenericTypeDefinition() == genericType)
                 return true;
 
-            Type baseType = givenType.BaseType;
-            if (baseType == null) return false;
-
-            return IsAssignableToGenericType(baseType, genericType);
+            var baseType = givenType.BaseType;
+            return baseType != null && IsAssignableToGenericType(baseType, genericType);
         }
 
         public static object GetDefault(Type type)
         {
-            if (type.IsValueType)
-                return Activator.CreateInstance(type);
-
-            return null;
+            return type.IsValueType ? Activator.CreateInstance(type) : null;
         }
     }
 }

@@ -66,9 +66,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Parser\Parser.fsproj">
+    <ProjectReference Include="..\GraphQL.Parser\GraphQL.Parser.fsproj">
       <Project>{d5f65a61-8c03-46f1-86aa-7b6da4be25f5}</Project>
-      <Name>Parser</Name>
+      <Name>GraphQL.Parser</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

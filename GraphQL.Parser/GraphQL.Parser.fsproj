@@ -8,11 +8,11 @@
     <ProjectGuid>d5f65a61-8c03-46f1-86aa-7b6da4be25f5</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>Parser</RootNamespace>
-    <AssemblyName>Parser</AssemblyName>
+    <AssemblyName>GraphQL.Parser</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Name>Parser</Name>
+    <Name>GraphQL.Parser</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

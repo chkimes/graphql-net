@@ -28,7 +28,7 @@ namespace EntityFramework.GraphQL
 
         public IDictionary<string, object> ExecuteQuery(string queryStr, TContext context)
         {
-            var parsed = new Parser().Parse(queryStr);
+            var parsed = Parser.Parse(queryStr);
             var query = _schema.FindQuery(parsed.Name);
             return query.Execute(context, parsed.Inputs);
         }

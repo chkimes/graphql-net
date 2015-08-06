@@ -5,28 +5,27 @@ using System.Reflection.Emit;
 
 namespace EntityFramework.GraphQL
 {
-    public class DynamicTypeBuilder
+    public static class DynamicTypeBuilder
     {
-        private AssemblyBuilder _assemblyBuilder;
-        private ModuleBuilder _moduleBuilder;
-        const string assemblyName = "EntityFramework.GraphQL.DynamicObjects";
+        private static readonly ModuleBuilder ModuleBuilder;
+        const string AssemblyName = "EntityFramework.GraphQL.DynamicObjects";
 
-        public DynamicTypeBuilder()
+        static DynamicTypeBuilder()
         {
-            _assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(new AssemblyName(assemblyName), AssemblyBuilderAccess.RunAndSave);
-            _moduleBuilder = _assemblyBuilder.DefineDynamicModule(assemblyName + ".dll");
+            var assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(new AssemblyName(AssemblyName), AssemblyBuilderAccess.RunAndSave);
+            ModuleBuilder = assemblyBuilder.DefineDynamicModule(AssemblyName + ".dll");
         }
 
-        public Type CreateDynamicType(string name, Dictionary<string, Type> properties)
+        public static Type CreateDynamicType(string name, Dictionary<string, Type> properties)
         {
-            var typeBuilder = _moduleBuilder.DefineType(assemblyName + "." + name,
+            var typeBuilder = ModuleBuilder.DefineType(AssemblyName + "." + name,
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AutoClass | TypeAttributes.AnsiClass | TypeAttributes.Serializable | TypeAttributes.BeforeFieldInit);
             foreach (var prop in properties)
                 CreateProperty(typeBuilder, prop.Key, prop.Value);
             return typeBuilder.CreateType();
         }
 
-        private void CreateProperty(TypeBuilder typeBuilder, string name, Type type)
+        private static void CreateProperty(TypeBuilder typeBuilder, string name, Type type)
         {
             var fieldBuilder = typeBuilder.DefineField("_" + name.ToLower(), type, FieldAttributes.Private);
             var propertyBuilder = typeBuilder.DefineProperty(name, PropertyAttributes.HasDefault, type, null);
@@ -35,10 +34,10 @@ namespace EntityFramework.GraphQL
             propertyBuilder.SetSetMethod(CreateSetMethod(typeBuilder, fieldBuilder, name, type));
         }
 
-        const MethodAttributes methodAttrs = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
-        private MethodBuilder CreateGetMethod(TypeBuilder typeBuilder, FieldBuilder fieldBuilder, string name, Type type)
+        const MethodAttributes MethodAttrs = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
+        private static MethodBuilder CreateGetMethod(TypeBuilder typeBuilder, FieldInfo fieldBuilder, string name, Type type)
         {
-            var methodBuilder = typeBuilder.DefineMethod("get_" + name, methodAttrs, type, Type.EmptyTypes);
+            var methodBuilder = typeBuilder.DefineMethod("get_" + name, MethodAttrs, type, Type.EmptyTypes);
             var generator = methodBuilder.GetILGenerator();
             generator.Emit(OpCodes.Ldarg_0);
             generator.Emit(OpCodes.Ldfld, fieldBuilder);
@@ -47,9 +46,9 @@ namespace EntityFramework.GraphQL
             return methodBuilder;
         }
 
-        private MethodBuilder CreateSetMethod(TypeBuilder typeBuilder, FieldBuilder fieldBuilder, string name, Type type)
+        private static MethodBuilder CreateSetMethod(TypeBuilder typeBuilder, FieldInfo fieldBuilder, string name, Type type)
         {
-            var methodBuilder = typeBuilder.DefineMethod("set" + name, methodAttrs, null, new[] { type });
+            var methodBuilder = typeBuilder.DefineMethod("set" + name, MethodAttrs, null, new[] { type });
             var generator = methodBuilder.GetILGenerator();
             generator.Emit(OpCodes.Ldarg_0);
             generator.Emit(OpCodes.Ldarg_1);

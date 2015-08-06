@@ -77,8 +77,8 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Parser\Parser.fsproj">
-      <Name>Parser</Name>
+    <ProjectReference Include="..\GraphQL.Parser\GraphQL.Parser.fsproj">
+      <Name>GraphQL.Parser</Name>
       <Project>{d5f65a61-8c03-46f1-86aa-7b6da4be25f5}</Project>
       <Private>True</Private>
     </ProjectReference>

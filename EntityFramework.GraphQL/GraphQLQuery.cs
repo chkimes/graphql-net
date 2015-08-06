@@ -34,7 +34,7 @@ namespace EntityFramework.GraphQL
             };
         }
 
-        private TArgs GetArgs(List<Input> inputs)
+        private static TArgs GetArgs(List<Input> inputs)
         {
             var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
             if (paramlessCtor != null)
@@ -43,7 +43,7 @@ namespace EntityFramework.GraphQL
             return GetAnonymousArgs(anonTypeCtor, inputs);
         }
 
-        private TArgs GetAnonymousArgs(ConstructorInfo anonTypeCtor, List<Input> inputs)
+        private static TArgs GetAnonymousArgs(ConstructorInfo anonTypeCtor, List<Input> inputs)
         {
             var parameters = anonTypeCtor
                 .GetParameters()
@@ -52,15 +52,13 @@ namespace EntityFramework.GraphQL
             return (TArgs)anonTypeCtor.Invoke(parameters);
         }
 
-        private object GetParameter(ParameterInfo param, List<Input> inputs)
+        private static object GetParameter(ParameterInfo param, List<Input> inputs)
         {
             var input = inputs.FirstOrDefault(i => i.Name == param.Name);
-            if (input != null)
-                return input.Value;
-            return TypeHelpers.GetDefault(param.ParameterType);
+            return input != null ? input.Value : TypeHelpers.GetDefault(param.ParameterType);
         }
 
-        private TArgs GetParamlessArgs(ConstructorInfo paramlessCtor, List<Input> inputs)
+        private static TArgs GetParamlessArgs(ConstructorInfo paramlessCtor, List<Input> inputs)
         {
             var args = (TArgs)paramlessCtor.Invoke(null);
             foreach (var input in inputs)

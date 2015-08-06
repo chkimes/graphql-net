@@ -57,12 +57,11 @@ namespace EntityFramework.GraphQL
                 .ToList();
         }
 
-        private static DynamicTypeBuilder _dBuilder = new DynamicTypeBuilder();
-        private static LambdaExpression GetSelectorExpr(IEnumerable<Field> fields, Type fromType)
+        private static LambdaExpression GetSelectorExpr(ICollection<Field> fields, Type fromType)
         {
             var parameter = Expression.Parameter(fromType, "p");
             var infos = GetMemberMapInfo(fields, fromType);
-            var init = GetMemberInit(infos.Item1, fromType, infos.Item2, parameter);
+            var init = GetMemberInit(infos.Item1, infos.Item2, parameter);
             return Expression.Lambda(init, parameter);
         }
 
@@ -75,14 +74,14 @@ namespace EntityFramework.GraphQL
             public List<MemberMapInfo> Children;
         }
 
-        private static MemberInitExpression GetMemberInit(IEnumerable<MemberMapInfo> members, Type fromType, Type toType, Expression baseBindingExpr)
+        private static MemberInitExpression GetMemberInit(ICollection<MemberMapInfo> members, Type toType, Expression baseBindingExpr)
         {
             foreach (var info in members)
             {
                 if (!IsGQLPrimitive(info.Prop.PropertyType))
                 {
                     var selector = Expression.MakeMemberAccess(baseBindingExpr, info.Prop);
-                    var memberInit = GetMemberInit(info.Children, info.Prop.PropertyType, info.AssignmentType, selector);
+                    var memberInit = GetMemberInit(info.Children, info.AssignmentType, selector);
                     var bindingExpression = Expression.Bind(toType.GetMember(info.Field.Alias)[0], memberInit);
                     info.Binding = bindingExpression;
                 }
@@ -92,11 +91,11 @@ namespace EntityFramework.GraphQL
                 }
             }
 
-            var bindings = members.Select(f => f.Binding).ToArray();
+            var bindings = members.Select(f => f.Binding).Cast<MemberBinding>().ToArray();
             return Expression.MemberInit(Expression.New(toType), bindings);
         }
 
-        private static Tuple<List<MemberMapInfo>, Type> GetMemberMapInfo(IEnumerable<Field> fields, Type fromType)
+        private static Tuple<List<MemberMapInfo>, Type> GetMemberMapInfo(ICollection<Field> fields, Type fromType)
         {
             if (!fields.Any())
                 throw new Exception("Must specify at least 1 field");
@@ -120,7 +119,7 @@ namespace EntityFramework.GraphQL
                 infos.Add(info);
             }
 
-            var dType = _dBuilder.CreateDynamicType(Guid.NewGuid().ToString(), infos.ToDictionary(i => i.Field.Alias, i => i.AssignmentType));
+            var dType = DynamicTypeBuilder.CreateDynamicType(Guid.NewGuid().ToString(), infos.ToDictionary(i => i.Field.Alias, i => i.AssignmentType));
             return Tuple.Create(infos, dType);
         }
 

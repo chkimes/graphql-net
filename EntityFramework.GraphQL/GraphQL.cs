@@ -20,17 +20,11 @@ namespace EntityFramework.GraphQL
             return gql.ExecuteQuery(query);
         }
 
-        public IDictionary<string, object> ExecuteQuery(string query)
-        {
-            using (var context = new TContext())
-                return ExecuteQuery(query, context);
-        }
-
-        public IDictionary<string, object> ExecuteQuery(string queryStr, TContext context)
+        public IDictionary<string, object> ExecuteQuery(string queryStr)
         {
             var parsed = Parser.Parse(queryStr);
             var query = _schema.FindQuery(parsed.Name);
-            return query.Execute(context, parsed);
+            return query.Execute(parsed);
         }
     }
 }

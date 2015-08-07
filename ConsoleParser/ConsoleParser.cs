@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data.Entity;
+using System.Diagnostics;
 using System.Linq;
 using EntityFramework.GraphQL;
 using Newtonsoft.Json;
@@ -40,6 +41,7 @@ query users {
         id
     }
 }";
+
             var dict = GraphQL<TestContext>.Execute(queryStr1);
             Console.WriteLine(JsonConvert.SerializeObject(dict));
 

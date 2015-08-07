@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+using System.Reflection;
 
 namespace EntityFramework.GraphQL
 {
-    public class GraphQLSchema<TContext> where TContext : DbContext
+    public class GraphQLSchema<TContext> where TContext : DbContext, new()
     {
         private readonly List<GraphQLType> _types;
         private readonly List<GraphQLQueryBase<TContext>> _queries = new List<GraphQLQueryBase<TContext>>();
@@ -13,6 +14,12 @@ namespace EntityFramework.GraphQL
         public GraphQLSchema()
         {
             _types = LoadSchema();
+        }
+
+        private void DontCallThis()
+        {
+            // Necessary for compilation?
+            new TContext().Set<GQLQueryObject>().Where(o => o.Field1 == null).Select(o => o).FirstOrDefault();
         }
 
         public void CreateQuery<TArgs, TEntity>(string name, TArgs argObj, Func<TContext, TArgs, IQueryable<TEntity>> queryableGetter, bool list = false)
@@ -82,7 +89,8 @@ namespace EntityFramework.GraphQL
                     var field = new GraphQLField
                     {
                         Name = prop.Name.ToCamelCase(),
-                        Type = gqlType
+                        Type = gqlType,
+                        PropInfo = prop,
                     };
                     type.Fields.Add(field);
                 }
@@ -129,6 +137,7 @@ namespace EntityFramework.GraphQL
 
         public string Name { get; set; }
         public string Description { get; set; }
+        public PropertyInfo PropInfo { get; set; }
         public GraphQLType Type { get; set; }
         public List<InputValue> Arguments { get; set; }
     }

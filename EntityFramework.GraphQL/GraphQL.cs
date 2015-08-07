@@ -30,7 +30,7 @@ namespace EntityFramework.GraphQL
         {
             var parsed = Parser.Parse(queryStr);
             var query = _schema.FindQuery(parsed.Name);
-            return query.Execute(context, parsed.Inputs);
+            return query.Execute(context, parsed);
         }
     }
 }

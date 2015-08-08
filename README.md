@@ -10,7 +10,7 @@ GraphQL<MyContext>.Schema.CreateQuery("user", new { id = 0 },
     (db, args) => db.Users.Where(u => u.Id == args.id));
 ```
 
-The first query returns all users in the database and has no arguments to supply. The second query returns a specific user, given an id in the arguments. To call these methods using GraphQL, use the static Execute method:
+The first query returns all users in the database and has no arguments to supply. The second query returns a specific user, given an id in the arguments. To call these methods using GraphQL, use the static `Execute` method:
 
 ```csharp
 var queryUsers = @"
@@ -34,6 +34,8 @@ var queryUser = @"
 var user = GraphQL<MyContext>.Execute(queryUser);
 Console.WriteLine(JsonConvert.SerializeObject(user));
 ```
+
+The `Execute` method returns a nested `Dictionary<string, object>`, so it's mostly just useful for serializing to JSON.
 
 Multiple users output:
 ```json
@@ -61,7 +63,7 @@ Single user output:
     "user": {
       "id": 1,
       "jeffsName": "Jeff",
-      account: {
+      "account": {
         "id": 1000
       }
     }

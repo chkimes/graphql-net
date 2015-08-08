@@ -53,7 +53,6 @@ Multiple users output:
     ]
   }
 }
-[{ "id": 1, "name": "Test User" }]
 ```
 
 Single user output:

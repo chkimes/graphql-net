@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphQL.Net", "EntityFramework.GraphQL\GraphQL.Net.csproj", "{530742A1-10D8-4255-837D-43D57B00EE50}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphQL.Net", "GraphQL.Net\GraphQL.Net.csproj", "{530742A1-10D8-4255-837D-43D57B00EE50}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GraphQL.Parser", "GraphQL.Parser\GraphQL.Parser.fsproj", "{D5F65A61-8C03-46F1-86AA-7B6DA4BE25F5}"
 EndProject

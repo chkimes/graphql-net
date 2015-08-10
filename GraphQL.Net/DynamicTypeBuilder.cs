@@ -8,7 +8,7 @@ namespace GraphQL.Net
     public static class DynamicTypeBuilder
     {
         private static readonly ModuleBuilder ModuleBuilder;
-        const string AssemblyName = "EntityFramework.GraphQL.DynamicObjects";
+        const string AssemblyName = "GraphQL.DynamicObjects";
 
         static DynamicTypeBuilder()
         {

@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace EntityFramework.GraphQL
 {
-    public class Executor<TContext> where TContext : DbContext, new()
+    public class Executor<TContext> where TContext : IDisposable, new()
     {
         private List<QuerySchema> _queries;
 
@@ -46,7 +45,7 @@ namespace EntityFramework.GraphQL
             return typeof(TContext)
                 .GetProperties()
                 .Where(p => p.PropertyType.IsGenericType
-                    && TypeHelpers.IsAssignableToGenericType(p.PropertyType, typeof(IDbSet<>)))
+                    && TypeHelpers.IsAssignableToGenericType(p.PropertyType, typeof(IQueryable<>)))
                 .Select(p => new QuerySchema
                 {
                     Name = p.PropertyType.GetGenericArguments()[0].Name.ToLower(),

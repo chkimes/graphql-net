@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 
 namespace EntityFramework.GraphQL
 {
-    public class GraphQL<TContext> where TContext : DbContext, new()
+    public class GraphQL<TContext> where TContext : IDisposable, new()
     {
         public static GraphQLSchema<TContext> Schema = new GraphQLSchema<TContext>();
 

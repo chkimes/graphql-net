@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
 using System.Reflection;
 
 namespace EntityFramework.GraphQL
 {
-    public class GraphQLSchema<TContext> where TContext : DbContext, new()
+    public class GraphQLSchema<TContext> where TContext : IDisposable, new()
     {
         private readonly List<GraphQLType> _types;
         private readonly List<GraphQLQueryBase<TContext>> _queries = new List<GraphQLQueryBase<TContext>>();
@@ -14,12 +13,6 @@ namespace EntityFramework.GraphQL
         public GraphQLSchema()
         {
             _types = LoadSchema();
-        }
-
-        private void DontCallThis()
-        {
-            // Necessary for compilation?
-            new TContext().Set<GQLQueryObject>().Where(o => o.Field1 == null).Select(o => o).FirstOrDefault();
         }
 
         public void CreateQuery<TArgs, TEntity>(string name, TArgs argObj, Func<TContext, TArgs, IQueryable<TEntity>> queryableGetter, bool list = false)
@@ -71,7 +64,7 @@ namespace EntityFramework.GraphQL
         {
             var types = typeof(TContext)
                 .GetProperties()
-                .Where(p => p.PropertyType.IsGenericType && TypeHelpers.IsAssignableToGenericType(p.PropertyType, typeof(IDbSet<>)))
+                .Where(p => p.PropertyType.IsGenericType && TypeHelpers.IsAssignableToGenericType(p.PropertyType, typeof(IQueryable<>)))
                 .Select(p => new GraphQLType(p.PropertyType.GetGenericArguments()[0]))
                 .Concat(GetPrimitives())
                 .ToList();

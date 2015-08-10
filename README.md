@@ -1,5 +1,5 @@
-# EntityFramework.GraphQL
-Query an Entity Framework model with GraphQL
+# GraphQL.Net
+An implementation of GraphQL for .NET and IQueryable
 
 ## Usage
 For a DbContext named MyContext with a User model in the database, add queries to the Schema like so:

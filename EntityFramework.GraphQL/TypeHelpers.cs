@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace EntityFramework.GraphQL
+namespace GraphQL.Net
 {
     public static class TypeHelpers
     {

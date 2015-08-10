@@ -64,9 +64,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\EntityFramework.GraphQL\EntityFramework.GraphQL.csproj">
+    <ProjectReference Include="..\EntityFramework.GraphQL\GraphQL.Net.csproj">
       <Project>{530742a1-10d8-4255-837d-43d57b00ee50}</Project>
-      <Name>EntityFramework.GraphQL</Name>
+      <Name>GraphQL.Net</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

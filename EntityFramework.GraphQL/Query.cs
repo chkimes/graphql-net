@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace EntityFramework.GraphQL
+namespace GraphQL.Net
 {
     public class Query
     {

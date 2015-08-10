@@ -4,7 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace EntityFramework.GraphQL
+namespace GraphQL.Net
 {
     public class Executor<TContext> where TContext : IDisposable, new()
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace EntityFramework.GraphQL
+namespace GraphQL.Net
 {
     public class GraphQLSchema<TContext> where TContext : IDisposable, new()
     {

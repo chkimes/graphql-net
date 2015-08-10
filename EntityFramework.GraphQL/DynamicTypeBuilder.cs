@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace EntityFramework.GraphQL
+namespace GraphQL.Net
 {
     public static class DynamicTypeBuilder
     {

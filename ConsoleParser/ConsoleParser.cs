@@ -2,7 +2,7 @@
 using System.Data.Entity;
 using System.Diagnostics;
 using System.Linq;
-using EntityFramework.GraphQL;
+using GraphQL.Net;
 using Newtonsoft.Json;
 
 namespace ConsoleParser

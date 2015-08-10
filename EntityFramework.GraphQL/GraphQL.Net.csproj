@@ -7,8 +7,8 @@
     <ProjectGuid>{530742A1-10D8-4255-837D-43D57B00EE50}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>EntityFramework.GraphQL</RootNamespace>
-    <AssemblyName>EntityFramework.GraphQL</AssemblyName>
+    <RootNamespace>GraphQL.Net</RootNamespace>
+    <AssemblyName>GraphQL.Net</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>

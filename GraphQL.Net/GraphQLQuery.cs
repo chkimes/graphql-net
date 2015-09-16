@@ -153,7 +153,7 @@ namespace GraphQL.Net
         public List<FieldMap> Children;
     }
 
-    internal class GQLQueryObject
+    public class GQLQueryObject
     {
         public object Field1 { get; set; }
         public object Field2 { get; set; }

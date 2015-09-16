@@ -11,7 +11,15 @@ namespace ConsoleParser
     {
         static void Main()
         {
-            GraphQL<TestContext>.Schema.CreateQuery("users", db => db.Users, list: true);
+            ScratchResolvers.AddResolver<TestContext, User>("test", (db, u) => db.Users.Where(us => us.Id == u.Id));
+            ScratchResolvers.AddResolver<TestContext, User>("test2", (db, u) => u.Name);
+            var expr = ScratchResolvers.Resolve<TestContext, User>(db => db.Users);
+            using (var db = new TestContext())
+            {
+                var output = expr.Compile()(db).ToList();
+                Console.WriteLine(output);
+            }
+                GraphQL<TestContext>.Schema.CreateQuery("users", db => db.Users, list: true);
             GraphQL<TestContext>.Schema.CreateQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
             //Initialize();
 

@@ -64,6 +64,32 @@ namespace GraphQL.Net
             var mapFieldName = $"Field{n}";
             return Expression.Bind(typeof(GQLQueryObject).GetMember(mapFieldName)[0], bindToExpr);
         }
+
+        public static class Context<TContext>
+        {
+            public static void AddQuery<TArgs, TEntity>(string name, TArgs obj, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> func)
+            {
+                throw new NotImplementedException();
+            }
+
+            public static void AddQuery<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> expr)
+            {
+                throw new NotImplementedException();
+            }
+
+            public static QueryAdder<TContext, TArgs> UsingParameters<TArgs>(TArgs o)
+            {
+                return new QueryAdder<TContext, TArgs>();
+            }
+        }
+
+        public class QueryAdder<TContext, TArgs>
+        {
+            public void AddQuery<TEntity>(string users, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> expr)
+            {
+                throw new NotImplementedException();
+            }
+        }
     }
 
     public static class ParameterReplacer

@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data.Entity;
 using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 using GraphQL.Net;
 using Newtonsoft.Json;
 
@@ -11,15 +13,37 @@ namespace ConsoleParser
     {
         static void Main()
         {
-            ScratchResolvers.AddResolver<TestContext, User>("test", (db, u) => db.Users.Where(us => us.Id == u.Id));
+            // these should be type methods
+            ScratchResolvers.AddResolver<TestContext, User>("test", (db, u) => db.Users.Where(us => us.Id == u.Id).ToList());
             ScratchResolvers.AddResolver<TestContext, User>("test2", (db, u) => u.Name);
+
+            // this should be a schema method
+            ScratchResolvers.Context<TestContext>
+                .UsingParameters(new { id = 0 })
+                .AddQuery<User>("users", args => db => db.Users.Where(u => u.Id == args.id));
+
+            // ideal, but C# compiler doesn't like it
+            ScratchResolvers.Context<TestContext>.AddQuery("user", new { id = 0 }, args => db => db.Users.Where(u => u.Id == args.id));
+            ScratchResolvers.Context<TestContext>.AddQuery("user", new { id = 0 }, args => (Expression<Func<TestContext, IQueryable<User>>>)(db => db.Users.Where(u => u.Id == args.id)));
+
+            ScratchResolvers.Context<TestContext>.AddQuery("users", db => db.Users);
+
             var expr = ScratchResolvers.Resolve<TestContext, User>(db => db.Users);
             using (var db = new TestContext())
             {
                 var output = expr.Compile()(db).ToList();
+
+                db.Users
+                    .Where(u => u.Id == 0)
+                    .Select(u => new
+                    {
+                        Count = db.Users.Count()
+                    });
+                new List<int>();
+
                 Console.WriteLine(output);
             }
-                GraphQL<TestContext>.Schema.CreateQuery("users", db => db.Users, list: true);
+            GraphQL<TestContext>.Schema.CreateQuery("users", db => db.Users, list: true);
             GraphQL<TestContext>.Schema.CreateQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
             //Initialize();
 

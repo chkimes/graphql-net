@@ -1,56 +1,88 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
+using System.Linq.Expressions;
 
 namespace GraphQL.Net
 {
-    public class GraphQLSchema<TContext> where TContext : IDisposable, new()
+    public class GraphQLSchema<TContext>
     {
+        private readonly Func<TContext> _contextCreator;
         private readonly List<GraphQLType> _types;
         private readonly List<GraphQLQueryBase<TContext>> _queries = new List<GraphQLQueryBase<TContext>>();
 
-        public GraphQLSchema()
+        public static readonly ParameterExpression DbParam = Expression.Parameter(typeof (TContext), "db");
+
+        public GraphQLSchema(Func<TContext> contextCreator)
         {
-            _types = LoadSchema();
+            _contextCreator = contextCreator;
+            _types = GetPrimitives().ToList();
         }
 
-        public void CreateQuery<TArgs, TEntity>(string name, TArgs argObj, Func<TContext, TArgs, IQueryable<TEntity>> queryableGetter, bool list = false)
+        public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string description = null)
         {
-            CreateQuery(name, queryableGetter, list);
+            var type = typeof (TEntity);
+            if (_types.Any(t => t.CLRType == type))
+                throw new ArgumentException("Type has already been added");
+
+            var gqlType = new GraphQLType(type) {IsScalar = type.IsPrimitive, Description = description ?? ""};
+            _types.Add(gqlType);
+
+            return new GraphQLTypeBuilder<TContext, TEntity>(this, gqlType);
         }
 
-        public void CreateQuery<TArgs, TEntity>(string name, Func<TContext, TArgs, IQueryable<TEntity>> queryableGetter, bool list = false)
+        public GraphQLTypeBuilder<TContext, TEntity> GetType<TEntity>()
         {
-            var args = typeof(TArgs)
-                .GetProperties()
-                .Select(p => new InputValue
-                {
-                    Name = p.Name,
-                    Type = GetGQLType(p.PropertyType)
-                }).ToList();
+            var type = _types.FirstOrDefault(t => t.CLRType == typeof (TEntity));
+            if (type == null)
+                throw new KeyNotFoundException($"Type {typeof(TEntity).FullName} could not be found.");
+
+            return new GraphQLTypeBuilder<TContext, TEntity>(this, type);
+        }
+
+        public void AddQuery<TArgs, TEntity>(string name, TArgs argObj, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter, bool list = false)
+        {
+            AddQuery(name, queryableGetter, list);
+        }
+
+        public void AddQuery<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter, bool list = false)
+        {
+            // TODO: Replace db param here?
+            var innerLambda = Expression.Lambda<Func<TContext, IQueryable<TEntity>>>(queryableGetter.Body, queryableGetter.Parameters[0]);
+            var quoted = Expression.Quote(innerLambda);
+            var outerLambda = Expression.Lambda<Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>>>(quoted, queryableGetter.Parameters[1]);
+            var exprGetter = outerLambda.Compile();
+            AddQuery(name, exprGetter, list);
+        }
+
+        public void AddQuery<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter, bool list = false)
+        {
+            // TODO: Replace db param here?
+            var quoted = Expression.Quote(queryableGetter);
+            var outerLambda = Expression.Lambda<Func<object, Expression<Func<TContext, IQueryable<TEntity>>>>>(quoted, Expression.Parameter(typeof(object), "o"));
+            var exprGetter = outerLambda.Compile();
+            AddQuery(name, exprGetter, list);
+        }
+
+        private void AddQuery<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, bool list)
+        {
             _queries.Add(new GraphQLQuery<TContext, TArgs, TEntity>
             {
                 Name = name,
                 Type = GetGQLType(typeof(TEntity)),
-                Arguments = args,
-                GetQueryable = queryableGetter,
-                List = list
+                ExprGetter = exprGetter,
+                List = list,
+                ContextCreator = _contextCreator
             });
         }
 
-        public void CreateQuery<TEntity>(string name, Func<TContext, IQueryable<TEntity>> queryableGetter, bool list = false)
-        {
-            CreateQuery(name, new object(), (db, args) => queryableGetter(db), list);
-        }
-
-        public GraphQLQueryBase<TContext> FindQuery(string name)
+        internal GraphQLQueryBase<TContext> FindQuery(string name)
         {
             // TODO: Name duplicates?
             return _queries.FirstOrDefault(q => q.Name == name);
         }
 
-        private GraphQLType GetGQLType(Type type)
+        internal GraphQLType GetGQLType(Type type)
         {
             return GetGQLType(type, _types);
         }
@@ -58,38 +90,6 @@ namespace GraphQL.Net
         private static GraphQLType GetGQLType(Type type, List<GraphQLType> types)
         {
             return types.First(t => t.CLRType == type);
-        }
-
-        private static List<GraphQLType> LoadSchema()
-        {
-            var types = typeof(TContext)
-                .GetProperties()
-                .Where(p => p.PropertyType.IsGenericType && TypeHelpers.IsAssignableToGenericType(p.PropertyType, typeof(IQueryable<>)))
-                .Select(p => new GraphQLType(p.PropertyType.GetGenericArguments()[0]))
-                .Concat(GetPrimitives())
-                .ToList();
-
-            // TODO: PERF: Dictionary?
-            foreach (var type in types.Where(t => !t.IsScalar))
-            {
-                var props = type.CLRType.GetProperties();
-                foreach (var prop in props)
-                {
-                    var propType = prop.PropertyType;
-                    if (TypeHelpers.IsAssignableToGenericType(propType, typeof(ICollection<>)))
-                        propType = propType.GetGenericArguments()[0];
-                    var gqlType = GetGQLType(propType, types);
-                    var field = new GraphQLField
-                    {
-                        Name = prop.Name.ToCamelCase(),
-                        Type = gqlType,
-                        PropInfo = prop,
-                    };
-                    type.Fields.Add(field);
-                }
-            }
-
-            return types;
         }
 
         private static IEnumerable<GraphQLType> GetPrimitives()
@@ -105,40 +105,43 @@ namespace GraphQL.Net
         }
     }
 
-    public class GraphQLType
+    public class GraphQLTypeBuilder<TContext, TEntity>
     {
-        public GraphQLType(Type type)
+        private readonly GraphQLSchema<TContext> _schema;
+        private readonly GraphQLType _type;
+
+        internal GraphQLTypeBuilder(GraphQLSchema<TContext> schema, GraphQLType type)
         {
-            CLRType = type;
-            Name = type.Name;
-            Fields = new List<GraphQLField>();
+            _schema = schema;
+            _type = type;
         }
 
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public List<GraphQLField> Fields { get; set; }
-        public Type CLRType { get; set; }
-        public bool IsScalar { get; set; } // TODO: TypeKind?
-    }
-
-    public class GraphQLField
-    {
-        public GraphQLField()
+        public GraphQLTypeBuilder<TContext, TEntity> AddField<TArgs, TField>(string name, TArgs shape, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
         {
-            Arguments = new List<InputValue>();
+            _type.Fields.Add(new GraphQLField<TContext, TArgs, TEntity, TField>(_schema)
+                             {
+                                 Name = name,
+                                 ExprFunc = exprFunc
+                             });
+            return this;
         }
 
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public PropertyInfo PropInfo { get; set; }
-        public GraphQLType Type { get; set; }
-        public List<InputValue> Arguments { get; set; }
-    }
+        public GraphQLTypeBuilder<TContext, TEntity> AddField<TField>(Expression<Func<TEntity, TField>> expr)
+        {
+            var member = expr.Body as MemberExpression;
+            if (member == null)
+                throw new InvalidOperationException($"{nameof(expr)} must be a MemberExpression of form [p => p.Field]");
+            var name = member.Member.Name;
+            var lambda = Expression.Lambda<Func<TContext, TEntity, TField>>(member, GraphQLSchema<TContext>.DbParam, expr.Parameters[0]);
+            return AddField(name.ToCamelCase(), lambda);
+        }
 
-    public class InputValue
-    {
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public GraphQLType Type { get; set; }
+        public GraphQLTypeBuilder<TContext, TEntity> AddField<TField>(string name, Expression<Func<TContext, TEntity, TField>> expr)
+            => AddField(name, new object(), o => expr);
+
+        public GraphQLTypeBuilder<TContext, TEntity> AddAllFields()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -2,37 +2,54 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace GraphQL.Net
 {
-    public abstract class GraphQLQueryBase<TContext> where TContext : IDisposable, new()
+    internal abstract class GraphQLQueryBase<TContext>
     {
         public string Name { get; set; }
         public GraphQLType Type { get; set; }
-        public List<InputValue> Arguments { get; set; }
         public bool List { get; set; }
         public abstract IDictionary<string, object> Execute(Query query);
         public abstract IDictionary<string, object> Execute(TContext context, Query query);
+        public Func<TContext> ContextCreator { get; set; }
     }
 
-    public class GraphQLQuery<TContext, TArgs, TEntity> : GraphQLQueryBase<TContext> where TContext : IDisposable, new()
+    internal class GraphQLQuery<TContext, TArgs, TEntity> : GraphQLQueryBase<TContext>
     {
-        public Func<TContext, TArgs, IQueryable<TEntity>> GetQueryable { get; set; }
+        public Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> ExprGetter { get; set; }
+        //public Func<TContext, TArgs, IQueryable<TEntity>> GetQueryable { get; set; }
 
         public override IDictionary<string, object> Execute(Query query)
         {
-            using (var context = new TContext())
-                return Execute(context, query);
+            var context = ContextCreator();
+            var results = Execute(context, query);
+            (context as IDisposable)?.Dispose();
+            return results;
         }
 
         public override IDictionary<string, object> Execute(TContext context, Query query)
         {
-            var args = GetArgs(query.Inputs);
-            var queryable = GetQueryable(context, args);
+            var args = TypeHelpers.GetArgs<TArgs>(query.Inputs);
+            var queryableFuncExpr = ExprGetter(args);
+            var replaced = (Expression<Func<TContext, IQueryable<TEntity>>>)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+            var queryable = replaced.Compile()(context); // TODO: Don't do this
+            //var queryable = GetQueryable(context, args);
             var fieldMaps = query.Fields.Select(f => MapField(f, Type)).ToList();
             var selector = GetSelector(fieldMaps);
-            var transformed = (IQueryable<GQLQueryObject>)Queryable.Select(queryable, (dynamic)selector);
+
+            var selectorExpr = Expression.Quote(selector);
+            //var selectMethod = typeof(Queryable).GetMethods(BindingFlags.Static|BindingFlags.Public).First(m => m.Name == "Select" && m.GetParameters().Count() == 2);
+            //var closedGenericSelectMethod = selectMethod.MakeGenericMethod(typeof(TItem), typeof(GQLQueryObject));
+            var call = Expression.Call(typeof(Queryable), "Select", new[] { typeof(TEntity), typeof(GQLQueryObject) }, replaced.Body, selectorExpr);
+            //var call = Expression.Call(null, closedGenericSelectMethod, baseExpr.Body, selector);
+            var expr = (Expression<Func<TContext, IQueryable<GQLQueryObject>>>)Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
+            var transformed = expr.Compile()(context);
+
+//            var transformed = (IQueryable<GQLQueryObject>)Queryable.Select(queryable, (dynamic)selector);
             if (!List)
                 transformed = transformed.Take(1);
             var data = transformed.ToList();
@@ -100,49 +117,20 @@ namespace GraphQL.Net
         private static MemberBinding GetBinding(FieldMap map, Expression baseBindingExpr, int n)
         {
             var mapFieldName = $"Field{n}";
+            var toMember = typeof (GQLQueryObject).GetMember(mapFieldName)[0];
+            var expr = map.SchemaField.GetExpression(new List<Input>()); // TODO: real inputs
+            var replacedBase = ParameterReplacer.Replace(expr.Body, expr.Parameters[1], baseBindingExpr);
+            var replacedContext = ParameterReplacer.Replace(replacedBase, expr.Parameters[0], GraphQLSchema<TContext>.DbParam);
             if (!map.Children.Any())
-                return GetBindingExpr(map.SchemaField.PropInfo, typeof(GQLQueryObject).GetMember(mapFieldName)[0], baseBindingExpr);
+                return Expression.Bind(toMember, replacedContext);
 
-            var selector = Expression.MakeMemberAccess(baseBindingExpr, map.SchemaField.PropInfo);
-            var memberInit = GetMemberInit(map.Children, selector);
+            var memberInit = GetMemberInit(map.Children, replacedContext);
             return Expression.Bind(typeof(GQLQueryObject).GetMember(mapFieldName)[0], memberInit);
         }
 
         private static MemberAssignment GetBindingExpr(MemberInfo fromMember, MemberInfo toMember, Expression parameter)
         {
             return Expression.Bind(toMember, Expression.MakeMemberAccess(parameter, fromMember));
-        }
-
-        public static TArgs GetArgs(List<Input> inputs)
-        {
-            var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
-            if (paramlessCtor != null)
-                return GetParamlessArgs(paramlessCtor, inputs);
-            var anonTypeCtor = typeof(TArgs).GetConstructors().Single();
-            return GetAnonymousArgs(anonTypeCtor, inputs);
-        }
-
-        private static TArgs GetAnonymousArgs(ConstructorInfo anonTypeCtor, List<Input> inputs)
-        {
-            var parameters = anonTypeCtor
-                .GetParameters()
-                .Select(p => GetParameter(p, inputs))
-                .ToArray();
-            return (TArgs)anonTypeCtor.Invoke(parameters);
-        }
-
-        private static object GetParameter(ParameterInfo param, List<Input> inputs)
-        {
-            var input = inputs.FirstOrDefault(i => i.Name == param.Name);
-            return input != null ? input.Value : TypeHelpers.GetDefault(param.ParameterType);
-        }
-
-        private static TArgs GetParamlessArgs(ConstructorInfo paramlessCtor, List<Input> inputs)
-        {
-            var args = (TArgs)paramlessCtor.Invoke(null);
-            foreach (var input in inputs)
-                typeof(TArgs).GetProperty(input.Name).GetSetMethod().Invoke(args, new[] { input.Value });
-            return args;
         }
     }
 

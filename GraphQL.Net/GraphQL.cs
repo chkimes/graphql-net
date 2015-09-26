@@ -3,14 +3,19 @@ using System.Collections.Generic;
 
 namespace GraphQL.Net
 {
-    public class GraphQL<TContext> where TContext : IDisposable, new()
+    public class GraphQL<TContext>
     {
-        public static GraphQLSchema<TContext> Schema = new GraphQLSchema<TContext>();
+        public static GraphQLSchema<TContext> Schema;
 
         private readonly GraphQLSchema<TContext> _schema;
         public GraphQL(GraphQLSchema<TContext> schema = null)
         {
             _schema = schema ?? Schema;
+        }
+
+        public static GraphQLSchema<TContext> CreateDefaultSchema(Func<TContext> creationFunc)
+        {
+            return Schema = new GraphQLSchema<TContext>(creationFunc);
         }
 
         public static IDictionary<string, object> Execute(string query)

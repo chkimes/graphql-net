@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Diagnostics;
 using System.Linq;
-using System.Linq.Expressions;
 using GraphQL.Net;
 using Newtonsoft.Json;
 
@@ -13,38 +12,22 @@ namespace ConsoleParser
     {
         static void Main()
         {
-            // these should be type methods
-            ScratchResolvers.AddResolver<TestContext, User>("test", (db, u) => db.Users.Where(us => us.Id == u.Id).ToList());
-            ScratchResolvers.AddResolver<TestContext, User>("test2", (db, u) => u.Name);
+            var schema = GraphQL<TestContext>.CreateDefaultSchema(() => new TestContext());
+            schema.AddType<User>()
+                .AddField(u => u.Id)
+                .AddField(u => u.Name)
+                .AddField(u => u.Account)
+                .AddField("total", (db, u) => db.Users.Count())
+                .AddField("accountPaid", (db, u) => u.Account.Paid);
+            schema.AddQuery("users", db => db.Users, list: true);
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
 
-            // this should be a schema method
-            ScratchResolvers.Context<TestContext>
-                .UsingParameters(new { id = 0 })
-                .AddQuery<User>("users", args => db => db.Users.Where(u => u.Id == args.id));
+            //schema.AddType<Account>().AddAllFields(); // TODO:
+            schema.AddType<Account>()
+                .AddField(a => a.Id)
+                .AddField(a => a.Name)
+                .AddField(a => a.Paid);
 
-            // ideal, but C# compiler doesn't like it
-            ScratchResolvers.Context<TestContext>.AddQuery("user", new { id = 0 }, args => db => db.Users.Where(u => u.Id == args.id));
-            ScratchResolvers.Context<TestContext>.AddQuery("user", new { id = 0 }, args => (Expression<Func<TestContext, IQueryable<User>>>)(db => db.Users.Where(u => u.Id == args.id)));
-
-            ScratchResolvers.Context<TestContext>.AddQuery("users", db => db.Users);
-
-            var expr = ScratchResolvers.Resolve<TestContext, User>(db => db.Users);
-            using (var db = new TestContext())
-            {
-                var output = expr.Compile()(db).ToList();
-
-                db.Users
-                    .Where(u => u.Id == 0)
-                    .Select(u => new
-                    {
-                        Count = db.Users.Count()
-                    });
-                new List<int>();
-
-                Console.WriteLine(output);
-            }
-            GraphQL<TestContext>.Schema.CreateQuery("users", db => db.Users, list: true);
-            GraphQL<TestContext>.Schema.CreateQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
             //Initialize();
 
             var queryStr1 = @"
@@ -53,7 +36,8 @@ query user(id:1) {
     nameAlias : name,
     account {
         id
-    }
+    },
+    total
 }";
 
             var queryStr2 = @"
@@ -72,21 +56,18 @@ query users {
     account {
         id
     }
+    total
+    accountPaid
 }";
 
             var dict = GraphQL<TestContext>.Execute(queryStr1);
-            Console.WriteLine(JsonConvert.SerializeObject(dict));
+            Console.WriteLine(JsonConvert.SerializeObject(dict, Formatting.Indented));
 
             dict = GraphQL<TestContext>.Execute(queryStr2);
-            Console.WriteLine(JsonConvert.SerializeObject(dict));
+            Console.WriteLine(JsonConvert.SerializeObject(dict, Formatting.Indented));
 
             dict = GraphQL<TestContext>.Execute(queryStr3);
-            Console.WriteLine(JsonConvert.SerializeObject(dict));
-
-            var query = Parser.Parse(queryStr1);
-            var executor = new Executor<TestContext>();
-            var objs = executor.Execute(query);
-            Console.WriteLine(JsonConvert.SerializeObject(objs));
+            Console.WriteLine(JsonConvert.SerializeObject(dict, Formatting.Indented));
 
             Console.ReadLine();
         }
@@ -107,6 +88,18 @@ query users {
                     Account = account
                 };
                 db.Users.Add(user);
+                var account2 = new Account
+                {
+                    Name = "Another Test Account",
+                    Paid = false
+                };
+                db.Accounts.Add(account2);
+                var user2 = new User
+                {
+                    Name = "Late Paying User",
+                    Account = account2
+                };
+                db.Users.Add(user2);
                 db.SaveChanges();
             }
         }

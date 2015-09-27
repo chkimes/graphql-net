@@ -7,7 +7,7 @@ For me, this isn't terribly useful since I am almost always pulling my data out 
 This library is an implementation of the GraphQL spec that converts GraphQL queries to IQueryable.
 That IQueryable can then be executed using the ORM of your choice.
 
-Here's a descriptive example, using an example from [http://facebook.github.io/graphql/#sec-Language.Query-Document.Arguments](the GraphQL spec):
+Here's a descriptive example, using an example from [the GraphQL spec](http://facebook.github.io/graphql/#sec-Language.Query-Document.Arguments):
 
 ```
 {
@@ -30,11 +30,11 @@ db.Users
         name = u.Name,
         profilePic = db.ProfilePics.Where(p => p.UserId == u.Id && p.Size == 100)
     })
-    .ToList();
+    .FirstOrDefault();
 ```
 
 ## Building a Schema
-Let's assume we have a DbContext that looks like this:
+Let's assume we have an Entity Framework DbContext that looks like this:
 
 ```csharp
 public class TestContext : DbContext
@@ -66,14 +66,14 @@ First, we create and set the default schema by providing a function that creates
 var schema = GraphQL<TestContext>.CreateDefaultSchema(() => new TestContext());
 ```
 
-The default schema is required to use GraphQL<TContext>.Execute(query), but you can execute queries against the schema without it. Next, we'll define a type in the schema and properties on that type.
+The default schema is required to use the helper method`GraphQL<TContext>.Execute(query)`, but you can execute queries against the schema without it. Next, we'll define a type in the schema and fields on that type.
 
 ```csharp
 schema.AddType<User>()
     .AddField(u => u.Id)
     .AddField(u => u.Name)
     .AddField(u => u.Account)
-    .AddField("total", (db, u) => db.Users.Count())
+    .AddField("totalUsers", (db, u) => db.Users.Count())
     .AddField("accountPaid", (db, u) => u.Account.Paid);
 ```
 
@@ -100,12 +100,13 @@ In our first query, we want to see all users so we can just return the entire li
 ```csharp
 var query = @"
 query user(id:1) {
-    userId : id,
-    userName : name,
+    userId : id
+    userName : name
     account {
         id
-    },
-    total
+        paid
+    }
+    totalUsers
 }";
 
 var dict = GraphQL<TestContext>.Execute(query);
@@ -116,9 +117,10 @@ Console.WriteLine(JsonConvert.SerializeObject(dict, Formatting.Indented));
 //     "userId": 1,
 //     "userName": "Joe User",
 //     "account": {
-//       "id": 1
+//       "id": 1,
+//       "paid": true
 //     },
-//     "total": 2
+//     "totalUsers": 2
 //   }
 // }
 ```

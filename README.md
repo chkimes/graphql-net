@@ -19,18 +19,20 @@ Here's a descriptive example, using an example from [the GraphQL spec](http://fa
 }
 ```
 
-The above GraphQL query would be translated to:
+The above GraphQL query could be translated to:
 
 ```csharp
 db.Users
-    .Where(u => u.Id == 4)
-    .Select(u => new
-    {
-        id = u.Id,
-        name = u.Name,
-        profilePic = db.ProfilePics.Where(p => p.UserId == u.Id && p.Size == 100)
-    })
-    .FirstOrDefault();
+  .Where(u => u.Id == 4)
+  .Select(u => new
+  {
+      id = u.Id,
+      name = u.Name,
+      profilePic = db.ProfilePics
+                     .FirstOrDefault(p => p.UserId == u.Id && p.Size == 100)
+                     .Url
+  })
+  .FirstOrDefault();
 ```
 
 ## Building a Schema

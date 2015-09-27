@@ -118,11 +118,7 @@ namespace GraphQL.Net
 
         public GraphQLTypeBuilder<TContext, TEntity> AddField<TArgs, TField>(string name, TArgs shape, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
         {
-            _type.Fields.Add(new GraphQLField<TContext, TArgs, TEntity, TField>(_schema)
-                             {
-                                 Name = name,
-                                 ExprFunc = exprFunc
-                             });
+            _type.Fields.Add(new GraphQLField<TContext, TArgs, TEntity, TField>(_schema, name, exprFunc));
             return this;
         }
 

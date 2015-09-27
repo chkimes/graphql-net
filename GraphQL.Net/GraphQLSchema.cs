@@ -90,6 +90,7 @@ namespace GraphQL.Net
                 Name = name,
                 Type = GetGQLType(typeof(TEntity)),
                 ExprGetter = exprGetter,
+                Schema = this,
                 List = list,
                 ContextCreator = ContextCreator
             });

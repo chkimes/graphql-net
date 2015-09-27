@@ -47,7 +47,7 @@ namespace GraphQL.Net
         private static object GetParameter(ParameterInfo param, List<Input> inputs)
         {
             var input = inputs.FirstOrDefault(i => i.Name == param.Name);
-            return input != null ? input.Value : TypeHelpers.GetDefault(param.ParameterType);
+            return input != null ? input.Value : GetDefault(param.ParameterType);
         }
 
         private static TArgs GetParamlessArgs<TArgs>(ConstructorInfo paramlessCtor, List<Input> inputs)

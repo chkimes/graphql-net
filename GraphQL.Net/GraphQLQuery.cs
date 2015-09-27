@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Net;
-using System.Reflection;
-using System.Runtime.InteropServices;
 
 namespace GraphQL.Net
 {
@@ -119,11 +116,6 @@ namespace GraphQL.Net
 
             var memberInit = GetMemberInit(map.Children, replacedContext);
             return Expression.Bind(typeof(GQLQueryObject).GetMember(mapFieldName)[0], memberInit);
-        }
-
-        private static MemberAssignment GetBindingExpr(MemberInfo fromMember, MemberInfo toMember, Expression parameter)
-        {
-            return Expression.Bind(toMember, Expression.MakeMemberAccess(parameter, fromMember));
         }
     }
 

@@ -52,7 +52,6 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="GraphQLParser.fs" />
-    <None Include="Script.fsx" />
     <Content Include="packages.config" />
     <Content Include="app.config" />
   </ItemGroup>

@@ -21,7 +21,6 @@ namespace GraphQL.Net
     internal class GraphQLQuery<TContext, TArgs, TEntity> : GraphQLQueryBase<TContext>
     {
         public Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> ExprGetter { get; set; }
-        //public Func<TContext, TArgs, IQueryable<TEntity>> GetQueryable { get; set; }
 
         public override IDictionary<string, object> Execute(Query query)
         {
@@ -36,20 +35,14 @@ namespace GraphQL.Net
             var args = TypeHelpers.GetArgs<TArgs>(query.Inputs);
             var queryableFuncExpr = ExprGetter(args);
             var replaced = (Expression<Func<TContext, IQueryable<TEntity>>>)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
-            var queryable = replaced.Compile()(context); // TODO: Don't do this
-            //var queryable = GetQueryable(context, args);
             var fieldMaps = query.Fields.Select(f => MapField(f, Type)).ToList();
             var selector = GetSelector(fieldMaps);
 
             var selectorExpr = Expression.Quote(selector);
-            //var selectMethod = typeof(Queryable).GetMethods(BindingFlags.Static|BindingFlags.Public).First(m => m.Name == "Select" && m.GetParameters().Count() == 2);
-            //var closedGenericSelectMethod = selectMethod.MakeGenericMethod(typeof(TItem), typeof(GQLQueryObject));
             var call = Expression.Call(typeof(Queryable), "Select", new[] { typeof(TEntity), typeof(GQLQueryObject) }, replaced.Body, selectorExpr);
-            //var call = Expression.Call(null, closedGenericSelectMethod, baseExpr.Body, selector);
             var expr = (Expression<Func<TContext, IQueryable<GQLQueryObject>>>)Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
             var transformed = expr.Compile()(context);
 
-//            var transformed = (IQueryable<GQLQueryObject>)Queryable.Select(queryable, (dynamic)selector);
             if (!List)
                 transformed = transformed.Take(1);
             var data = transformed.ToList();
@@ -141,7 +134,7 @@ namespace GraphQL.Net
         public List<FieldMap> Children;
     }
 
-    public class GQLQueryObject
+    internal class GQLQueryObject
     {
         public object Field1 { get; set; }
         public object Field2 { get; set; }

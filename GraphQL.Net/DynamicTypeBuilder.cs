@@ -5,7 +5,8 @@ using System.Reflection.Emit;
 
 namespace GraphQL.Net
 {
-    public static class DynamicTypeBuilder
+    // Currently unused - keeping it around since we'll at some point need to dynamically create types that have more than 20 fields
+    internal static class DynamicTypeBuilder
     {
         private static readonly ModuleBuilder ModuleBuilder;
         const string AssemblyName = "GraphQL.DynamicObjects";

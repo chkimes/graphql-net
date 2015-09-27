@@ -21,11 +21,13 @@ namespace GraphQL.Net
             return baseType != null && IsAssignableToGenericType(baseType, genericType);
         }
 
-        public static object GetDefault(Type type)
-        {
-            return type.IsValueType ? Activator.CreateInstance(type) : null;
-        }
-
+        /// <summary>
+        /// Instantiate an object of <typeparamref name="TArgs"/> given a list of <paramref name="inputs"/>.
+        /// This works for objects with parameterless constructors or anonymous types.
+        /// </summary>
+        /// <typeparam name="TArgs"></typeparam>
+        /// <param name="inputs"></param>
+        /// <returns></returns>
         public static TArgs GetArgs<TArgs>(List<Input> inputs)
         {
             var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
@@ -33,6 +35,14 @@ namespace GraphQL.Net
                 return GetParamlessArgs<TArgs>(paramlessCtor, inputs);
             var anonTypeCtor = typeof(TArgs).GetConstructors().Single();
             return GetAnonymousArgs<TArgs>(anonTypeCtor, inputs);
+        }
+
+        private static TArgs GetParamlessArgs<TArgs>(ConstructorInfo paramlessCtor, List<Input> inputs)
+        {
+            var args = (TArgs)paramlessCtor.Invoke(null);
+            foreach (var input in inputs)
+                typeof(TArgs).GetProperty(input.Name).GetSetMethod().Invoke(args, new[] { input.Value });
+            return args;
         }
 
         private static TArgs GetAnonymousArgs<TArgs>(ConstructorInfo anonTypeCtor, List<Input> inputs)
@@ -50,12 +60,9 @@ namespace GraphQL.Net
             return input != null ? input.Value : GetDefault(param.ParameterType);
         }
 
-        private static TArgs GetParamlessArgs<TArgs>(ConstructorInfo paramlessCtor, List<Input> inputs)
+        private static object GetDefault(Type type)
         {
-            var args = (TArgs)paramlessCtor.Invoke(null);
-            foreach (var input in inputs)
-                typeof(TArgs).GetProperty(input.Name).GetSetMethod().Invoke(args, new[] { input.Value });
-            return args;
+            return type.IsValueType ? Activator.CreateInstance(type) : null;
         }
     }
 }

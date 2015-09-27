@@ -56,7 +56,7 @@ namespace GraphQL.Net
 
             var results = data.Select(o => MapResults(o, fieldMaps));
 
-            return new Dictionary<string, object> { {"data", results } };
+            return new Dictionary<string, object> { {"data", List ? (object)results : results.FirstOrDefault() } };
         }
 
         private static IDictionary<string, object> MapResults(GQLQueryObject gqlQueryObject, IEnumerable<FieldMap> fieldMaps)

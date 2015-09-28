@@ -41,10 +41,13 @@ namespace GraphQL.Net
 
         // This overload is provided to the user so they can shape TArgs with an anonymous type and rely on type inference for type parameters
         // e.g.  AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
-        public void AddQuery<TArgs, TEntity>(string name, TArgs argObj, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter, bool list = false)
-            => AddQuery(name, queryableGetter, list);
+        public void AddQuery<TArgs, TEntity>(string name, TArgs argObj, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
+            => AddQuery(name, queryableGetter);
 
-        public void AddQuery<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter, bool list = false)
+        public void AddLookup<TArgs, TEntity>(string name, TArgs argObj, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
+            => AddLookup(name, queryableGetter);
+
+        private void AddQuery<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter, bool list)
         {
             // TODO: Replace db param here?
             // Transform  (db, args) => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
@@ -55,7 +58,13 @@ namespace GraphQL.Net
             AddQuery(name, exprGetter, list);
         }
 
-        public void AddQuery<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter, bool list = false)
+        public void AddQuery<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
+            => AddQuery(name, queryableGetter, true);
+
+        public void AddLookup<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
+            => AddQuery(name, queryableGetter, false);
+
+        private void AddQuery<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter, bool list)
         {
             // TODO: Replace db param here?
             // Transform  db => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
@@ -64,6 +73,12 @@ namespace GraphQL.Net
             var exprGetter = outerLambda.Compile();
             AddQuery(name, exprGetter, list);
         }
+
+        public void AddQuery<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter)
+            => AddQuery(name, queryableGetter, true);
+
+        public void AddLookup<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter)
+            => AddQuery(name, queryableGetter, false);
 
         // This signature is pretty complicated, but necessarily so.
         // We need to build a function that we can execute against passed in TArgs that

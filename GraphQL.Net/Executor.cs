@@ -28,17 +28,31 @@ namespace GraphQL.Net
             var expr = (Expression<Func<TContext, IQueryable<GQLQueryObject20>>>)Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
             var transformed = expr.Compile()(context);
 
-            if (!gqlQuery.List)
-                transformed = transformed.Take(1);
-            var data = transformed.ToList();
+            object results;
+            switch (gqlQuery.ResolutionType)
+            {
+                case ResolutionType.Unmodified:
+                    throw new Exception("Queries cannot have unmodified resolution. May change in the future.");
+                case ResolutionType.ToList:
+                    results = transformed.ToList().Select(o => MapResults(o, fieldMaps));
+                    break;
+                case ResolutionType.FirstOrDefault:
+                    results = MapResults(transformed.FirstOrDefault(), fieldMaps);
+                    break;
+                case ResolutionType.First:
+                    results = MapResults(transformed.First(), fieldMaps);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
 
-            var results = data.Select(o => MapResults(o, fieldMaps));
-
-            return new Dictionary<string, object> { { "data", gqlQuery.List ? (object)results : results.FirstOrDefault() } };
+            return new Dictionary<string, object> {{"data", results}};
         }
 
         private static IDictionary<string, object> MapResults(GQLQueryObject0 queryObject, IEnumerable<FieldMap> fieldMaps)
         {
+            if (queryObject == null) // TODO: Check type non-null and throw exception
+                return null;
             var n = 1;
             var dict = new Dictionary<string, object>();
             var type = queryObject.GetType();

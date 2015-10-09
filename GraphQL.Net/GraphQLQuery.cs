@@ -9,7 +9,7 @@ namespace GraphQL.Net
     {
         public string Name { get; set; }
         public GraphQLType Type { get; set; }
-        public bool List { get; set; }
+        public ResolutionType ResolutionType { get; set; }
         public GraphQLSchema<TContext> Schema { get; set; }
         public abstract IDictionary<string, object> Execute(Query query);
         public abstract IDictionary<string, object> Execute(TContext context, Query query);
@@ -30,5 +30,13 @@ namespace GraphQL.Net
         {
             return Executor<TContext>.Execute(context, this, query);
         }
+    }
+
+    internal enum ResolutionType
+    {
+        Unmodified,
+        ToList,
+        FirstOrDefault,
+        First
     }
 }

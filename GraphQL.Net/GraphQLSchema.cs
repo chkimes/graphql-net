@@ -55,7 +55,7 @@ namespace GraphQL.Net
             var quoted = Expression.Quote(innerLambda);
             var outerLambda = Expression.Lambda<Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>>>(quoted, queryableGetter.Parameters[1]);
             var exprGetter = outerLambda.Compile();
-            AddQuery(name, exprGetter, list);
+            AddQuery(name, exprGetter, list ? ResolutionType.ToList : ResolutionType.FirstOrDefault);
         }
 
         public void AddQuery<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
@@ -71,7 +71,7 @@ namespace GraphQL.Net
             var quoted = Expression.Quote(queryableGetter);
             var outerLambda = Expression.Lambda<Func<object, Expression<Func<TContext, IQueryable<TEntity>>>>>(quoted, Expression.Parameter(typeof(object), "o"));
             var exprGetter = outerLambda.Compile();
-            AddQuery(name, exprGetter, list);
+            AddQuery(name, exprGetter, list ? ResolutionType.ToList : ResolutionType.FirstOrDefault);
         }
 
         public void AddQuery<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter)
@@ -96,7 +96,7 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        private void AddQuery<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, bool list)
+        private void AddQuery<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
@@ -106,7 +106,7 @@ namespace GraphQL.Net
                 Type = GetGQLType(typeof(TEntity)),
                 ExprGetter = exprGetter,
                 Schema = this,
-                List = list,
+                ResolutionType = type,
                 ContextCreator = ContextCreator
             });
         }

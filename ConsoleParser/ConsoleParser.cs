@@ -20,7 +20,7 @@ namespace ConsoleParser
                 .AddField("total", (db, u) => db.Users.Count())
                 .AddField("accountPaid", (db, u) => u.Account.Paid);
             schema.AddQuery("users", db => db.Users);
-            schema.AddLookup("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
 
             //schema.AddType<Account>().AddAllFields(); // TODO:
             schema.AddType<Account>()

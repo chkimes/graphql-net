@@ -39,47 +39,6 @@ namespace GraphQL.Net
             return new GraphQLTypeBuilder<TContext, TEntity>(this, type);
         }
 
-        // This overload is provided to the user so they can shape TArgs with an anonymous type and rely on type inference for type parameters
-        // e.g.  AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
-        public void AddQuery<TArgs, TEntity>(string name, TArgs argObj, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
-            => AddQuery(name, queryableGetter);
-
-        public void AddLookup<TArgs, TEntity>(string name, TArgs argObj, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
-            => AddLookup(name, queryableGetter);
-
-        private void AddQuery<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter, bool list)
-        {
-            // TODO: Replace db param here?
-            // Transform  (db, args) => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-            var innerLambda = Expression.Lambda<Func<TContext, IQueryable<TEntity>>>(queryableGetter.Body, queryableGetter.Parameters[0]);
-            var quoted = Expression.Quote(innerLambda);
-            var outerLambda = Expression.Lambda<Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>>>(quoted, queryableGetter.Parameters[1]);
-            var exprGetter = outerLambda.Compile();
-            AddQuery(name, exprGetter, list ? ResolutionType.ToList : ResolutionType.FirstOrDefault);
-        }
-
-        public void AddQuery<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
-            => AddQuery(name, queryableGetter, true);
-
-        public void AddLookup<TArgs, TEntity>(string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
-            => AddQuery(name, queryableGetter, false);
-
-        private void AddQuery<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter, bool list)
-        {
-            // TODO: Replace db param here?
-            // Transform  db => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-            var quoted = Expression.Quote(queryableGetter);
-            var outerLambda = Expression.Lambda<Func<object, Expression<Func<TContext, IQueryable<TEntity>>>>>(quoted, Expression.Parameter(typeof(object), "o"));
-            var exprGetter = outerLambda.Compile();
-            AddQuery(name, exprGetter, list ? ResolutionType.ToList : ResolutionType.FirstOrDefault);
-        }
-
-        public void AddQuery<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter)
-            => AddQuery(name, queryableGetter, true);
-
-        public void AddLookup<TEntity>(string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter)
-            => AddQuery(name, queryableGetter, false);
-
         // This signature is pretty complicated, but necessarily so.
         // We need to build a function that we can execute against passed in TArgs that
         // will return a base expression for combining with selectors (stored on GraphQLType.Fields)
@@ -96,7 +55,7 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        private void AddQuery<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
+        internal void AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
@@ -111,7 +70,7 @@ namespace GraphQL.Net
             });
         }
 
-        private void AddUnmodifiedQuery<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
+        internal void AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
@@ -141,52 +100,6 @@ namespace GraphQL.Net
                 new GraphQLType(typeof(bool)) { IsScalar = true },
                 new GraphQLType(typeof(Guid)) { Name = "ID", IsScalar = true }
             };
-        }
-    }
-
-    public class GraphQLTypeBuilder<TContext, TEntity>
-    {
-        private readonly GraphQLSchema<TContext> _schema;
-        private readonly GraphQLType _type;
-
-        internal GraphQLTypeBuilder(GraphQLSchema<TContext> schema, GraphQLType type)
-        {
-            _schema = schema;
-            _type = type;
-        }
-
-        // This overload is provided to the user so they can shape TArgs with an anonymous type and rely on type inference for type parameters
-        // e.g.  AddField("profilePic", new { size = 0 }, (db, user) => db.ProfilePics.Where(p => p.UserId == u.Id && p.Size == args.size));
-        public GraphQLTypeBuilder<TContext, TEntity> AddField<TArgs, TField>(string name, TArgs shape, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
-            => AddField(name, exprFunc);
-
-        // See GraphQLSchema.AddQuery for an explanation of the type of exprFunc, since it follows similar reasons
-        // TL:DR; Fields can have parameters passed in, so the Expression<Func> to be used is dependent on TArgs
-        //        Fields can use TContext as well, so we have to return an Expression<Func<TContext, TEntity, TField>> and replace the TContext parameter when needed
-        public GraphQLTypeBuilder<TContext, TEntity> AddField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
-        {
-            _type.Fields.Add(new GraphQLField<TContext, TArgs, TEntity, TField>(_schema, name, exprFunc));
-            return this;
-        }
-
-        // Overload provided for easily adding properties, e.g.  AddField(u => u.Name);
-        public GraphQLTypeBuilder<TContext, TEntity> AddField<TField>(Expression<Func<TEntity, TField>> expr)
-        {
-            var member = expr.Body as MemberExpression;
-            if (member == null)
-                throw new InvalidOperationException($"{nameof(expr)} must be a MemberExpression of form [p => p.Field]");
-            var name = member.Member.Name;
-            var lambda = Expression.Lambda<Func<TContext, TEntity, TField>>(member, GraphQLSchema<TContext>.DbParam, expr.Parameters[0]);
-            return AddField(name.ToCamelCase(), lambda);
-        }
-
-        // Overload provided for adding fields with no arguments, e.g.  AddField("totalCount", (db, u) => db.Users.Count());
-        public GraphQLTypeBuilder<TContext, TEntity> AddField<TField>(string name, Expression<Func<TContext, TEntity, TField>> expr)
-            => AddField(name, new object(), o => expr);
-
-        public GraphQLTypeBuilder<TContext, TEntity> AddAllFields()
-        {
-            throw new NotImplementedException();
         }
     }
 }

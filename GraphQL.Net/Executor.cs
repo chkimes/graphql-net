@@ -18,7 +18,7 @@ namespace GraphQL.Net
         public static IDictionary<string, object> Execute<TArgs, TEntity>(TContext context, GraphQLQuery<TContext, TArgs, TEntity> gqlQuery, Query query)
         {
             var args = TypeHelpers.GetArgs<TArgs>(query.Inputs);
-            var queryableFuncExpr = gqlQuery.ExprGetter(args);
+            var queryableFuncExpr = gqlQuery.QueryableExprGetter(args);
             var replaced = (Expression<Func<TContext, IQueryable<TEntity>>>)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
             var fieldMaps = query.Fields.Select(f => MapField(f, gqlQuery.Type)).ToList();
             var selector = GetSelector<TEntity>(fieldMaps);

@@ -18,7 +18,8 @@ namespace GraphQL.Net
 
     internal class GraphQLQuery<TContext, TArgs, TEntity> : GraphQLQueryBase<TContext>
     {
-        public Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> ExprGetter { get; set; }
+        public Func<TArgs, Expression<Func<TContext, TEntity>>> ExprGetter { get; set; }
+        public Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> QueryableExprGetter { get; set; }
 
         public override IDictionary<string, object> Execute(Query query)
         {

@@ -104,9 +104,24 @@ namespace GraphQL.Net
             {
                 Name = name,
                 Type = GetGQLType(typeof(TEntity)),
-                ExprGetter = exprGetter,
+                QueryableExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = type,
+                ContextCreator = ContextCreator
+            });
+        }
+
+        private void AddUnmodifiedQuery<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
+        {
+            if (FindQuery(name) != null)
+                throw new Exception($"Query named {name} has already been created.");
+            _queries.Add(new GraphQLQuery<TContext, TArgs, TEntity>
+            {
+                Name = name,
+                Type = GetGQLType(typeof(TEntity)),
+                ExprGetter = exprGetter,
+                Schema = this,
+                ResolutionType = ResolutionType.Unmodified,
                 ContextCreator = ContextCreator
             });
         }

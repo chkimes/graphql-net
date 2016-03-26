@@ -22,11 +22,11 @@ namespace ConsoleParser
             schema.AddQuery("users", db => db.Users);
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
 
-            //schema.AddType<Account>().AddAllFields(); // TODO:
-            schema.AddType<Account>()
-                .AddField(a => a.Id)
-                .AddField(a => a.Name)
-                .AddField(a => a.Paid);
+            schema.AddType<Account>().AddAllFields();
+//            schema.AddType<Account>()
+//                .AddField(a => a.Id)
+//                .AddField(a => a.Name)
+//                .AddField(a => a.Paid);
 
             //Initialize();
 

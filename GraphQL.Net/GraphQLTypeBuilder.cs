@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace GraphQL.Net
 {
@@ -45,7 +46,25 @@ namespace GraphQL.Net
 
         public GraphQLTypeBuilder<TContext, TEntity> AddAllFields()
         {
-            throw new NotImplementedException();
+            foreach (var prop in typeof (TEntity).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                // build selector expression, e.g.: (db, p) => p.Id
+                var entityParam = Expression.Parameter(typeof (TEntity), "p");
+                var memberExpr = Expression.MakeMemberAccess(entityParam, prop);
+                var lambda = Expression.Lambda(memberExpr, GraphQLSchema<TContext>.DbParam, entityParam);
+
+                // build args func wrapping selector expression, e.g. o => (db, p) => p.Id
+                var objectParam = Expression.Parameter(typeof (object), "o");
+                var argsExpr = Expression.Lambda(Expression.Quote(lambda), objectParam);
+                var exprFunc = argsExpr.Compile();
+
+                // create generic field and add to fields list
+                var fieldType = typeof (GraphQLField<,,,>).MakeGenericType(typeof (TContext), typeof (object), typeof (TEntity), prop.PropertyType);
+                var instance = (GraphQLField)Activator.CreateInstance(fieldType, _schema, prop.Name.ToCamelCase(), exprFunc);
+                _type.Fields.Add(instance);
+            }
+
+            return this;
         }
     }
 }

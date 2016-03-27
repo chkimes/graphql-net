@@ -71,7 +71,9 @@ namespace Tests
             schema.AddType<Account>()
                 .AddField(a => a.Id)
                 .AddField(a => a.Name)
-                .AddField(a => a.Paid);
+                .AddField(a => a.Paid)
+                .AddField(a => a.Users);
+            schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.Where(a => a.Id == args.id).FirstOrDefault());
         }
 
         [TestMethod]
@@ -171,6 +173,21 @@ namespace Tests
             var users = gql.ExecuteQuery("query users { id, name }")["data"];
             Assert.AreEqual(users.GetType(), typeof(List<IDictionary<string, object>>));
         }
+
+        [TestMethod]
+        public void NestedEntityList()
+        {
+            var gql = CreateDefaultContext();
+            var account = (IDictionary<string, object>)gql.ExecuteQuery("query account(id:1) { id, users { id, name } }")["data"];
+            Assert.AreEqual(account["id"], 1);
+            Assert.AreEqual(account.Keys.Count, 2);
+            Assert.IsTrue(account.ContainsKey("users"));
+            var users = (List<IDictionary<string, object>>) account["users"];
+            Assert.AreEqual(users.Count, 1);
+            Assert.AreEqual(users[0]["id"], 1);
+            Assert.AreEqual(users[0]["name"], "Joe User");
+            Assert.AreEqual(users[0].Keys.Count, 2);
+        }
     }
 
     public class TestContext : DbContext
@@ -197,5 +214,7 @@ namespace Tests
         public int Id { get; set; }
         public string Name { get; set; }
         public bool Paid { get; set; }
+
+        public List<User> Users { get; set; }
     }
 }

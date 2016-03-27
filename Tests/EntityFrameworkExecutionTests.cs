@@ -154,7 +154,7 @@ namespace Tests
         public void List()
         {
             var gql = CreateDefaultContext();
-            var users = ((IEnumerable<IDictionary<string, object>>)gql.ExecuteQuery("query users { id, name }")["data"]).ToList();
+            var users = ((List<IDictionary<string, object>>)gql.ExecuteQuery("query users { id, name }")["data"]).ToList();
             Assert.AreEqual(users.Count, 2);
             Assert.AreEqual(users[0]["id"], 1);
             Assert.AreEqual(users[0]["name"], "Joe User");

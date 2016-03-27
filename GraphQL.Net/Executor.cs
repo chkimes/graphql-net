@@ -34,7 +34,7 @@ namespace GraphQL.Net
                 case ResolutionType.Unmodified:
                     throw new Exception("Queries cannot have unmodified resolution. May change in the future.");
                 case ResolutionType.ToList:
-                    results = transformed.ToList().Select(o => MapResults(o, fieldMaps));
+                    results = transformed.ToList().Select(o => MapResults(o, fieldMaps)).ToList();
                     break;
                 case ResolutionType.FirstOrDefault:
                     results = MapResults(transformed.FirstOrDefault(), fieldMaps);

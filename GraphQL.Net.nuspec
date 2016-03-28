@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>GraphQL.Net</id>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
     <authors>Chad Kimes</authors>
     <owners>Chad Kimes</owners>
     <licenseUrl>https://github.com/ckimes89/graphql-net/blob/master/LICENSE.md</licenseUrl>
@@ -14,6 +14,7 @@
     <tags>graphql graph ql iqueryable</tags>
     <dependencies>
       <dependency id="FParsec" version="1.0.1" />
+      <dependency id="FSharp.Core" version="4.0.0.1" />
     </dependencies>
   </metadata>
   <files>

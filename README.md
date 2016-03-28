@@ -91,11 +91,10 @@ The last thing we want to do is create some queries. Let's add some to find user
 
 ```csharp
 schema.AddQuery("users", db => db.Users);
-
-schema.AddLookup("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
+schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
 ```
 
-To build a query that returns a List use `AddQuery`, and to build a query that returns a single object use `AddLookup`. In our first query, we want to see all users so we can just return the entire list. However, notice how in the second query we define the shape of an anonymous type `new { id = 0 }`. This is what is expected to be passed in from the GraphQL query. Since we've defined the shape, we can now use that in the `Where` clause to build our IQueryable. Now we're ready to execute a query.
+In our first query, we want to see all users so we can just return the entire list. However, notice how in the second query we define the shape of an anonymous type `new { id = 0 }`. This is what is expected to be passed in from the GraphQL query. Since we've defined the shape, we can now use that in the `Where` clause to build our IQueryable. We use `FirstOrDefault` to signify that this query will return a single result. Now we're ready to execute a query.
 
 ## Executing Queries
 

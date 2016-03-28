@@ -128,8 +128,12 @@ Console.WriteLine(JsonConvert.SerializeObject(dict, Formatting.Indented));
 
 The results from executing the query are returned as a nested Dictionary<string, object> which can easily be converted to JSON and returned to the user.
 
-## NuGet
-There isn't a NuGet package set up yet since there are a few more things required to make this useful. See the TODO section.
+## Installation/NuGet
+Add GraphQL.Net to your project via the Package Manager Console.
+
+```
+PM> Install-Package GraphQL.Net
+```
 
 ## TODO
 Flesh out the parsing options - only field selection from queries is currently supported  

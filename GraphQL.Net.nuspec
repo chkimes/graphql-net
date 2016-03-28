@@ -2,10 +2,10 @@
 <package >
   <metadata>
     <id>GraphQL.Net</id>
-    <version>0.0.2</version>
+    <version>0.0.3</version>
     <authors>Chad Kimes</authors>
     <owners>Chad Kimes</owners>
-    <licenseUrl>https://github.com/ckimes89/graphql-net/blob/master/LICENSE.md</licenseUrl>
+    <licenseUrl>https://github.com/ckimes89/graphql-net/blob/master/LICENSE.txt</licenseUrl>
     <projectUrl>https://github.com/ckimes89/graphql-net</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>An implementation of GraphQL for .NET and IQueryable</description>

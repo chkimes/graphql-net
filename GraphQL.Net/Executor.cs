@@ -61,10 +61,22 @@ namespace GraphQL.Net
                 var key = map.ParsedField.Alias;
                 var mappedFieldName = $"Field{n}";
                 var obj = type.GetProperty(mappedFieldName).GetGetMethod().Invoke(queryObject, new object[] { });
-                var queryObj = obj as GQLQueryObject0;
-                if (map.Children.Any() && queryObj != null)
+                if (map.Children.Any())
                 {
-                    dict.Add(key, MapResults(queryObj, map.Children));
+                    var queryObj = obj as GQLQueryObject0;
+                    var listObj = obj as IEnumerable<GQLQueryObject0>;
+                    if (queryObj != null)
+                    {
+                        dict.Add(key, MapResults(queryObj, map.Children));
+                    }
+                    else if (listObj != null)
+                    {
+                        dict.Add(key, listObj.Select(o => MapResults(o, map.Children)).ToList());
+                    }
+                    else
+                    {
+                        throw new Exception("Shouldn't be here");
+                    }
                 }
                 else
                 {
@@ -114,14 +126,37 @@ namespace GraphQL.Net
         {
             var mapFieldName = $"Field{n}";
             var toMember = toType.GetMember(mapFieldName)[0];
+            // expr is form of: (context, entity) => entity.Field
             var expr = map.SchemaField.GetExpression(new List<Input>()); // TODO: real inputs
+
+            // Replace (entity) with baseBindingExpr, note expression is no longer a LambdaExpression
+            // `(context, entity) => entity.Field` becomes `someOtherEntity.Entity.Field` where baseBindingExpr is `someOtherEntity.Entity`
             var replacedBase = ParameterReplacer.Replace(expr.Body, expr.Parameters[1], baseBindingExpr);
+
+            // This just makes sure that the (context) parameter is the same as the one used by the whole query
             var replacedContext = ParameterReplacer.Replace(replacedBase, expr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+
+            // If there aren't any children, then we can assume that this is a scalar entity and we don't have to map child fields
             if (!map.Children.Any())
                 return Expression.Bind(toMember, replacedContext);
 
-            var memberInit = GetMemberInit(map.Children, replacedContext);
-            return Expression.Bind(toType.GetMember(mapFieldName)[0], memberInit);
+            // If binding a single entity, just use the already built selector expression (replaced context)
+            // Otherwise, if binding to a list, introduce a new parameter that will be used in a call to .Select
+            var listParameter = Expression.Parameter(map.SchemaField.Type.CLRType, map.SchemaField.Type.CLRType.Name.Substring(0, 1).ToLower()); // TODO: Name conflicts in expressions?
+            var bindChildrenTo = map.SchemaField.IsList ? listParameter : replacedContext;
+
+            // Now that we have our new binding parameter, build the tree for the rest of the children
+            var memberInit = GetMemberInit(map.Children, bindChildrenTo);
+
+            // For single entities, we're done and we can just bind to the memberInit expression
+            if (!map.SchemaField.IsList)
+                return Expression.Bind(toMember, memberInit);
+
+            // However for lists, we need to call .Select() and .ToList() first
+            var selectLambda = Expression.Lambda(memberInit, listParameter);
+            var call = Expression.Call(typeof(Enumerable), "Select", new[] { map.SchemaField.Type.CLRType, toType }, replacedContext, selectLambda);
+            var toList = Expression.Call(typeof (Enumerable), "ToList", new[] {toType}, call);
+            return Expression.Bind(toMember, toList);
         }
     }
 

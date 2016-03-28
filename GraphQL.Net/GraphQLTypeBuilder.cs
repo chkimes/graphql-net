@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -25,7 +26,10 @@ namespace GraphQL.Net
         //        Fields can use TContext as well, so we have to return an Expression<Func<TContext, TEntity, TField>> and replace the TContext parameter when needed
         public GraphQLTypeBuilder<TContext, TEntity> AddField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
         {
-            _type.Fields.Add(new GraphQLField<TContext, TArgs, TEntity, TField>(_schema, name, exprFunc));
+            var field = TypeHelpers.IsAssignableToGenericType(typeof (TField), typeof (List<>))
+                ? CreateGenericField(name, exprFunc, typeof (TField))
+                : new GraphQLField<TContext, TArgs, TEntity, TField>(_schema, name, exprFunc);
+            _type.Fields.Add(field);
             return this;
         }
 
@@ -34,7 +38,7 @@ namespace GraphQL.Net
         {
             var member = expr.Body as MemberExpression;
             if (member == null)
-                throw new InvalidOperationException($"{nameof(expr)} must be a MemberExpression of form [p => p.Field]");
+                throw new InvalidOperationException($"Unnamed query {nameof(expr)} must be a MemberExpression of form [p => p.Field].\n\nTry using the explicit AddField overload for a custom field.");
             var name = member.Member.Name;
             var lambda = Expression.Lambda<Func<TContext, TEntity, TField>>(member, GraphQLSchema<TContext>.DbParam, expr.Parameters[0]);
             return AddField(name.ToCamelCase(), lambda);
@@ -47,24 +51,40 @@ namespace GraphQL.Net
         public GraphQLTypeBuilder<TContext, TEntity> AddAllFields()
         {
             foreach (var prop in typeof (TEntity).GetProperties(BindingFlags.Public | BindingFlags.Instance))
-            {
-                // build selector expression, e.g.: (db, p) => p.Id
-                var entityParam = Expression.Parameter(typeof (TEntity), "p");
-                var memberExpr = Expression.MakeMemberAccess(entityParam, prop);
-                var lambda = Expression.Lambda(memberExpr, GraphQLSchema<TContext>.DbParam, entityParam);
-
-                // build args func wrapping selector expression, e.g. o => (db, p) => p.Id
-                var objectParam = Expression.Parameter(typeof (object), "o");
-                var argsExpr = Expression.Lambda(Expression.Quote(lambda), objectParam);
-                var exprFunc = argsExpr.Compile();
-
-                // create generic field and add to fields list
-                var fieldType = typeof (GraphQLField<,,,>).MakeGenericType(typeof (TContext), typeof (object), typeof (TEntity), prop.PropertyType);
-                var instance = (GraphQLField)Activator.CreateInstance(fieldType, _schema, prop.Name.ToCamelCase(), exprFunc);
-                _type.Fields.Add(instance);
-            }
+                _type.Fields.Add(CreateGenericField(prop));
 
             return this;
+        }
+
+        // unsafe generic magic to create a GQLField instance
+        private GraphQLField CreateGenericField(PropertyInfo prop)
+        {
+            // build selector expression, e.g.: (db, p) => p.Id
+            var entityParam = Expression.Parameter(typeof(TEntity), "p");
+            var memberExpr = Expression.MakeMemberAccess(entityParam, prop);
+            var lambda = Expression.Lambda(memberExpr, GraphQLSchema<TContext>.DbParam, entityParam);
+
+            // build args func wrapping selector expression, e.g. o => (db, p) => p.Id
+            var objectParam = Expression.Parameter(typeof(object), "o");
+            var argsExpr = Expression.Lambda(Expression.Quote(lambda), objectParam);
+            var exprFunc = argsExpr.Compile();
+
+            return CreateGenericField(prop.Name.ToCamelCase(), exprFunc, prop.PropertyType);
+        }
+
+        private GraphQLField CreateGenericField(string name, Delegate exprFunc, Type memberType)
+        {
+            if (TypeHelpers.IsAssignableToGenericType(memberType, typeof(List<>)))
+            {
+                var genericType = memberType.GetGenericArguments()[0];
+                var fieldType = typeof(GraphQLListField<,,,>).MakeGenericType(typeof(TContext), typeof(object), typeof(TEntity), genericType);
+                return (GraphQLField)Activator.CreateInstance(fieldType, _schema, name, exprFunc);
+            }
+            else
+            {
+                var fieldType = typeof(GraphQLField<,,,>).MakeGenericType(typeof(TContext), typeof(object), typeof(TEntity), memberType);
+                return (GraphQLField)Activator.CreateInstance(fieldType, _schema, name, exprFunc);
+            }
         }
     }
 }

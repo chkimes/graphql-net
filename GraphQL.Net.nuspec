@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>GraphQL.Net</id>
+    <version>0.0.1</version>
+    <authors>Chad Kimes</authors>
+    <owners>Chad Kimes</owners>
+    <licenseUrl>https://github.com/ckimes89/graphql-net/blob/master/LICENSE.md</licenseUrl>
+    <projectUrl>https://github.com/ckimes89/graphql-net</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>An implementation of GraphQL for .NET and IQueryable</description>
+    <releaseNotes></releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>graphql graph ql iqueryable</tags>
+    <dependencies>
+      <dependency id="FParsec" version="1.0.1" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="GraphQL.Net\bin\Release\GraphQL.Net.dll" target="lib\net40" />
+    <file src="GraphQL.Parser\bin\Release\GraphQL.Parser.dll" target="lib\net40" />
+  </files>
+</package>

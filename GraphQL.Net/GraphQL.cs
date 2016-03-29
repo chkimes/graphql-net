@@ -26,6 +26,9 @@ namespace GraphQL.Net
 
         public IDictionary<string, object> ExecuteQuery(string queryStr)
         {
+            if (!_schema.Completed)
+                throw new InvalidOperationException("Schema must be Completed before executing a query. Try calling the schema's Complete method.");
+
             var parsed = Parser.Parse(queryStr);
             var query = _schema.FindQuery(parsed.Name);
             return query.Execute(parsed);

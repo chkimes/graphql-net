@@ -1,80 +1,45 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using GraphQL.Net;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Tests
 {
     [TestClass]
-    public class EntityFrameworkExecutionTests
+    public class InMemoryExecutionTests
     {
-        [ClassInitialize]
-        public static void Init(TestContext c)
+        private static GraphQL<MemContext> CreateDefaultContext()
         {
-            using (var db = new EfContext())
-            {
-                if (db.Accounts.Any())
-                    return;
-
-                var account = new Account
-                {
-                    Name = "My Test Account",
-                    Paid = true
-                };
-                db.Accounts.Add(account);
-                var user = new User
-                {
-                    Name = "Joe User",
-                    Account = account
-                };
-                db.Users.Add(user);
-                var account2 = new Account
-                {
-                    Name = "Another Test Account",
-                    Paid = false
-                };
-                db.Accounts.Add(account2);
-                var user2 = new User
-                {
-                    Name = "Late Paying User",
-                    Account = account2
-                };
-                db.Users.Add(user2);
-                db.SaveChanges();
-            }
-        }
-
-        private static GraphQL<EfContext> CreateDefaultContext()
-        {
-            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
+            var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());
             InitializeUserSchema(schema);
             InitializeAccountSchema(schema);
             schema.Complete();
-            return new GraphQL<EfContext>(schema);
+            return new GraphQL<MemContext>(schema);
         }
 
-        private static void InitializeUserSchema(GraphQLSchema<EfContext> schema)
+        private static void InitializeUserSchema(GraphQLSchema<MemContext> schema)
         {
             schema.AddType<User>()
                 .AddField(u => u.Id)
                 .AddField(u => u.Name)
                 .AddField(u => u.Account)
-                .AddField("total", (db, u) => db.Users.Count())
+                .AddField("total", (db, u) => db.Users.Count)
                 .AddField("accountPaid", (db, u) => u.Account.Paid);
-            schema.AddQuery("users", db => db.Users);
-            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
+            schema.AddQuery("users", db => db.Users.AsQueryable());
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().Where(u => u.Id == args.id).FirstOrDefault());
         }
 
-        private static void InitializeAccountSchema(GraphQLSchema<EfContext> schema)
+        private static void InitializeAccountSchema(GraphQLSchema<MemContext> schema)
         {
             schema.AddType<Account>()
                 .AddField(a => a.Id)
                 .AddField(a => a.Name)
                 .AddField(a => a.Paid)
                 .AddField(a => a.Users);
-            schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.Where(a => a.Id == args.id).FirstOrDefault());
+            schema.AddQuery("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().Where(a => a.Id == args.id).FirstOrDefault());
         }
 
         [TestMethod]
@@ -86,6 +51,7 @@ namespace Tests
             Assert.AreEqual(user["name"], "Joe User");
             Assert.AreEqual(user.Keys.Count, 2);
         }
+
 
         [TestMethod]
         public void AliasOneField()
@@ -106,7 +72,7 @@ namespace Tests
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user.Keys.Count, 2);
             Assert.IsTrue(user.ContainsKey("account"));
-            var account = (IDictionary<string, object>) user["account"];
+            var account = (IDictionary<string, object>)user["account"];
             Assert.AreEqual(account["id"], 1);
             Assert.AreEqual(account["name"], "My Test Account");
             Assert.AreEqual(account.Keys.Count, 2);
@@ -115,12 +81,12 @@ namespace Tests
         [TestMethod]
         public void AddAllFields()
         {
-            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
+            var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());
             schema.AddType<User>().AddAllFields();
             schema.AddType<Account>().AddAllFields();
-            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().Where(u => u.Id == args.id).FirstOrDefault());
             schema.Complete();
-            var gql = new GraphQL<EfContext>(schema);
+            var gql = new GraphQL<MemContext>(schema);
             var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, name }")["data"];
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user["name"], "Joe User");
@@ -185,24 +151,56 @@ namespace Tests
             Assert.AreEqual(account["id"], 1);
             Assert.AreEqual(account.Keys.Count, 2);
             Assert.IsTrue(account.ContainsKey("users"));
-            var users = (List<IDictionary<string, object>>) account["users"];
+            var users = (List<IDictionary<string, object>>)account["users"];
             Assert.AreEqual(users.Count, 1);
             Assert.AreEqual(users[0]["id"], 1);
             Assert.AreEqual(users[0]["name"], "Joe User");
             Assert.AreEqual(users[0].Keys.Count, 2);
         }
 
-        public class EfContext : DbContext
+        class MemContext
         {
-            public EfContext() : base("DefaultConnection")
+            public MemContext()
             {
-                Database.SetInitializer(new DropCreateDatabaseIfModelChanges<EfContext>());
+                var account = new Account
+                {
+                    Id = 1,
+                    Name = "My Test Account",
+                    Paid = true
+                };
+                Accounts.Add(account);
+                var user = new User
+                {
+                    Id = 1,
+                    Name = "Joe User",
+                    AccountId = 1,
+                    Account = account
+                };
+                Users.Add(user);
+                account.Users = new List<User>{user};
+                var account2 = new Account
+                {
+                    Id = 2,
+                    Name = "Another Test Account",
+                    Paid = false
+                };
+                Accounts.Add(account2);
+                var user2 = new User
+                {
+                    Id = 2,
+                    Name = "Late Paying User",
+                    AccountId = 2,
+                    Account = account2
+                };
+                Users.Add(user2);
+                account2.Users = new List<User> {user2};
             }
-            public IDbSet<User> Users { get; set; }
-            public IDbSet<Account> Accounts { get; set; }
+
+            public List<User> Users { get; set; } = new List<User>();
+            public List<Account> Accounts { get; set; } = new List<Account>();
         }
 
-        public class User
+        class User
         {
             public int Id { get; set; }
             public string Name { get; set; }
@@ -211,7 +209,7 @@ namespace Tests
             public Account Account { get; set; }
         }
 
-        public class Account
+        class Account
         {
             public int Id { get; set; }
             public string Name { get; set; }

@@ -21,12 +21,12 @@ namespace GraphQL.Net
             var queryableFuncExpr = gqlQuery.QueryableExprGetter(args);
             var replaced = (Expression<Func<TContext, IQueryable<TEntity>>>)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
             var fieldMaps = query.Fields.Select(f => MapField(f, gqlQuery.Type)).ToList();
-            var selector = GetSelector<TEntity>(fieldMaps);
+            var selector = GetSelector<TEntity>(gqlQuery.Type, fieldMaps);
 
             var selectorExpr = Expression.Quote(selector);
-            var call = Expression.Call(typeof(Queryable), "Select", new[] { typeof(TEntity), typeof(GQLQueryObject20) }, replaced.Body, selectorExpr);
-            var expr = (Expression<Func<TContext, IQueryable<GQLQueryObject20>>>)Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
-            var transformed = expr.Compile()(context);
+            var call = Expression.Call(typeof(Queryable), "Select", new[] { typeof(TEntity), gqlQuery.Type.QueryType }, replaced.Body, selectorExpr);
+            var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
+            var transformed = (IQueryable<object>)expr.Compile().DynamicInvoke(context);
 
             object results;
             switch (gqlQuery.ResolutionType)
@@ -49,7 +49,7 @@ namespace GraphQL.Net
             return new Dictionary<string, object> {{"data", results}};
         }
 
-        private static IDictionary<string, object> MapResults(GQLQueryObject0 queryObject, IEnumerable<FieldMap> fieldMaps)
+        private static IDictionary<string, object> MapResults(object queryObject, IEnumerable<FieldMap> fieldMaps)
         {
             if (queryObject == null) // TODO: Check type non-null and throw exception
                 return null;
@@ -59,19 +59,17 @@ namespace GraphQL.Net
             foreach (var map in fieldMaps)
             {
                 var key = map.ParsedField.Alias;
-                var mappedFieldName = $"Field{n}";
-                var obj = type.GetProperty(mappedFieldName).GetGetMethod().Invoke(queryObject, new object[] { });
+                var obj = type.GetProperty(map.SchemaField.Name).GetGetMethod().Invoke(queryObject, new object[] { });
                 if (map.Children.Any())
                 {
-                    var queryObj = obj as GQLQueryObject0;
-                    var listObj = obj as IEnumerable<GQLQueryObject0>;
-                    if (queryObj != null)
-                    {
-                        dict.Add(key, MapResults(queryObj, map.Children));
-                    }
-                    else if (listObj != null)
+                    var listObj = obj as IEnumerable<object>;
+                    if (listObj != null)
                     {
                         dict.Add(key, listObj.Select(o => MapResults(o, map.Children)).ToList());
+                    }
+                    else if (obj != null)
+                    {
+                        dict.Add(key, MapResults(obj, map.Children));
                     }
                     else
                     {
@@ -87,10 +85,10 @@ namespace GraphQL.Net
             return dict;
         }
 
-        private static LambdaExpression GetSelector<TEntity>(List<FieldMap> fieldMaps)
+        private static LambdaExpression GetSelector<TEntity>(GraphQLType gqlType, List<FieldMap> fieldMaps)
         {
             var parameter = Expression.Parameter(typeof(TEntity), "p");
-            var init = GetMemberInit(fieldMaps, parameter);
+            var init = GetMemberInit(gqlType.QueryType, fieldMaps, parameter);
             return Expression.Lambda(init, parameter);
         }
 
@@ -105,15 +103,12 @@ namespace GraphQL.Net
             };
         }
 
-        private static MemberInitExpression GetMemberInit(IList<FieldMap> maps, Expression baseBindingExpr)
+        private static MemberInitExpression GetMemberInit(Type queryType, IList<FieldMap> maps, Expression baseBindingExpr)
         {
-            var count = maps.Count;
-            var toType = typeof (GQLQueryObject20); // TODO: Get type based on number of fields
-            var fieldCount = 20; // TODO: see above
-            var bindings = maps.Select((map, i) => GetBinding(map, toType, baseBindingExpr, i + 1)).ToList();
+            var bindings = maps.Select((map, i) => GetBinding(map, queryType, baseBindingExpr, i + 1)).ToList();
 
-            bindings.AddRange(Enumerable.Range(bindings.Count + 1, fieldCount - bindings.Count).Select(i => GetEmptyBinding(toType, i)));
-            return Expression.MemberInit(Expression.New(toType), bindings);
+//            bindings.AddRange(Enumerable.Range(bindings.Count + 1, fieldCount - bindings.Count).Select(i => GetEmptyBinding(toType, i)));
+            return Expression.MemberInit(Expression.New(queryType), bindings);
         }
 
         // Stupid EF limitation
@@ -124,8 +119,7 @@ namespace GraphQL.Net
 
         private static MemberBinding GetBinding(FieldMap map, Type toType, Expression baseBindingExpr, int n)
         {
-            var mapFieldName = $"Field{n}";
-            var toMember = toType.GetMember(mapFieldName)[0];
+            var toMember = toType.GetMember(map.SchemaField.Name)[0];
             // expr is form of: (context, entity) => entity.Field
             var expr = map.SchemaField.GetExpression(new List<Input>()); // TODO: real inputs
 
@@ -146,7 +140,7 @@ namespace GraphQL.Net
             var bindChildrenTo = map.SchemaField.IsList ? listParameter : replacedContext;
 
             // Now that we have our new binding parameter, build the tree for the rest of the children
-            var memberInit = GetMemberInit(map.Children, bindChildrenTo);
+            var memberInit = GetMemberInit(map.SchemaField.Type.QueryType, map.Children, bindChildrenTo);
 
             // For single entities, we're done and we can just bind to the memberInit expression
             if (!map.SchemaField.IsList)
@@ -154,8 +148,8 @@ namespace GraphQL.Net
 
             // However for lists, we need to call .Select() and .ToList() first
             var selectLambda = Expression.Lambda(memberInit, listParameter);
-            var call = Expression.Call(typeof(Enumerable), "Select", new[] { map.SchemaField.Type.CLRType, toType }, replacedContext, selectLambda);
-            var toList = Expression.Call(typeof (Enumerable), "ToList", new[] {toType}, call);
+            var call = Expression.Call(typeof (Enumerable), "Select", new[] {map.SchemaField.Type.CLRType, map.SchemaField.Type.QueryType}, replacedContext, selectLambda);
+            var toList = Expression.Call(typeof (Enumerable), "ToList", new[] {map.SchemaField.Type.QueryType}, call);
             return Expression.Bind(toMember, toList);
         }
     }
@@ -165,31 +159,5 @@ namespace GraphQL.Net
         public Field ParsedField;
         public GraphQLField SchemaField;
         public List<FieldMap> Children;
-    }
-
-    internal class GQLQueryObject0 { }
-
-    internal class GQLQueryObject20 : GQLQueryObject0
-    {
-        public object Field1 { get; set; }
-        public object Field2 { get; set; }
-        public object Field3 { get; set; }
-        public object Field4 { get; set; }
-        public object Field5 { get; set; }
-        public object Field6 { get; set; }
-        public object Field7 { get; set; }
-        public object Field8 { get; set; }
-        public object Field9 { get; set; }
-        public object Field10 { get; set; }
-        public object Field11 { get; set; }
-        public object Field12 { get; set; }
-        public object Field13 { get; set; }
-        public object Field14 { get; set; }
-        public object Field15 { get; set; }
-        public object Field16 { get; set; }
-        public object Field17 { get; set; }
-        public object Field18 { get; set; }
-        public object Field19 { get; set; }
-        public object Field20 { get; set; }
     }
 }

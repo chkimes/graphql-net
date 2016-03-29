@@ -10,6 +10,7 @@ namespace GraphQL.Net
         internal readonly Func<TContext> ContextCreator;
         private readonly List<GraphQLType> _types = GetPrimitives().ToList();
         private readonly List<GraphQLQueryBase<TContext>> _queries = new List<GraphQLQueryBase<TContext>>();
+        internal bool Completed;
 
         public static readonly ParameterExpression DbParam = Expression.Parameter(typeof (TContext), "db");
 
@@ -37,6 +38,35 @@ namespace GraphQL.Net
                 throw new KeyNotFoundException($"Type {typeof(TEntity).FullName} could not be found.");
 
             return new GraphQLTypeBuilder<TContext, TEntity>(this, type);
+        }
+
+        public void Complete()
+        {
+            if (Completed)
+                throw new InvalidOperationException("Schema has already been completed.");
+
+            foreach (var type in _types.Where(t => t.QueryType == null))
+                CompleteType(type);
+
+            Completed = true;
+        }
+
+        private static void CompleteType(GraphQLType type)
+        {
+            // validation maybe perform somewhere else
+            if (type.IsScalar && type.Fields.Count != 0)
+                throw new Exception("Scalar types must not have any fields defined."); // TODO: Schema validation exception?
+            if (!type.IsScalar && type.Fields.Count == 0)
+                throw new Exception("Non-scalar types must have at least one field defined."); // TODO: Schema validation exception?
+
+            if (type.IsScalar)
+            {
+                type.QueryType = type.CLRType;
+                return;
+            }
+
+            var fieldDict = type.Fields.ToDictionary(f => f.Name, f => f.Type.IsScalar ? f.Type.CLRType : typeof (object));
+            type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), fieldDict);
         }
 
         // This signature is pretty complicated, but necessarily so.

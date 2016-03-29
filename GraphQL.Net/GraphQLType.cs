@@ -16,6 +16,7 @@ namespace GraphQL.Net
         public string Description { get; set; }
         public List<GraphQLField> Fields { get; set; }
         public Type CLRType { get; set; }
+        public Type QueryType { get; set; }
         public bool IsScalar { get; set; } // TODO: TypeKind?
     }
 }

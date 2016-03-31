@@ -65,7 +65,7 @@ namespace GraphQL.Net
                 return;
             }
 
-            var fieldDict = type.Fields.ToDictionary(f => f.Name, f => f.Type.IsScalar ? f.Type.CLRType : typeof (object));
+            var fieldDict = type.Fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.IsScalar ? f.Type.CLRType : typeof (object));
             type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), fieldDict);
         }
 

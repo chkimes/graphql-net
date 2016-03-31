@@ -86,5 +86,11 @@ namespace GraphQL.Net
                 return (GraphQLField)Activator.CreateInstance(fieldType, _schema, name, exprFunc);
             }
         }
+
+        public GraphQLTypeBuilder<TContext, TEntity> AddPostField<TField>(string name, Func<TField> fieldFunc)
+        {
+            _type.Fields.Add(new GraphQLPostField<TContext, TField>(_schema, name, fieldFunc));
+            return this;
+        }
     }
 }

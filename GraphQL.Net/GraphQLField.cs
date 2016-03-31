@@ -4,14 +4,19 @@ using System.Linq.Expressions;
 
 namespace GraphQL.Net
 {
+    // TODO: k, this whole thing is starting to suck. We don't need anything more
+    // TODO: than the GraphQLField class. The inheritance isn't buying us anything.
+
     internal abstract class GraphQLField
     {
         public string Name { get; protected set; }
         public string Description { get; set; }
         public virtual bool IsList => false;
+        public virtual bool IsPost => false;
 
         public abstract GraphQLType Type { get; }
         public abstract LambdaExpression GetExpression(List<Input> inputs);
+        public virtual object ResolvePostField() => null;
     }
 
     internal class GraphQLField<TContext, TArgs, TEntity, TField> : GraphQLField
@@ -47,5 +52,29 @@ namespace GraphQL.Net
         // this has to be copied since we're using the type TField and not List<TField> from the base class
         private GraphQLType _type;
         public override GraphQLType Type => _type ?? (_type = Schema.GetGQLType(typeof(TField)));
+    }
+
+    internal class GraphQLPostField<TContext, TField> : GraphQLField
+    {
+        private readonly GraphQLSchema<TContext> _schema;
+        private readonly Func<TField> _fieldFunc;
+
+        public GraphQLPostField(GraphQLSchema<TContext> schema, string name, Func<TField> fieldFunc)
+        {
+            _schema = schema;
+            _fieldFunc = fieldFunc;
+
+            Name = name;
+        }
+
+        public override object ResolvePostField() => _fieldFunc();
+        public override bool IsPost => true;
+
+        private GraphQLType _type;
+        public override GraphQLType Type => _type ?? (_type = _schema.GetGQLType(typeof(TField)));
+        public override LambdaExpression GetExpression(List<Input> inputs)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

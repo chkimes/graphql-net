@@ -27,10 +27,13 @@ namespace Tests
                 .AddField(u => u.Name)
                 .AddField(u => u.Account)
                 .AddField("total", (db, u) => db.Users.Count)
-                .AddField("accountPaid", (db, u) => u.Account.Paid);
+                .AddField("accountPaid", (db, u) => u.Account.Paid)
+                .AddPostField("abc", () => GetAbcPostField());
             schema.AddQuery("users", db => db.Users.AsQueryable());
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().Where(u => u.Id == args.id).FirstOrDefault());
         }
+
+        private static string GetAbcPostField() => "easy as 123"; // mimic an in-memory function
 
         private static void InitializeAccountSchema(GraphQLSchema<MemContext> schema)
         {
@@ -156,6 +159,16 @@ namespace Tests
             Assert.AreEqual(users[0]["id"], 1);
             Assert.AreEqual(users[0]["name"], "Joe User");
             Assert.AreEqual(users[0].Keys.Count, 2);
+        }
+
+        [TestMethod]
+        public void PostField()
+        {
+            var gql = CreateDefaultContext();
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, abc }")["data"];
+            Assert.AreEqual(user["id"], 1);
+            Assert.AreEqual(user["abc"], "easy as 123");
+            Assert.AreEqual(user.Keys.Count, 2);
         }
 
         class MemContext

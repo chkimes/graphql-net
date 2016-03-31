@@ -59,7 +59,9 @@ namespace GraphQL.Net
             foreach (var map in fieldMaps)
             {
                 var key = map.ParsedField.Alias;
-                var obj = type.GetProperty(map.SchemaField.Name).GetGetMethod().Invoke(queryObject, new object[] { });
+                var obj = map.SchemaField.IsPost
+                    ? map.SchemaField.ResolvePostField()
+                    : type.GetProperty(map.SchemaField.Name).GetGetMethod().Invoke(queryObject, new object[] {});
                 if (map.Children.Any())
                 {
                     var listObj = obj as IEnumerable<object>;
@@ -105,7 +107,9 @@ namespace GraphQL.Net
 
         private static MemberInitExpression GetMemberInit(Type queryType, IList<FieldMap> maps, Expression baseBindingExpr)
         {
-            var bindings = maps.Select((map, i) => GetBinding(map, queryType, baseBindingExpr, i + 1)).ToList();
+            var bindings = maps
+                .Where(m => !m.SchemaField.IsPost)
+                .Select((map, i) => GetBinding(map, queryType, baseBindingExpr, i + 1)).ToList();
 
 //            bindings.AddRange(Enumerable.Range(bindings.Count + 1, fieldCount - bindings.Count).Select(i => GetEmptyBinding(toType, i)));
             return Expression.MemberInit(Expression.New(queryType), bindings);

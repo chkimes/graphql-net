@@ -73,6 +73,7 @@ and ISchemaArgument<'s> =
     abstract member ArgumentName : string
     abstract member Description : string option
     abstract member Info : 's
+    /// Check whether a given value is appropriate to pass to this argument.
     abstract member ValidateValue : Value<'s> -> ISchemaArgumentValue<'s> ValidationResult
 and ISchemaArgumentValue<'s> =
     abstract member Argument : ISchemaArgument<'s>
@@ -97,6 +98,9 @@ and ISchema<'s> =
     abstract member ResolveEnumValueByName : string -> ISchemaEnumValue<'s> option
     /// Return the directive, if any, with the given name.
     abstract member ResolveDirectiveByName : string -> ISchemaDirective<'s> option
+    /// The top-level type that queries select from.
+    /// Most likely this will correspond to your DB context type.
+    abstract member RootType : ISchemaType<'s>
 /// A validated value from the GraphQL document.
 and Value<'s> =
     | PrimitiveValue of Primitive

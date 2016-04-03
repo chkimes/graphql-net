@@ -32,6 +32,8 @@ type ValidationException(msg : string, pos : SourceInfo) =
 /// Resolves variables and fragments in the context of a specific operation.
 type IOperationContext<'s> =
     abstract member Schema : ISchema<'s>
+    /// Add a variable definition to the context.
+    abstract member DeclareVariable : string * QLType<'s> * Value<'s> option -> VariableDefinition<'s>
     abstract member ResolveVariableByName : string -> VariableDefinition<'s> option
     abstract member ResolveFragmentDefinitionByName : string -> ParserAST.Fragment option
 
@@ -39,7 +41,7 @@ module private ResolverUtilities =
     let failAt pos msg =
         new ValidationException(msg, pos) |> raise
     type IOperationContext<'s> with
-        member this.ValidateValue(pvalue : ParserAST.Value, pos : SourceInfo) : Value<'s> =
+        member this.ResolveValue(pvalue : ParserAST.Value, pos : SourceInfo) : Value<'s> =
             match pvalue with
             | ParserAST.Variable name ->
                 match this.ResolveVariableByName name with
@@ -60,15 +62,29 @@ module private ResolverUtilities =
             | ParserAST.ListValue elementsWithSource ->
                 [|
                     for element in elementsWithSource do
-                        let vvalue = this.ValidateValue(element.Value, element.Source)
+                        let vvalue = this.ResolveValue(element.Value, element.Source)
                         yield { Value = vvalue; Source = element.Source }
                 |] :> IReadOnlyList<_> |> ListValue
             | ParserAST.ObjectValue fieldsWithSource ->
                 seq {
                     for KeyValue(fieldName, fieldVal) in fieldsWithSource do
-                        let vvalue = this.ValidateValue(fieldVal.Value, fieldVal.Source)
+                        let vvalue = this.ResolveValue(fieldVal.Value, fieldVal.Source)
                         yield fieldName, { Value = vvalue; Source = fieldVal.Source }
                 } |> dictionary :> IReadOnlyDictionary<_, _> |> ObjectValue
+    type ISchema<'s> with
+        member this.ResolveType(ptype : ParserAST.TypeDescription, pos : SourceInfo) : QLType<'s> =
+            let coreTy =
+                match ptype.Type with
+                | ParserAST.NamedType name ->
+                    match this.ResolveTypeByName(name) with
+                    | None -> failAt pos (sprintf "unknown type ``%s''" name)
+                    | Some schemaTy -> NamedType schemaTy
+                | ParserAST.ListType ptys ->
+                    [|
+                        for { Source = pos; Value = pty } in ptys do
+                            yield { Source = pos; Value = this.ResolveType(pty, pos) }
+                    |] :> IReadOnlyList<_> |> ListType
+            { Type = coreTy; Nullable = ptype.Nullable }
 open ResolverUtilities
 
 type Resolver<'s>
@@ -84,7 +100,7 @@ type Resolver<'s>
                 match schemaArgs.TryFind(parg.ArgumentName) with
                 | None -> failAt pos (sprintf "unknown argument ``%s''" parg.ArgumentName)
                 | Some arg ->
-                    let pargValue = opContext.ValidateValue(parg.ArgumentValue, pos)
+                    let pargValue = opContext.ResolveValue(parg.ArgumentValue, pos)
                     match arg.ValidateValue(pargValue) with
                     | Invalid reason ->
                         failAt pos (sprintf "invalid argument ``%s'': ``%s''" parg.ArgumentName reason)
@@ -170,3 +186,73 @@ type Resolver<'s>
             for { Source = pos; Value = pselection } in pselections do
                 yield { Source = pos; Value = this.ResolveSelection(pselection, pos) }
         |] :> IReadOnlyList<_>
+    member this.ResolveOperation(poperation : ParserAST.Operation, pos : SourceInfo) =
+        match poperation with
+        | ParserAST.ShorthandOperation pselections ->
+            let selections = this.ResolveSelections(pselections)
+            ShorthandOperation selections
+        | ParserAST.LonghandOperation plonghand ->
+            let variableDefinitions =
+                [|
+                    for { Source = pos; Value = pvarDef } in plonghand.VariableDefinitions do
+                        match opContext.ResolveVariableByName(pvarDef.VariableName) with
+                        | None -> () // good, we're declaring a new variable
+                        | Some _ ->
+                            failAt pos (sprintf "duplicate declaration of variable ``%s''" pvarDef.VariableName)
+                        let varType = opContext.Schema.ResolveType(pvarDef.Type, pos)
+                        let defaultValue =
+                            pvarDef.DefaultValue
+                            |> Option.map (fun v -> opContext.ResolveValue(v, pos))
+                        let varDef = opContext.DeclareVariable(pvarDef.VariableName, varType, defaultValue)
+                        yield { Source = pos; Value = varDef }
+                |]
+            {
+                OperationType =
+                    match plonghand.Type with
+                    | ParserAST.Mutation -> Mutation
+                    | ParserAST.Query -> Query
+                OperationName = plonghand.Name
+                VariableDefinitions = variableDefinitions
+                Directives = this.ResolveDirectives(plonghand.Directives)
+                Selections = this.ResolveSelections(plonghand.Selections)
+            } |> LonghandOperation
+
+type DocumentContext<'s>(schema : ISchema<'s>, document : ParserAST.Document) =
+    let fragments = new Dictionary<string, ParserAST.Fragment>()
+    do
+        for { Source = pos; Value = definition } in document.Definitions do
+            match definition with
+            | ParserAST.FragmentDefinition frag ->
+                if fragments.ContainsKey(frag.FragmentName) then
+                    failAt pos (sprintf "duplicate definition of fragment ``%s''" frag.FragmentName)
+                else
+                    fragments.Add(frag.FragmentName, frag)
+            | ParserAST.OperationDefinition _ -> () // ignore operations
+    member __.ResolveFragmentDefinitionByName(name) =
+        fragments.TryFind(name)
+    member this.ResolveDocument() =
+        let operations =
+            [|
+                for { Source = pos; Value = definition } in document.Definitions do
+                    match definition with
+                    | ParserAST.OperationDefinition operation ->
+                        let opContext = new OperationContext<'s>(schema, this)
+                        let resolver = new Resolver<'s>(schema.RootType, opContext)
+                        let op = resolver.ResolveOperation(operation, pos)
+                        yield { Source = pos; Value = op }
+                    | ParserAST.FragmentDefinition _ -> () // ignore fragments
+            |]
+        new Document<'s>(operations)
+/// Resolves variables and fragments in the context of a specific operation.
+and OperationContext<'s>(schema : ISchema<'s>, document : DocumentContext<'s>) =
+    let variableDefs = new Dictionary<string, VariableDefinition<'s>>()
+    interface IOperationContext<'s> with
+        member __.Schema = schema
+        member __.DeclareVariable(name, qlType, defaultValue) =
+            let def = { VariableName = name; VariableType = qlType; DefaultValue= defaultValue }
+            variableDefs.Add(name, def)
+            def
+        member __.ResolveVariableByName(name) =
+            variableDefs.TryFind(name)
+        member __.ResolveFragmentDefinitionByName(name) =
+            document.ResolveFragmentDefinitionByName(name)

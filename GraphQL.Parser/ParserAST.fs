@@ -130,7 +130,7 @@ and InlineFragment =
 /// to describe a "nullable (not nullable (type))" or similar nonsense.
 type CoreTypeDescription =
     | NamedType of TypeName
-    | ListType of TypeDescription ResizeArray
+    | ListType of TypeDescription ListWithSource
 /// Represents a GraphQL type.
 /// This may be a named type or a list of types and may be nullable.
 /// See types in section 3 of the GraphQL spec.

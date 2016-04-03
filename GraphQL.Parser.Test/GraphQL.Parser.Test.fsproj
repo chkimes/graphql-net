@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ParserTest.fs" />
+    <Compile Include="SchemaTest.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
   </ItemGroup>

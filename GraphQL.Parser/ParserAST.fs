@@ -20,33 +20,13 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-namespace GraphQL.Parser.ParserAST
+module GraphQL.Parser.ParserAST
 open System.Collections.Generic
 
-/// The position in the source file that a syntactic element appeared.
-type SourcePosition =
-    {
-        Index : int64
-        Line : int64
-        Column : int64
-    }
-
-/// The span of (start, end) positions in the source file
-/// that a syntactic element occupies.
-type SourceInfo =
-    {
-        StartPosition : SourcePosition
-        EndPosition : SourcePosition
-    }
-
-/// `'a` with the positions in source that it spanned.
-type WithSource<'a> =
-    {
-        /// The position in source of the syntactic element
-        Source : SourceInfo
-        /// The syntactic element
-        Value : 'a
-    }
+// This file defines the types that make up the AST parsed from a GraphQL document
+// before any validation is applied. These types describe the structure of the document
+// but there is no guarantee that variable names used as values are declared somewhere
+// or that type names are valid in any given schema.
 
 // Most of the time when we need to put source info on an AST element
 // it's because it's within a list, therefore the SourceInfo of its containing

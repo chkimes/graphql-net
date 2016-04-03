@@ -182,6 +182,3 @@ type Operation<'s> =
 // used via the spread operator in an operation. It's impossible to resolve variable
 // types against the schema at the point where a fragment is defined, because they could
 // be different depending on where it's used.
-
-type Document<'s>(operations : Operation<'s> ListWithSource) =
-    member __.Operations = operations

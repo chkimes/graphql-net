@@ -52,11 +52,12 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Utilities.fs" />
-    <Compile Include="WithSource.fs" />
+    <Compile Include="SourceTypes.fs" />
     <Compile Include="ParserAST.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="SchemaAST.fs" />
     <Compile Include="Resolver.fs" />
+    <Compile Include="GraphQLDocument.fs" />
     <Compile Include="GraphQLParser.fs" />
     <Content Include="app.config" />
     <Content Include="packages.config" />

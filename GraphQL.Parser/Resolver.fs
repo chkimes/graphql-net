@@ -230,19 +230,17 @@ type DocumentContext<'s>(schema : ISchema<'s>, document : ParserAST.Document) =
             | ParserAST.OperationDefinition _ -> () // ignore operations
     member __.ResolveFragmentDefinitionByName(name) =
         fragments.TryFind(name)
-    member this.ResolveDocument() =
-        let operations =
-            [|
-                for { Source = pos; Value = definition } in document.Definitions do
-                    match definition with
-                    | ParserAST.OperationDefinition operation ->
-                        let opContext = new OperationContext<'s>(schema, this)
-                        let resolver = new Resolver<'s>(schema.RootType, opContext)
-                        let op = resolver.ResolveOperation(operation, pos)
-                        yield { Source = pos; Value = op }
-                    | ParserAST.FragmentDefinition _ -> () // ignore fragments
-            |]
-        new Document<'s>(operations)
+    member this.ResolveOperations() =
+        [|
+            for { Source = pos; Value = definition } in document.Definitions do
+                match definition with
+                | ParserAST.OperationDefinition operation ->
+                    let opContext = new OperationContext<'s>(schema, this)
+                    let resolver = new Resolver<'s>(schema.RootType, opContext)
+                    let op = resolver.ResolveOperation(operation, pos)
+                    yield { Source = pos; Value = op }
+                | ParserAST.FragmentDefinition _ -> () // ignore fragments
+        |]
 /// Resolves variables and fragments in the context of a specific operation.
 and OperationContext<'s>(schema : ISchema<'s>, document : DocumentContext<'s>) =
     let variableDefs = new Dictionary<string, VariableDefinition<'s>>()

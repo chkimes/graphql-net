@@ -1,4 +1,5 @@
 ﻿namespace GraphQL.Parser
+open System
 
 /// The position in the source file that a syntactic element appeared.
 type SourcePosition =
@@ -8,6 +9,10 @@ type SourcePosition =
         Column : int64
     }
 
+type ParsingException(msg, pos : SourcePosition) =
+    inherit Exception(msg)
+    member this.Position = pos
+
 /// The span of (start, end) positions in the source file
 /// that a syntactic element occupies.
 type SourceInfo =
@@ -15,6 +20,12 @@ type SourceInfo =
         StartPosition : SourcePosition
         EndPosition : SourcePosition
     }
+    member this.ShowInSource(source : string) =
+        // TODO: nicely format, point at the location with ^^^ or something
+        source.Substring
+            ( int this.StartPosition.Index
+            , int (this.EndPosition.Index - this.StartPosition.Index)
+            )
 
 /// `'a` with the positions in source that it spanned.
 type WithSource<'a> =

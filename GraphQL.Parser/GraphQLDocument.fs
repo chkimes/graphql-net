@@ -20,23 +20,23 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-[<AutoOpen>]
-module GraphQL.Parser.Utilities
+namespace GraphQL.Parser
+open GraphQL.Parser.SchemaAST
 open System.Collections.Generic
 
-/// Make a dictionary from a list of key/value pair tuples.
-/// This is like the built-in F# function dict, except it returns a System.Collections.Dictionary
-/// instead of an IDictionary, and it does *not* allow duplicate keys to implicitly overwrite each
-/// other.
-let dictionary (pairs : ('k * 'v) seq) =
-    let d = new Dictionary<_, _>()
-    for key, value in pairs do
-        d.Add(key, value)
-    d
+type GraphQLParserDocument(source : string, document : ParserAST.Document) =
+    member __.Source = source
+    member __.AST = document
+    static member Parse(source) =
+        let document = Parser.parseDocument source
+        new GraphQLParserDocument(source, document)
 
-type IReadOnlyDictionary<'k, 'v> with
-    /// Return `Some value` if the key is present in the dictionary, otherwise `None`.
-    member this.TryFind(key : 'k) =
-        let mutable output = Unchecked.defaultof<'v>
-        if this.TryGetValue(key, &output) then Some output
-        else None
+type GraphQLDocument<'s>(schema : ISchema<'s>, source : string, operations : Operation<'s> ListWithSource) =
+    member __.Schema = schema
+    member __.Source = source
+    member __.Operations = operations
+    static member Parse(schema, source) =
+        let doc = GraphQLParserDocument.Parse(source)
+        let context = new DocumentContext<'s>(schema, doc.AST)
+        let ops = context.ResolveOperations()
+        new GraphQLDocument<'s>(schema, source, ops)

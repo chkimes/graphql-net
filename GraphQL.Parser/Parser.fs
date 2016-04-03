@@ -85,12 +85,15 @@ FParsec's `Position` type. Here, we implement parsers that help consume those ty
 
 *)
 
-// Translates from FParsec's position type to our own.
+/// Translates from FParsec's position type to our own.
+let translatePosition (pos : Position) = { Index = pos.Index; Line = pos.Line; Column = pos.Column }
+
+/// Get the source position the parser is currently at.
 let sourcePosition =
     %% +.p<Position>
-    -%> fun pos -> { Index = pos.Index; Line = pos.Line; Column = pos.Column }
+    -%> translatePosition
 
-// Wraps any parser with source information.
+/// Wraps any parser with source information.
 let withSource (parser : Parser<'a, unit>) =
     %% +.sourcePosition
     -- +.parser
@@ -383,7 +386,7 @@ Or, with directives:
 let fragmentSpread =
     %% "..."
     -..- +.name
-    -..- +.optionalMany directives
+    ?- ignored -- +.optionalMany directives
     -%> fun name dirs ->
         { FragmentName = name; Directives = dirs } : FragmentSpread
 
@@ -599,4 +602,11 @@ been consumed.
 let document =
     %% ignored
     -- +.(qty.[0..] /. ignored * withSource definition)
+    -- eof
     -%> fun defs -> { Definitions = defs }
+
+let parseDocument (source : string) =
+    match run document source with
+    | Success(doc, (), pos) -> doc
+    | Failure(msg, err, ()) ->
+        raise <| new ParsingException(msg, translatePosition err.Position)

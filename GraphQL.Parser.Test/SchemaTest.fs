@@ -244,3 +244,18 @@ type SchemaTest() =
     }
 }
 "
+
+    [<TestMethod>]
+    member __.TestRecursionDepth() =
+        bad "exceeded maximum recursion depth" @"
+fragment friendNamedBobForever on User {
+    friend(name: ""bob"") {
+        ...friendNamedBobForever
+    }
+}
+{
+    user {
+        ...friendNamedBobForever
+    }
+}
+"

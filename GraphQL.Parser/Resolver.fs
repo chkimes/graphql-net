@@ -90,7 +90,9 @@ open ResolverUtilities
 type Resolver<'s>
     ( schemaType : ISchemaType<'s> // the type being selected from
     , opContext : IOperationContext<'s>
+    , recursionDepth : int
     ) =
+    static let maxRecursionDepth = 10 // should be plenty for real queries
     member private this.ResolveArguments
         ( schemaArgs : IReadOnlyDictionary<string, ISchemaArgument<'s>>
         , pargs : ParserAST.Argument WithSource seq
@@ -125,13 +127,22 @@ type Resolver<'s>
         | Some fieldInfo ->
             let directives = this.ResolveDirectives(pfield.Directives)
             let arguments = this.ResolveArguments(fieldInfo.Arguments, pfield.Arguments)
-            let child = new Resolver<'s>(fieldInfo.FieldType, opContext)
+            let selections =
+                if pfield.Selections.Count <= 0 then
+                    [||] :> IReadOnlyList<_>
+                else
+                    if recursionDepth >= maxRecursionDepth then
+                        failAt
+                            pfield.Selections.[0].Source
+                            (sprintf "exceeded maximum recursion depth of %d" maxRecursionDepth)
+                    let child = new Resolver<'s>(fieldInfo.FieldType, opContext, recursionDepth + 1)
+                    child.ResolveSelections(pfield.Selections)
             {
                 SchemaField = fieldInfo
                 Alias = pfield.Alias
                 Directives = directives
                 Arguments = arguments
-                Selections = child.ResolveSelections(pfield.Selections)
+                Selections = selections
             }
     member private this.ResolveTypeCondition(typeName : string, pos : SourceInfo) =
         match opContext.Schema.ResolveTypeByName(typeName) with
@@ -236,7 +247,7 @@ type DocumentContext<'s>(schema : ISchema<'s>, document : ParserAST.Document) =
                 match definition with
                 | ParserAST.OperationDefinition operation ->
                     let opContext = new OperationContext<'s>(schema, this)
-                    let resolver = new Resolver<'s>(schema.RootType, opContext)
+                    let resolver = new Resolver<'s>(schema.RootType, opContext, 0)
                     let op = resolver.ResolveOperation(operation, pos)
                     yield { Source = pos; Value = op }
                 | ParserAST.FragmentDefinition _ -> () // ignore fragments

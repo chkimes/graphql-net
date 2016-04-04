@@ -79,11 +79,8 @@ module private ResolverUtilities =
                     match this.ResolveTypeByName(name) with
                     | None -> failAt pos (sprintf "unknown type ``%s''" name)
                     | Some schemaTy -> NamedType schemaTy
-                | ParserAST.ListType ptys ->
-                    [|
-                        for { Source = pos; Value = pty } in ptys do
-                            yield { Source = pos; Value = this.ResolveType(pty, pos) }
-                    |] :> IReadOnlyList<_> |> ListType
+                | ParserAST.ListType plty ->
+                    this.ResolveType(plty, pos) |> ListType
             { Type = coreTy; Nullable = ptype.Nullable }
 open ResolverUtilities
 

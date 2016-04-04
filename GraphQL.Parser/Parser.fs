@@ -469,7 +469,7 @@ This is why `coreTypeDescription` and `typeDescription` are separate.
 
 let coreTypeDescription typeDescription =
     let listType =
-        %% '[' -..- +.(qty.[1..] * withSource typeDescription) -..- ']' -%> ListType
+        %% '[' -..- +.typeDescription -..- ']' -%> ListType
     let namedType =
         %% +.name -%> NamedType
     %[

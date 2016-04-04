@@ -110,7 +110,7 @@ and Value<'s> =
     | ObjectValue of IReadOnlyDictionary<string, Value<'s> WithSource>
 and CoreQLType<'s> =
     | NamedType of ISchemaType<'s>
-    | ListType of QLType<'s> ListWithSource
+    | ListType of QLType<'s>
 and QLType<'s> =
     {
         Type : CoreQLType<'s>

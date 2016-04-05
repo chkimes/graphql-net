@@ -62,6 +62,7 @@
   <ItemGroup>
     <Compile Include="EntityFrameworkExecutionTests.cs" />
     <Compile Include="InMemoryExecutionTests.cs" />
+    <Compile Include="MemContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SchemaSetupTests.cs" />
   </ItemGroup>

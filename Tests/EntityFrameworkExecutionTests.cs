@@ -205,7 +205,28 @@ namespace Tests
             Assert.AreEqual(user.Keys.Count, 2);
         }
 
-        public class EfContext : DbContext
+        [TestMethod]
+        public void PostFieldSubQuery()
+        {
+            var schema = new GraphQLSchema<EfContext>(() => new EfContext());
+            schema.AddType<User>().AddPostField("sub", () => new Sub {Id = 1});
+            schema.AddType<Sub>().AddField(s => s.Id);
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
+            schema.Complete();
+            var gql = new GraphQL<EfContext>(schema);
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { sub { id } }")["data"];
+            Assert.AreEqual(user.Keys.Count, 1);
+            var sub = (IDictionary<string, object>)user["sub"];
+            Assert.AreEqual(sub["id"], 1);
+            Assert.AreEqual(sub.Keys.Count, 1);
+        }
+
+        class Sub
+        {
+            public int Id { get; set; }
+        }
+
+        class EfContext : DbContext
         {
             public EfContext() : base("DefaultConnection")
             {
@@ -215,7 +236,7 @@ namespace Tests
             public IDbSet<Account> Accounts { get; set; }
         }
 
-        public class User
+        class User
         {
             public int Id { get; set; }
             public string Name { get; set; }
@@ -224,7 +245,7 @@ namespace Tests
             public Account Account { get; set; }
         }
 
-        public class Account
+        class Account
         {
             public int Id { get; set; }
             public string Name { get; set; }

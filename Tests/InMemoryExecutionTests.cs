@@ -171,6 +171,27 @@ namespace Tests
             Assert.AreEqual(user.Keys.Count, 2);
         }
 
+        [TestMethod]
+        public void PostFieldSubQuery()
+        {
+            var schema = new GraphQLSchema<MemContext>(() => new MemContext());
+            schema.AddType<User>().AddPostField("sub", () => new Sub {Id = 1});
+            schema.AddType<Sub>().AddField(s => s.Id);
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().Where(u => u.Id == args.id).FirstOrDefault());
+            schema.Complete();
+            var gql = new GraphQL<MemContext>(schema);
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { sub { id } }")["data"];
+            Assert.AreEqual(user.Keys.Count, 1);
+            var sub = (IDictionary<string, object>)user["sub"];
+            Assert.AreEqual(sub["id"], 1);
+            Assert.AreEqual(sub.Keys.Count, 1);
+        }
+
+        class Sub
+        {
+            public int Id { get; set; }
+        }
+
         class MemContext
         {
             public MemContext()

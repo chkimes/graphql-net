@@ -30,84 +30,22 @@ open Microsoft.VisualStudio.TestTools.UnitTesting
 // Metadata type of our fake schema is just a string.
 type FakeData = string
 
-type ColorType() =
-    member private this.Value(name) =
-        { new ISchemaEnumValue<FakeData> with
-            member __.DeclaringType = upcast this
-            member __.EnumValueName = name
-            member __.Description = Some ("Description of " + name)
-            member __.Info = "Info for " + name
-        }
-    interface ISchemaQueryType<FakeData> with
-        member this.TypeName = "Color"
-        member this.Description = Some "Enum color type"
-        member this.Info = "Fake color enum info"
-        member this.Fields = [||] |> dictionary :> _
-        member this.EnumValues =
-            [|
-               "Red", this.Value("Red")
-               "Blue", this.Value("Blue")
-               "Green", this.Value("Green")
-            |] |> dictionary :> _
-
-type StringType() =
-    interface ISchemaQueryType<FakeData> with
-        member this.TypeName = "String"
-        member this.Description = Some "Primitive string type"
-        member this.Info = "Fake string type info"
-        member this.Fields = [||] |> dictionary :> _
-        member this.EnumValues = [||] |> dictionary :> _
-
-type IntegerType() =
-    interface ISchemaQueryType<FakeData> with
-        member this.TypeName = "Integer"
-        member this.Description = Some "Primitive integer type"
-        member this.Info = "Fake integer type info"
-        member this.Fields = [||] |> dictionary :> _
-        member this.EnumValues = [||] |> dictionary :> _
-
 type NameArgument() =
     interface ISchemaArgument<FakeData> with
         member this.ArgumentName = "name"
+        member this.ArgumentType = PrimitiveType StringType
         member this.Description = Some "argument for filtering by name"
         member this.Info = "Fake name arg info"
-        member this.ValidateValue(value) =
-            let arg =
-                lazy { new ISchemaArgumentValue<FakeData> with
-                    member __.Argument = this :> _
-                    member __.Info = "fake arg value info"
-                    member __.Value = value
-                }
-            match value with
-            | PrimitiveValue (StringPrimitive str) -> Valid arg.Value
-            | VariableRefValue def ->
-                match def.VariableType.Type with
-                | NamedType (:? StringType as st) -> Valid arg.Value
-                | _ -> Invalid "Variable of non-string type"
-            | _ -> Invalid "Literal of non-string type"
 
 type IdArgument() =
     interface ISchemaArgument<FakeData> with
         member this.ArgumentName = "id"
+        member this.ArgumentType = PrimitiveType IntType
         member this.Description = Some "argument for filtering by id"
         member this.Info = "Fake id arg info"
-        member this.ValidateValue(value) =
-            let arg =
-                lazy { new ISchemaArgumentValue<FakeData> with
-                    member __.Argument = this :> _
-                    member __.Info = "fake arg value info"
-                    member __.Value = value
-                }
-            match value with
-            | PrimitiveValue (IntPrimitive _) -> Valid arg.Value
-            | VariableRefValue def ->
-                match def.VariableType.Type with
-                | NamedType (:? IntegerType as st) -> Valid arg.Value
-                | _ -> Invalid "Variable of non-integer type"
-            | _ -> Invalid "Literal of non-integer type"
 
 type UserType() =
-    member private this.Field(name, fieldType : ISchemaQueryType<FakeData>, args) =
+    member private this.Field(name, fieldType : SchemaFieldType<FakeData>, args) =
         { new ISchemaField<FakeData> with
             member __.DeclaringType = upcast this
             member __.FieldType = fieldType
@@ -120,21 +58,19 @@ type UserType() =
         member this.TypeName = "User"
         member this.Description = Some "Complex user type"
         member this.Info = "Fake user type info"
-        member this.EnumValues = [||] |> dictionary :> _
         member this.Fields =
             [|
-                "id", this.Field("id", new IntegerType(), [||])
-                "name", this.Field("name", new StringType(), [||])
-                "friend", this.Field("friend", this,
+                "id", this.Field("id", ValueField { Nullable = false; Type = PrimitiveType IntType }, [||])
+                "name", this.Field("name", ValueField { Nullable = false; Type = PrimitiveType StringType }, [||])
+                "friend", this.Field("friend", QueryField (this :> ISchemaQueryType<_>),
                     [|
                         "name", new NameArgument() :> _
                         "id", new IdArgument() :> _
                     |])
-                "favoriteColor", this.Field("favoriteColor", new ColorType(), [||])
             |] |> dictionary :> _
 
 type RootType() =
-    member private this.Field(name, fieldType : ISchemaQueryType<FakeData>, args) =
+    member private this.Field(name, fieldType : SchemaFieldType<FakeData>, args) =
         { new ISchemaField<FakeData> with
             member __.DeclaringType = upcast this
             member __.FieldType = fieldType
@@ -147,10 +83,9 @@ type RootType() =
         member this.TypeName = "Root"
         member this.Description = Some "Root context type"
         member this.Info = "Fake root type info"
-        member this.EnumValues = [||] |> dictionary :> _
         member this.Fields =
             [|
-                "user", this.Field("user", new UserType(),
+                "user", this.Field("user", QueryField (new UserType()),
                     [|
                         "name", new NameArgument() :> _
                         "id", new IdArgument() :> _
@@ -162,13 +97,12 @@ type FakeSchema() =
     let types =
         [
             root
-            new ColorType() :> _
             new UserType() :> _
         ]
     interface ISchema<FakeData> with
         member this.ResolveDirectiveByName(name) = None // no directives
-        member this.ResolveEnumValueByName(name) =
-            types |> List.tryPick (fun ty -> ty.EnumValues.TryFind(name))
+        member this.ResolveEnumValueByName(name) = None // no enums
+        member this.ResolveVariableTypeByName(name) = None // no named types
         member this.ResolveQueryTypeByName(name) =
             types |> List.tryFind (fun ty -> ty.TypeName = name)
         member this.RootType = root

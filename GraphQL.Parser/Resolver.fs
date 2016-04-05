@@ -33,15 +33,15 @@ type ValidationException(msg : string, pos : SourceInfo) =
 type IOperationContext<'s> =
     abstract member Schema : ISchema<'s>
     /// Add a variable definition to the context.
-    abstract member DeclareVariable : string * VariableType * Value<'s> option -> VariableDefinition<'s>
-    abstract member ResolveVariableByName : string -> VariableDefinition<'s> option
+    abstract member DeclareVariable : string * VariableType * Value option -> VariableDefinition
+    abstract member ResolveVariableByName : string -> VariableDefinition option
     abstract member ResolveFragmentDefinitionByName : string -> ParserAST.Fragment option
 
 module private ResolverUtilities =
     let failAt pos msg =
         new ValidationException(msg, pos) |> raise
     type IOperationContext<'s> with
-        member this.ResolveValueExpression(pvalue : ParserAST.Value, pos : SourceInfo) : ValueExpression<'s> =
+        member this.ResolveValueExpression(pvalue : ParserAST.Value, pos : SourceInfo) : ValueExpression =
             match pvalue with
             | ParserAST.Variable name ->
                 match this.ResolveVariableByName name with
@@ -94,6 +94,34 @@ module private ResolverUtilities =
                 | ParserAST.ListType plty ->
                     this.ResolveVariableType(plty, pos) |> ListType
             { Type = coreTy; Nullable = ptype.Nullable }
+        member this.ResolveValueConst(pvalue : ParserAST.ValueConst, pos : SourceInfo) : Value =
+            match pvalue with
+            | ParserAST.PrimitiveValueConst p ->
+                match p with
+                | ParserAST.IntValue i ->
+                    PrimitiveValue (IntPrimitive i)
+                | ParserAST.FloatValue f ->
+                    PrimitiveValue (FloatPrimitive f)
+                | ParserAST.StringValue s ->
+                    PrimitiveValue (StringPrimitive s)
+                | ParserAST.BooleanValue b ->
+                    PrimitiveValue (BooleanPrimitive b)
+                | ParserAST.EnumValue enumName ->
+                    match this.ResolveEnumValueByName enumName with
+                    | None -> failAt pos (sprintf "``%s'' is not a member of any known enum type" enumName)
+                    | Some enumVal -> EnumValue enumVal
+            | ParserAST.ListValueConst elementsWithSource ->
+                [|
+                    for element in elementsWithSource do
+                        let vvalue = this.ResolveValueConst(element.Value, element.Source)
+                        yield { Value = vvalue; Source = element.Source }
+                |] :> IReadOnlyList<_> |> ListValue
+            | ParserAST.ObjectValueConst fieldsWithSource ->
+                seq {
+                    for KeyValue(fieldName, fieldVal) in fieldsWithSource do
+                        let vvalue = this.ResolveValueConst(fieldVal.Value, fieldVal.Source)
+                        yield fieldName, { Value = vvalue; Source = fieldVal.Source }
+                } |> dictionary :> IReadOnlyDictionary<_, _> |> ObjectValue
 open ResolverUtilities
 
 type Resolver<'s>
@@ -112,11 +140,10 @@ type Resolver<'s>
                 | None -> failAt pos (sprintf "unknown argument ``%s''" parg.ArgumentName)
                 | Some arg ->
                     let pargValue = opContext.ResolveValueExpression(parg.ArgumentValue, pos)
-                    match arg.ValidateValue(pargValue) with
-                    | Invalid reason ->
-                        failAt pos (sprintf "invalid argument ``%s'': ``%s''" parg.ArgumentName reason)
-                    | Valid argVal ->
-                        yield { Value = argVal; Source = pos }
+                    if arg.ArgumentType.AcceptsValueExpression(pargValue) then
+                        yield { Value = { Argument = arg; Value = pargValue }; Source = pos }
+                    else
+                        failAt pos (sprintf "invalid argument ``%s''" parg.ArgumentName) // TODO show type mismatch
         |] :> IReadOnlyList<_>
     member private this.ResolveDirectives(pdirs : ParserAST.Directive WithSource seq) =
         [|
@@ -228,7 +255,7 @@ type Resolver<'s>
                         let varType = opContext.Schema.ResolveVariableType(pvarDef.Type, pos)
                         let defaultValue =
                             pvarDef.DefaultValue
-                            |> Option.map (fun v -> opContext.ResolveValueExpression(v, pos))
+                            |> Option.map (fun v -> opContext.Schema.ResolveValueConst(v, pos))
                         let varDef = opContext.DeclareVariable(pvarDef.VariableName, varType, defaultValue)
                         yield { Source = pos; Value = varDef }
                 |]
@@ -269,7 +296,7 @@ type DocumentContext<'s>(schema : ISchema<'s>, document : ParserAST.Document) =
         |]
 /// Resolves variables and fragments in the context of a specific operation.
 and OperationContext<'s>(schema : ISchema<'s>, document : DocumentContext<'s>) =
-    let variableDefs = new Dictionary<string, VariableDefinition<'s>>()
+    let variableDefs = new Dictionary<string, VariableDefinition>()
     interface IOperationContext<'s> with
         member __.Schema = schema
         member __.DeclareVariable(name, qlType, defaultValue) =

@@ -37,13 +37,35 @@ type Primitive =
     | FloatPrimitive of double
     | StringPrimitive of string
     | BooleanPrimitive of bool
-    | NullPrimitive // although it can't be written as a literal, it does exist
-
-type PrimitiveType =
+    member this.Type =
+        match this with
+        | IntPrimitive _ -> IntType
+        | FloatPrimitive _ -> FloatType
+        | StringPrimitive _ -> StringType
+        | BooleanPrimitive _ -> BooleanType
+and PrimitiveType =
     | IntType
     | FloatType
     | StringType
     | BooleanType
+
+type EnumTypeValue =
+    {
+        ValueName : string
+        Description : string option
+    }
+and EnumType =
+    {
+        EnumName : string
+        Description : string option
+        Values : IReadOnlyDictionary<string, EnumTypeValue>
+    }
+
+type EnumValue =
+    {
+        Type : EnumType
+        Value : EnumTypeValue
+    }
 
 type ListWithSource<'a> = IReadOnlyList<'a WithSource>
 
@@ -56,8 +78,6 @@ type ISchemaQueryType<'s> =
     /// Get the fields of this type, keyed by name.
     /// May be empty, for example if the type is a primitive.
     abstract member Fields : IReadOnlyDictionary<string, ISchemaField<'s>>
-    /// Get the enumerated values of this type, if it is an enum type.
-    abstract member EnumValues : IReadOnlyDictionary<string, ISchemaEnumValue<'s>>
 /// Represents a named core type, e.g. a "Time" type represented by an ISO-formatted string.
 /// The type may define validation rules that run on values after they have been checked to
 /// match the given core type.
@@ -65,7 +85,7 @@ and ISchemaVariableType =
     abstract member TypeName : string
     abstract member CoreType : CoreVariableType
     /// Produce an error message if the value is not valid for this type.
-    abstract member ValidateValue : Value<'s> -> string option
+    abstract member ValidateValue : Value -> string option
 /// Represents the type of a field, which may be either another queryable type, or
 /// a non-queryable value.
 and SchemaFieldType<'s> =
@@ -89,15 +109,6 @@ and ISchemaArgument<'s> =
     abstract member ArgumentType : CoreVariableType
     abstract member Description : string option
     abstract member Info : 's
-and ISchemaArgumentValue<'s> =
-    abstract member Argument : ISchemaArgument<'s>
-    abstract member Info : 's
-    abstract member Value : ValueExpression<'s>
-and ISchemaEnumValue<'s> =
-    abstract member DeclaringType : ISchemaQueryType<'s>
-    abstract member EnumValueName : string
-    abstract member Description : string option
-    abstract member Info : 's
 and ISchemaDirective<'s> =
     abstract member DirectiveName : string
     abstract member Description : string option
@@ -115,57 +126,120 @@ and ISchema<'s> =
     /// may appear in a query and 
     abstract member ResolveQueryTypeByName : string -> ISchemaQueryType<'s> option
     /// Return all types that contain the given enum value name.
-    abstract member ResolveEnumValueByName : string -> ISchemaEnumValue<'s> option
+    abstract member ResolveEnumValueByName : string -> EnumValue option
     /// Return the directive, if any, with the given name.
     abstract member ResolveDirectiveByName : string -> ISchemaDirective<'s> option
     /// The top-level type that queries select from.
     /// Most likely this will correspond to your DB context type.
     abstract member RootType : ISchemaQueryType<'s>
 /// A value within the GraphQL document. This is fully resolved, not a variable reference.
-and Value<'s> =
+and Value =
     | PrimitiveValue of Primitive
-    | EnumValue of ISchemaEnumValue<'s>
-    | ListValue of Value<'s> ListWithSource
-    | ObjectValue of IReadOnlyDictionary<string, Value<'s> WithSource>
+    | NullValue
+    | EnumValue of EnumValue
+    | ListValue of Value ListWithSource
+    | ObjectValue of IReadOnlyDictionary<string, Value WithSource>
+    member this.ToExpression() =
+        match this with
+        | PrimitiveValue p -> PrimitiveExpression p
+        | NullValue -> NullExpression
+        | EnumValue e -> EnumExpression e
+        | ListValue lst ->
+            [| 
+                for { Source = pos; Value = v } in lst do
+                    yield { Source = pos; Value = v.ToExpression() }
+            |] :> IReadOnlyList<_> |> ListExpression
+        | ObjectValue o ->
+            [|
+                for KeyValue(name, { Source = pos; Value = v }) in o do
+                    yield name, { Source = pos; Value = v.ToExpression() }
+            |] |> dictionary :> IReadOnlyDictionary<_, _> |> ObjectExpression
 /// A value expression within the GraphQL document.
 /// This may contain references to variables, whose values are not yet
 /// supplied.
-and ValueExpression<'s> =
-    | VariableExpression of VariableDefinition<'s>
+and ValueExpression =
+    | VariableExpression of VariableDefinition
     | PrimitiveExpression of Primitive
-    | EnumExpression of ISchemaEnumValue<'s>
-    | ListExpression of ValueExpression<'s> ListWithSource
-    | ObjectExpression of IReadOnlyDictionary<string, ValueExpression<'s> WithSource>
+    | NullExpression
+    | EnumExpression of EnumValue
+    | ListExpression of ValueExpression ListWithSource
+    | ObjectExpression of IReadOnlyDictionary<string, ValueExpression WithSource>
 /// Represents a non-nullable value type.
 and CoreVariableType =
     | PrimitiveType of PrimitiveType
+    | EnumType of EnumType
     | ListType of VariableType
     /// Not possible to declare this type in a GraphQL document, but it exists nonetheless.
     | ObjectType of IReadOnlyDictionary<string, VariableType>
     | NamedType of ISchemaVariableType
+    member this.AcceptsVariableType(vtype : CoreVariableType) =
+        this = vtype ||
+        match this, vtype with
+        | NamedType schemaType, vt ->
+            schemaType.CoreType.AcceptsVariableType(vt)
+        | ListType vt1, ListType vt2 ->
+            vt1.Type.AcceptsVariableType(vt2)
+        | ObjectType o1, ObjectType o2 ->
+            seq {
+                for KeyValue(name, vt1) in o1 do
+                    yield
+                        match o2.TryFind(name) with
+                        | None -> false
+                        | Some vt2 -> vt1.AcceptsVariableType(vt2)
+            } |> Seq.forall id
+        | _ -> false
+    member this.AcceptsVariableType(vtype : VariableType) =
+        this.AcceptsVariableType(vtype.Type)
+    member this.AcceptsValueExpression(vexpr : ValueExpression) =
+        match this, vexpr with
+        | NamedType schemaType, vexpr -> schemaType.CoreType.AcceptsValueExpression(vexpr)
+        | PrimitiveType pTy, PrimitiveExpression pexpr -> pTy = pexpr.Type
+        | EnumType eType, EnumExpression eVal -> eType.EnumName = eVal.Type.EnumName
+        | ListType lTy, ListExpression vals -> vals |> Seq.forall (fun v -> lTy.AcceptsValueExpression(v.Value))
+        | ObjectType oTy, ObjectExpression o ->
+            seq {
+                    for KeyValue(name, ty) in oTy do
+                        yield
+                            match o.TryFind(name) with
+                            | None -> false
+                            | Some fv -> ty.AcceptsValueExpression(fv.Value)
+            } |> Seq.forall id
+        | _ -> false
 and VariableType =
     {
         Type : CoreVariableType
         Nullable : bool
     }
-and VariableDefinition<'s> =
+    member this.AcceptsVariableType(vtype : VariableType) =
+        this.Type.AcceptsVariableType(vtype)
+    member this.AcceptsValueExpression(vexpr : ValueExpression) =
+        match vexpr with
+        | NullExpression -> this.Nullable
+        | notNull -> this.Type.AcceptsValueExpression(notNull)
+and VariableDefinition =
     {
         VariableName : string
         VariableType : VariableType
-        DefaultValue : Value<'s> option
+        DefaultValue : Value option
+    }
+
+type ArgumentValue<'s> =
+    {
+        Argument : ISchemaArgument<'s>
+        Value : ValueExpression
     }
 
 type Directive<'s> =
     {
         SchemaDirective : ISchemaDirective<'s>
-        Arguments : ISchemaArgumentValue<'s> ListWithSource
+        Arguments : ArgumentValue<'s> ListWithSource
     }
 
 type Field<'s> =
     {
         SchemaField : ISchemaField<'s>
         Alias : string option
-        Arguments : ISchemaArgumentValue<'s> ListWithSource
+        Arguments : ArgumentValue<'s> ListWithSource
         Directives : Directive<'s> ListWithSource
         Selections : Selection<'s> ListWithSource
     }
@@ -200,7 +274,7 @@ type LonghandOperation<'s> =
     {
         OperationType : OperationType
         OperationName : string option
-        VariableDefinitions : VariableDefinition<'s> ListWithSource
+        VariableDefinitions : VariableDefinition ListWithSource
         Directives : Directive<'s> ListWithSource
         Selections : Selection<'s> ListWithSource
     }

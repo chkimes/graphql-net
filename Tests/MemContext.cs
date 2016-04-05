@@ -68,7 +68,9 @@ namespace Tests
                 .AddField(u => u.Account)
                 .AddField("total", (db, u) => db.Users.Count)
                 .AddField("accountPaid", (db, u) => u.Account.Paid)
-                .AddPostField("abc", () => GetAbcPostField());
+                .AddPostField("abc", () => GetAbcPostField())
+                .AddPostField("sub", () => new Sub { Id = 1 });
+            schema.AddType<Sub>().AddField(s => s.Id);
             schema.AddQuery("users", db => db.Users.AsQueryable());
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().Where(u => u.Id == args.id).FirstOrDefault());
         }
@@ -102,5 +104,10 @@ namespace Tests
         public bool Paid { get; set; }
 
         public List<User> Users { get; set; }
+    }
+
+    public class Sub
+    {
+        public int Id { get; set; }
     }
 }

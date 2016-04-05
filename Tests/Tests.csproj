@@ -61,6 +61,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="EntityFrameworkExecutionTests.cs" />
+    <Compile Include="GenericTests.cs" />
     <Compile Include="InMemoryExecutionTests.cs" />
     <Compile Include="IntrospectionTests.cs" />
     <Compile Include="MemContext.cs" />

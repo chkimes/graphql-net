@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace GraphQL.Net
@@ -76,6 +77,19 @@ namespace GraphQL.Net
         {
             AddType<GraphQLType>().AddField(t => t.Name);
             this.AddQuery("__type", new {name = ""}, (db, args) => _types.AsQueryable().Where(t => t.Name == args.name).First());
+
+            var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
+            foreach (var type in _types.Where(t => !t.IsScalar))
+            {
+                var genMethod = method.MakeGenericMethod(type.CLRType);
+                genMethod.Invoke(this, new object[] {type});
+            }
+        }
+
+        private void AddTypeNameField<TEntity>(GraphQLType type)
+        {
+            var builder = new GraphQLTypeBuilder<TContext, TEntity>(this, type);
+            builder.AddPostField("__typename", () => type.Name);
         }
 
         // This signature is pretty complicated, but necessarily so.

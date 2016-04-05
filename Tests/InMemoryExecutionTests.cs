@@ -19,6 +19,7 @@ namespace Tests
         [TestMethod] public void NestedEntityList() => GenericTests.NestedEntityList(MemContext.CreateDefaultContext());
         [TestMethod] public void PostField() => GenericTests.PostField(MemContext.CreateDefaultContext());
         [TestMethod] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(MemContext.CreateDefaultContext());
+        [TestMethod] public void TypeName() => GenericTests.TypeName(MemContext.CreateDefaultContext());
 
         [TestMethod]
         public void AddAllFields()

@@ -105,5 +105,13 @@ namespace Tests
             Assert.AreEqual(sub["id"], 1);
             Assert.AreEqual(sub.Keys.Count, 1);
         }
+
+        public static void TypeName<TContext>(GraphQL<TContext> gql)
+        {
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, __typename }")["data"];
+            Assert.AreEqual(user["id"], 1);
+            Assert.AreEqual(user["__typename"], "User");
+            Assert.AreEqual(user.Keys.Count, 2);
+        }
     }
 }

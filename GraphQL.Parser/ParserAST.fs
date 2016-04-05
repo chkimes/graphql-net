@@ -43,16 +43,25 @@ type VariableName = string
 /// May be any identifier.
 type FieldName = string
 
-/// Represents a GraphQL value.
-/// This may be a variable name, a literal, or a list/object
-/// containing more values.
-type Value =
-    | Variable of VariableName
+type ValuePrimitive =
     | IntValue of int64
     | FloatValue of double
     | StringValue of string
     | BooleanValue of bool
     | EnumValue of string
+
+/// Represents a constant GraphQL value.
+type ValueConst =
+    | PrimitiveValueConst of ValuePrimitive
+    | ListValueConst of ValueConst ListWithSource
+    | ObjectValueConst of IDictionary<FieldName, ValueConst WithSource>
+
+/// Represents a GraphQL value.
+/// This may be a variable name, a literal, or a list/object
+/// containing more values.
+type Value =
+    | Variable of VariableName
+    | PrimitiveValue of ValuePrimitive
     | ListValue of Value ListWithSource
     | ObjectValue of IDictionary<FieldName, Value WithSource>
 
@@ -149,7 +158,7 @@ type VariableDefinition =
         VariableName : VariableName
         Type : TypeDescription
         /// If present, a default value for the variable.
-        DefaultValue : Value option
+        DefaultValue : ValueConst option
     }
 
 /// Distinguishes between mutation and query operation types.

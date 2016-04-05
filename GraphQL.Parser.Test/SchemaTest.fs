@@ -38,7 +38,7 @@ type ColorType() =
             member __.Description = Some ("Description of " + name)
             member __.Info = "Info for " + name
         }
-    interface ISchemaType<FakeData> with
+    interface ISchemaQueryType<FakeData> with
         member this.TypeName = "Color"
         member this.Description = Some "Enum color type"
         member this.Info = "Fake color enum info"
@@ -51,7 +51,7 @@ type ColorType() =
             |] |> dictionary :> _
 
 type StringType() =
-    interface ISchemaType<FakeData> with
+    interface ISchemaQueryType<FakeData> with
         member this.TypeName = "String"
         member this.Description = Some "Primitive string type"
         member this.Info = "Fake string type info"
@@ -59,7 +59,7 @@ type StringType() =
         member this.EnumValues = [||] |> dictionary :> _
 
 type IntegerType() =
-    interface ISchemaType<FakeData> with
+    interface ISchemaQueryType<FakeData> with
         member this.TypeName = "Integer"
         member this.Description = Some "Primitive integer type"
         member this.Info = "Fake integer type info"
@@ -107,7 +107,7 @@ type IdArgument() =
             | _ -> Invalid "Literal of non-integer type"
 
 type UserType() =
-    member private this.Field(name, fieldType : ISchemaType<FakeData>, args) =
+    member private this.Field(name, fieldType : ISchemaQueryType<FakeData>, args) =
         { new ISchemaField<FakeData> with
             member __.DeclaringType = upcast this
             member __.FieldType = fieldType
@@ -116,7 +116,7 @@ type UserType() =
             member __.Info = "Info for " + name
             member __.Arguments = args |> dictionary :> _
         }
-    interface ISchemaType<FakeData> with
+    interface ISchemaQueryType<FakeData> with
         member this.TypeName = "User"
         member this.Description = Some "Complex user type"
         member this.Info = "Fake user type info"
@@ -134,7 +134,7 @@ type UserType() =
             |] |> dictionary :> _
 
 type RootType() =
-    member private this.Field(name, fieldType : ISchemaType<FakeData>, args) =
+    member private this.Field(name, fieldType : ISchemaQueryType<FakeData>, args) =
         { new ISchemaField<FakeData> with
             member __.DeclaringType = upcast this
             member __.FieldType = fieldType
@@ -143,7 +143,7 @@ type RootType() =
             member __.Info = "Info for " + name
             member __.Arguments = args |> dictionary :> _
         }
-    interface ISchemaType<FakeData> with
+    interface ISchemaQueryType<FakeData> with
         member this.TypeName = "Root"
         member this.Description = Some "Root context type"
         member this.Info = "Fake root type info"
@@ -158,7 +158,7 @@ type RootType() =
             |] |> dictionary :> _
 
 type FakeSchema() =
-    let root = new RootType() :> ISchemaType<_>
+    let root = new RootType() :> ISchemaQueryType<_>
     let types =
         [
             root
@@ -169,7 +169,7 @@ type FakeSchema() =
         member this.ResolveDirectiveByName(name) = None // no directives
         member this.ResolveEnumValueByName(name) =
             types |> List.tryPick (fun ty -> ty.EnumValues.TryFind(name))
-        member this.ResolveTypeByName(name) =
+        member this.ResolveQueryTypeByName(name) =
             types |> List.tryFind (fun ty -> ty.TypeName = name)
         member this.RootType = root
         

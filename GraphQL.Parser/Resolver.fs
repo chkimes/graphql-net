@@ -33,7 +33,7 @@ type ValidationException(msg : string, pos : SourceInfo) =
 type IOperationContext<'s> =
     abstract member Schema : ISchema<'s>
     /// Add a variable definition to the context.
-    abstract member DeclareVariable : string * QLType<'s> * Value<'s> option -> VariableDefinition<'s>
+    abstract member DeclareVariable : string * VariableType * Value<'s> option -> VariableDefinition<'s>
     abstract member ResolveVariableByName : string -> VariableDefinition<'s> option
     abstract member ResolveFragmentDefinitionByName : string -> ParserAST.Fragment option
 
@@ -41,51 +41,63 @@ module private ResolverUtilities =
     let failAt pos msg =
         new ValidationException(msg, pos) |> raise
     type IOperationContext<'s> with
-        member this.ResolveValue(pvalue : ParserAST.Value, pos : SourceInfo) : Value<'s> =
+        member this.ResolveValueExpression(pvalue : ParserAST.Value, pos : SourceInfo) : ValueExpression<'s> =
             match pvalue with
             | ParserAST.Variable name ->
                 match this.ResolveVariableByName name with
-                | Some vdef -> VariableRefValue vdef
+                | Some vdef -> VariableExpression vdef
                 | None -> failAt pos (sprintf "use of undeclared variable ``%s''" name)
-            | ParserAST.IntValue i ->
-                PrimitiveValue (IntPrimitive i)
-            | ParserAST.FloatValue f ->
-                PrimitiveValue (FloatPrimitive f)
-            | ParserAST.StringValue s ->
-                PrimitiveValue (StringPrimitive s)
-            | ParserAST.BooleanValue b ->
-                PrimitiveValue (BooleanPrimitive b)
-            | ParserAST.EnumValue enumName ->
-                match this.Schema.ResolveEnumValueByName enumName with
-                | None -> failAt pos (sprintf "``%s'' is not a member of any known enum type" enumName)
-                | Some enumVal -> EnumValue enumVal
+            | ParserAST.PrimitiveValue p ->
+                match p with
+                | ParserAST.IntValue i ->
+                    PrimitiveExpression (IntPrimitive i)
+                | ParserAST.FloatValue f ->
+                    PrimitiveExpression (FloatPrimitive f)
+                | ParserAST.StringValue s ->
+                    PrimitiveExpression (StringPrimitive s)
+                | ParserAST.BooleanValue b ->
+                    PrimitiveExpression (BooleanPrimitive b)
+                | ParserAST.EnumValue enumName ->
+                    match this.Schema.ResolveEnumValueByName enumName with
+                    | None -> failAt pos (sprintf "``%s'' is not a member of any known enum type" enumName)
+                    | Some enumVal -> EnumExpression enumVal
             | ParserAST.ListValue elementsWithSource ->
                 [|
                     for element in elementsWithSource do
-                        let vvalue = this.ResolveValue(element.Value, element.Source)
+                        let vvalue = this.ResolveValueExpression(element.Value, element.Source)
                         yield { Value = vvalue; Source = element.Source }
-                |] :> IReadOnlyList<_> |> ListValue
+                |] :> IReadOnlyList<_> |> ListExpression
             | ParserAST.ObjectValue fieldsWithSource ->
                 seq {
                     for KeyValue(fieldName, fieldVal) in fieldsWithSource do
-                        let vvalue = this.ResolveValue(fieldVal.Value, fieldVal.Source)
+                        let vvalue = this.ResolveValueExpression(fieldVal.Value, fieldVal.Source)
                         yield fieldName, { Value = vvalue; Source = fieldVal.Source }
-                } |> dictionary :> IReadOnlyDictionary<_, _> |> ObjectValue
+                } |> dictionary :> IReadOnlyDictionary<_, _> |> ObjectExpression
+    let resolveBuiltinType name =
+        match name with
+        | "Int" -> PrimitiveType IntType |> Some
+        | "Boolean" -> PrimitiveType BooleanType |> Some
+        | "String" -> PrimitiveType StringType |> Some
+        | "Float" -> PrimitiveType FloatType |> Some
+        | _ -> None
     type ISchema<'s> with
-        member this.ResolveType(ptype : ParserAST.TypeDescription, pos : SourceInfo) : QLType<'s> =
+        member this.ResolveVariableType(ptype : ParserAST.TypeDescription, pos : SourceInfo) : VariableType =
             let coreTy =
                 match ptype.Type with
                 | ParserAST.NamedType name ->
-                    match this.ResolveTypeByName(name) with
-                    | None -> failAt pos (sprintf "unknown type ``%s''" name)
-                    | Some schemaTy -> NamedType schemaTy
+                    match resolveBuiltinType name with
+                    | Some builtin -> builtin
+                    | None ->
+                        match this.ResolveVariableTypeByName(name) with
+                        | None -> failAt pos (sprintf "unknown value type ``%s''" name)
+                        | Some valueTy -> NamedType valueTy
                 | ParserAST.ListType plty ->
-                    this.ResolveType(plty, pos) |> ListType
+                    this.ResolveVariableType(plty, pos) |> ListType
             { Type = coreTy; Nullable = ptype.Nullable }
 open ResolverUtilities
 
 type Resolver<'s>
-    ( schemaType : ISchemaType<'s> // the type being selected from
+    ( schemaType : ISchemaQueryType<'s> // the type being selected from
     , opContext : IOperationContext<'s>
     , recursionDepth : int
     ) =
@@ -99,7 +111,7 @@ type Resolver<'s>
                 match schemaArgs.TryFind(parg.ArgumentName) with
                 | None -> failAt pos (sprintf "unknown argument ``%s''" parg.ArgumentName)
                 | Some arg ->
-                    let pargValue = opContext.ResolveValue(parg.ArgumentValue, pos)
+                    let pargValue = opContext.ResolveValueExpression(parg.ArgumentValue, pos)
                     match arg.ValidateValue(pargValue) with
                     | Invalid reason ->
                         failAt pos (sprintf "invalid argument ``%s'': ``%s''" parg.ArgumentName reason)
@@ -128,12 +140,18 @@ type Resolver<'s>
                 if pfield.Selections.Count <= 0 then
                     [||] :> IReadOnlyList<_>
                 else
-                    if recursionDepth >= maxRecursionDepth then
-                        failAt
-                            pfield.Selections.[0].Source
-                            (sprintf "exceeded maximum recursion depth of %d" maxRecursionDepth)
-                    let child = new Resolver<'s>(fieldInfo.FieldType, opContext, recursionDepth + 1)
-                    child.ResolveSelections(pfield.Selections)
+                    match fieldInfo.FieldType with
+                    | QueryField queryType ->
+                        if recursionDepth >= maxRecursionDepth then
+                            failAt
+                                pfield.Selections.[0].Source
+                                (sprintf "exceeded maximum recursion depth of %d" maxRecursionDepth)
+                        let child = new Resolver<'s>(queryType, opContext, recursionDepth + 1)
+                        child.ResolveSelections(pfield.Selections)
+                    | ValueField _ ->
+                        fieldInfo.FieldName
+                        |> sprintf "field ``%s'' is a value type and cannot be selected from"
+                        |> failAt pos
             {
                 SchemaField = fieldInfo
                 Alias = pfield.Alias
@@ -142,7 +160,7 @@ type Resolver<'s>
                 Selections = selections
             }
     member private this.ResolveTypeCondition(typeName : string, pos : SourceInfo) =
-        match opContext.Schema.ResolveTypeByName(typeName) with
+        match opContext.Schema.ResolveQueryTypeByName(typeName) with
         | None -> failAt pos (sprintf "unknown type ``%s'' in type condition" typeName)
         | Some ty -> ty
     member private this.ResolveFragment(pfrag : ParserAST.Fragment, pos : SourceInfo) =
@@ -207,10 +225,10 @@ type Resolver<'s>
                         | None -> () // good, we're declaring a new variable
                         | Some _ ->
                             failAt pos (sprintf "duplicate declaration of variable ``%s''" pvarDef.VariableName)
-                        let varType = opContext.Schema.ResolveType(pvarDef.Type, pos)
+                        let varType = opContext.Schema.ResolveVariableType(pvarDef.Type, pos)
                         let defaultValue =
                             pvarDef.DefaultValue
-                            |> Option.map (fun v -> opContext.ResolveValue(v, pos))
+                            |> Option.map (fun v -> opContext.ResolveValueExpression(v, pos))
                         let varDef = opContext.DeclareVariable(pvarDef.VariableName, varType, defaultValue)
                         yield { Source = pos; Value = varDef }
                 |]

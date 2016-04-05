@@ -238,11 +238,11 @@ we'll take it as an argument.
 
 *)
 
-let listValue (value : Parser<Value, _>) =
+let listValue (value : Parser<'a, _>) =
     %% '['
     -..- +.(qty.[0..] /.ignored * withSource value)
     -- ']'
-    -%> ListValue
+    -%> auto
 
 (**
 
@@ -250,7 +250,7 @@ Object values are nearly identical to list values, but include property names.
 
 *)
 
-let objectValue (value : Parser<Value, _>) =
+let objectValue (value : Parser<'a, _>) =
     let sourceValue = withSource value
     let objectField =
         %% +.name
@@ -260,7 +260,7 @@ let objectValue (value : Parser<Value, _>) =
     %% '{'
     -..- +.(qty.[0..] /. ignored * objectField)
     -- '}'
-    -%> (dict >> ObjectValue)
+    -%> dict
 
 (**
 
@@ -272,12 +272,14 @@ a general value parser with a recursive definition.
 let value = precursive <| fun value ->
     %[
         variable
-        numericValue
-        stringValue
-        booleanValue
-        enumValue
-        listValue value
-        objectValue value
+        %% +.[
+            numericValue
+            stringValue
+            booleanValue
+            enumValue
+        ] -%> PrimitiveValue
+        %% +.listValue value -%> ListValue
+        %% +.objectValue value -%> ObjectValue
     ]
 
 (**
@@ -290,12 +292,14 @@ this is trivial to implement.
 
 let valueConst = precursive <| fun valueConst ->
     %[
-        numericValue
-        stringValue
-        booleanValue
-        enumValue
-        listValue valueConst
-        objectValue valueConst
+        %% +.[
+            numericValue
+            stringValue
+            booleanValue
+            enumValue
+        ] -%> PrimitiveValueConst
+        %% +.listValue valueConst -%> ListValueConst
+        %% +.objectValue valueConst -%> ObjectValueConst
     ]
 
 (**

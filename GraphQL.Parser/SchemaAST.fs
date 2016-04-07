@@ -20,7 +20,7 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-namespace GraphQL.Parser.SchemaAST
+namespace GraphQL.Parser
 open GraphQL.Parser
 open System.Collections.Generic
 
@@ -84,8 +84,7 @@ type ISchemaQueryType<'s> =
 and ISchemaVariableType =
     abstract member TypeName : string
     abstract member CoreType : CoreVariableType
-    /// Produce an error message if the value is not valid for this type.
-    abstract member ValidateValue : Value -> string option
+    abstract member ValidateValue : Value -> bool
 /// Represents the type of a field, which may be either another queryable type, or
 /// a non-queryable value.
 and SchemaFieldType<'s> =
@@ -145,15 +144,14 @@ and Value =
         | NullValue -> NullExpression
         | EnumValue e -> EnumExpression e
         | ListValue lst ->
-            [| 
-                for { Source = pos; Value = v } in lst do
-                    yield { Source = pos; Value = v.ToExpression() }
-            |] :> IReadOnlyList<_> |> ListExpression
-        | ObjectValue o ->
-            [|
-                for KeyValue(name, { Source = pos; Value = v }) in o do
-                    yield name, { Source = pos; Value = v.ToExpression() }
-            |] |> dictionary :> IReadOnlyDictionary<_, _> |> ObjectExpression
+            lst
+            |> mapWithSource (fun v -> v.ToExpression())
+            |> toReadOnlyList
+            |> ListExpression
+        | ObjectValue fields ->
+            fields
+            |> mapDictionaryWithSource (fun v -> v.ToExpression())
+            |> ObjectExpression
 /// A value expression within the GraphQL document.
 /// This may contain references to variables, whose values are not yet
 /// supplied.
@@ -164,6 +162,21 @@ and ValueExpression =
     | EnumExpression of EnumValue
     | ListExpression of ValueExpression ListWithSource
     | ObjectExpression of IReadOnlyDictionary<string, ValueExpression WithSource>
+    member this.ToValue(resolveVariable) =
+        match this with
+        | VariableExpression vdef -> resolveVariable vdef.VariableName
+        | PrimitiveExpression prim -> PrimitiveValue prim
+        | NullExpression -> NullValue
+        | EnumExpression en -> EnumValue en
+        | ListExpression lst ->
+            lst
+            |> mapWithSource (fun v -> v.ToValue(resolveVariable))
+            |> toReadOnlyList
+            |> ListValue
+        | ObjectExpression fields ->
+            fields
+            |> mapDictionaryWithSource (fun v -> v.ToValue(resolveVariable))
+            |> ObjectValue 
 /// Represents a non-nullable value type.
 and CoreVariableType =
     | PrimitiveType of PrimitiveType
@@ -190,6 +203,21 @@ and CoreVariableType =
         | _ -> false
     member this.AcceptsVariableType(vtype : VariableType) =
         this.AcceptsVariableType(vtype.Type)
+    member this.AcceptsValue(value : Value) =
+        match this, value with
+        | NamedType schemaType, value -> schemaType.CoreType.AcceptsValue(value) && schemaType.ValidateValue(value)
+        | PrimitiveType pTy, PrimitiveValue pv -> pTy = pv.Type
+        | EnumType eType, EnumValue eVal -> eType.EnumName = eVal.Type.EnumName
+        | ListType lTy, ListValue vals -> vals |> Seq.forall (fun v -> lTy.AcceptsValue(v.Value))
+        | ObjectType oTy, ObjectValue o ->
+            seq {
+                for KeyValue(name, ty) in oTy do
+                    yield
+                        match o.TryFind(name) with
+                        | None -> false
+                        | Some fv -> ty.AcceptsValue(fv.Value)
+            } |> Seq.forall id
+        | _ -> false
     member this.AcceptsValueExpression(vexpr : ValueExpression) =
         match this, vexpr with
         | NamedType schemaType, vexpr -> schemaType.CoreType.AcceptsValueExpression(vexpr)
@@ -198,11 +226,11 @@ and CoreVariableType =
         | ListType lTy, ListExpression vals -> vals |> Seq.forall (fun v -> lTy.AcceptsValueExpression(v.Value))
         | ObjectType oTy, ObjectExpression o ->
             seq {
-                    for KeyValue(name, ty) in oTy do
-                        yield
-                            match o.TryFind(name) with
-                            | None -> false
-                            | Some fv -> ty.AcceptsValueExpression(fv.Value)
+                for KeyValue(name, ty) in oTy do
+                    yield
+                        match o.TryFind(name) with
+                        | None -> false
+                        | Some fv -> ty.AcceptsValueExpression(fv.Value)
             } |> Seq.forall id
         | _ -> false
 and VariableType =
@@ -216,6 +244,10 @@ and VariableType =
         match vexpr with
         | NullExpression -> this.Nullable
         | notNull -> this.Type.AcceptsValueExpression(notNull)
+    member this.AcceptsValue(value : Value) =
+        match value with
+        | NullValue -> this.Nullable
+        | notNull -> this.Type.AcceptsValue(notNull)
 and VariableDefinition =
     {
         VariableName : string
@@ -223,23 +255,23 @@ and VariableDefinition =
         DefaultValue : Value option
     }
 
-type ArgumentValue<'s> =
+type ArgumentExpression<'s> =
     {
         Argument : ISchemaArgument<'s>
-        Value : ValueExpression
+        Expression : ValueExpression
     }
 
 type Directive<'s> =
     {
         SchemaDirective : ISchemaDirective<'s>
-        Arguments : ArgumentValue<'s> ListWithSource
+        Arguments : ArgumentExpression<'s> ListWithSource
     }
 
 type Field<'s> =
     {
         SchemaField : ISchemaField<'s>
         Alias : string option
-        Arguments : ArgumentValue<'s> ListWithSource
+        Arguments : ArgumentExpression<'s> ListWithSource
         Directives : Directive<'s> ListWithSource
         Selections : Selection<'s> ListWithSource
     }

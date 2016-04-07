@@ -22,7 +22,6 @@
 
 namespace GraphQL.Parser.Test
 open GraphQL.Parser
-open GraphQL.Parser.SchemaAST
 open Microsoft.VisualStudio.TestTools.UnitTesting
 
 // Tests that the schema resolution code works as expected with a pretend schema.
@@ -120,7 +119,7 @@ type SchemaTest() =
             ignore <| GraphQLDocument.Parse(schema, source)
             failwith "Document resolved against schema when it shouldn't have!"
         with
-        | :? ValidationException as ex ->
+        | :? SourceException as ex ->
             if (ex.Message.Contains(reason)) then ()
             else reraise()
     [<TestMethod>]

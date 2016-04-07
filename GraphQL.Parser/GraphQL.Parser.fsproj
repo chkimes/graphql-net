@@ -51,12 +51,13 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Utilities.fs" />
     <Compile Include="SourceTypes.fs" />
+    <Compile Include="Utilities.fs" />
     <Compile Include="ParserAST.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="SchemaAST.fs" />
-    <Compile Include="Resolver.fs" />
+    <Compile Include="SchemaResolver.fs" />
+    <Compile Include="ExecSelection.fs" />
     <Compile Include="GraphQLDocument.fs" />
     <Compile Include="GraphQLParser.fs" />
     <Content Include="app.config" />

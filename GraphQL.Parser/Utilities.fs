@@ -22,6 +22,7 @@
 
 [<AutoOpen>]
 module GraphQL.Parser.Utilities
+open GraphQL.Parser
 open System.Collections.Generic
 
 /// Make a dictionary from a list of key/value pair tuples.
@@ -40,3 +41,28 @@ type IReadOnlyDictionary<'k, 'v> with
         let mutable output = Unchecked.defaultof<'v>
         if this.TryGetValue(key, &output) then Some output
         else None
+
+let failAt pos msg =
+    raise (new SourceException(msg, pos))
+
+let mapWithSource transform inputs =
+    seq {
+        for { Source = pos; Value = v } in inputs do
+            yield { Source = pos; Value = transform v }
+    }
+
+let collectWithSource transform inputs =
+    inputs
+    |> mapWithSource transform
+    |> Seq.collect
+        (function { Source = pos; Value = vs } -> vs |> Seq.map (fun v -> { Source = pos; Value = v }))
+
+let mapDictionaryWithSource transform inputs =
+    seq {
+        for KeyValue(name, { Source = pos; Value = v }) in inputs do
+            yield name, { Source = pos; Value = transform v }
+    } |> dictionary :> IReadOnlyDictionary<_, _>
+
+let toReadOnlyList xs = xs |> Seq.toArray :> IReadOnlyList<_>
+
+let appendReadOnlyList xs ys = Seq.append xs ys |> toReadOnlyList

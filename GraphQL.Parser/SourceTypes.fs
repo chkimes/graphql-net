@@ -35,3 +35,7 @@ type WithSource<'a> =
         /// The syntactic element
         Value : 'a
     }
+
+type SourceException(msg : string, pos : SourceInfo) =
+    inherit Exception(msg)
+    member this.SourceInfo = pos

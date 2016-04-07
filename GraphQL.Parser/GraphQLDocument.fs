@@ -21,7 +21,8 @@
 //SOFTWARE.
 
 namespace GraphQL.Parser
-open GraphQL.Parser.SchemaAST
+open GraphQL.Parser
+open GraphQL.Parser.SchemaResolver
 open System.Collections.Generic
 
 type GraphQLParserDocument(source : string, document : ParserAST.Document) =

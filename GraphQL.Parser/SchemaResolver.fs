@@ -20,14 +20,10 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-namespace GraphQL.Parser.SchemaAST
+module private GraphQL.Parser.SchemaResolver
 open GraphQL.Parser
 open System
 open System.Collections.Generic
-
-type ValidationException(msg : string, pos : SourceInfo) =
-    inherit Exception(msg)
-    member this.SourceInfo = pos
 
 /// Resolves variables and fragments in the context of a specific operation.
 type IOperationContext<'s> =
@@ -37,9 +33,15 @@ type IOperationContext<'s> =
     abstract member ResolveVariableByName : string -> VariableDefinition option
     abstract member ResolveFragmentDefinitionByName : string -> ParserAST.Fragment option
 
-module private ResolverUtilities =
-    let failAt pos msg =
-        new ValidationException(msg, pos) |> raise
+let resolveBuiltinType name =
+    match name with
+    | "Int" -> PrimitiveType IntType |> Some
+    | "Boolean" -> PrimitiveType BooleanType |> Some
+    | "String" -> PrimitiveType StringType |> Some
+    | "Float" -> PrimitiveType FloatType |> Some
+    | _ -> None
+
+module private Extensions =
     type IOperationContext<'s> with
         member this.ResolveValueExpression(pvalue : ParserAST.Value, pos : SourceInfo) : ValueExpression =
             match pvalue with
@@ -73,13 +75,7 @@ module private ResolverUtilities =
                         let vvalue = this.ResolveValueExpression(fieldVal.Value, fieldVal.Source)
                         yield fieldName, { Value = vvalue; Source = fieldVal.Source }
                 } |> dictionary :> IReadOnlyDictionary<_, _> |> ObjectExpression
-    let resolveBuiltinType name =
-        match name with
-        | "Int" -> PrimitiveType IntType |> Some
-        | "Boolean" -> PrimitiveType BooleanType |> Some
-        | "String" -> PrimitiveType StringType |> Some
-        | "Float" -> PrimitiveType FloatType |> Some
-        | _ -> None
+
     type ISchema<'s> with
         member this.ResolveVariableType(ptype : ParserAST.TypeDescription, pos : SourceInfo) : VariableType =
             let coreTy =
@@ -122,7 +118,7 @@ module private ResolverUtilities =
                         let vvalue = this.ResolveValueConst(fieldVal.Value, fieldVal.Source)
                         yield fieldName, { Value = vvalue; Source = fieldVal.Source }
                 } |> dictionary :> IReadOnlyDictionary<_, _> |> ObjectValue
-open ResolverUtilities
+open Extensions
 
 type Resolver<'s>
     ( schemaType : ISchemaQueryType<'s> // the type being selected from
@@ -141,7 +137,7 @@ type Resolver<'s>
                 | Some arg ->
                     let pargValue = opContext.ResolveValueExpression(parg.ArgumentValue, pos)
                     if arg.ArgumentType.AcceptsValueExpression(pargValue) then
-                        yield { Value = { Argument = arg; Value = pargValue }; Source = pos }
+                        yield { Value = { Argument = arg; Expression = pargValue }; Source = pos }
                     else
                         failAt pos (sprintf "invalid argument ``%s''" parg.ArgumentName) // TODO show type mismatch
         |] :> IReadOnlyList<_>

@@ -21,7 +21,7 @@ namespace GraphQL.Net
             var queryableFuncExpr = gqlQuery.QueryableExprGetter(args);
             var replaced = (Expression<Func<TContext, IQueryable<TEntity>>>)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
             var fieldMaps = query.Fields.Select(f => MapField(f, gqlQuery.Type)).ToList();
-            var selector = GetSelector<TEntity>(gqlQuery.Type, fieldMaps);
+            var selector = GetSelector(typeof(TEntity), gqlQuery.Type, fieldMaps);
 
             var selectorExpr = Expression.Quote(selector);
             var call = Expression.Call(typeof(Queryable), "Select", new[] { typeof(TEntity), gqlQuery.Type.QueryType }, replaced.Body, selectorExpr);
@@ -53,7 +53,6 @@ namespace GraphQL.Net
         {
             if (queryObject == null) // TODO: Check type non-null and throw exception
                 return null;
-            var n = 1;
             var dict = new Dictionary<string, object>();
             var type = queryObject.GetType();
             foreach (var map in fieldMaps)
@@ -62,6 +61,13 @@ namespace GraphQL.Net
                 var obj = map.SchemaField.IsPost
                     ? map.SchemaField.ResolvePostField()
                     : type.GetProperty(map.SchemaField.Name).GetGetMethod().Invoke(queryObject, new object[] {});
+
+                if (map.SchemaField.IsPost && map.Children.Any())
+                {
+                    var selector = GetSelector(map.SchemaField.Type.CLRType, map.SchemaField.Type, map.Children);
+                    obj = selector.Compile().DynamicInvoke(obj);
+                }
+
                 if (map.Children.Any())
                 {
                     var listObj = obj as IEnumerable<object>;
@@ -82,14 +88,13 @@ namespace GraphQL.Net
                 {
                     dict.Add(key, obj);
                 }
-                n++;
             }
             return dict;
         }
 
-        private static LambdaExpression GetSelector<TEntity>(GraphQLType gqlType, List<FieldMap> fieldMaps)
+        private static LambdaExpression GetSelector(Type entityType, GraphQLType gqlType, List<FieldMap> fieldMaps)
         {
-            var parameter = Expression.Parameter(typeof(TEntity), "p");
+            var parameter = Expression.Parameter(entityType, "p");
             var init = GetMemberInit(gqlType.QueryType, fieldMaps, parameter);
             return Expression.Lambda(init, parameter);
         }

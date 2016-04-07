@@ -63,7 +63,9 @@ namespace Tests
                 .AddField(u => u.Account)
                 .AddField("total", (db, u) => db.Users.Count())
                 .AddField("accountPaid", (db, u) => u.Account.Paid)
-                .AddPostField("abc", () => GetAbcPostField());
+                .AddPostField("abc", () => GetAbcPostField())
+                .AddPostField("sub", () => new Sub { Id = 1 });
+            schema.AddType<Sub>().AddField(s => s.Id);
             schema.AddQuery("users", db => db.Users);
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
         }
@@ -80,40 +82,18 @@ namespace Tests
             schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.Where(a => a.Id == args.id).FirstOrDefault());
         }
 
-        [TestMethod]
-        public void LookupSingleEntity()
-        {
-            var gql = CreateDefaultContext();
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, name }")["data"];
-            Assert.AreEqual(user["id"], 1);
-            Assert.AreEqual(user["name"], "Joe User");
-            Assert.AreEqual(user.Keys.Count, 2);
-        }
-
-        [TestMethod]
-        public void AliasOneField()
-        {
-            var gql = CreateDefaultContext();
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { idAlias : id, name }")["data"];
-            Assert.IsFalse(user.ContainsKey("id"));
-            Assert.AreEqual(user["idAlias"], 1);
-            Assert.AreEqual(user["name"], "Joe User");
-            Assert.AreEqual(user.Keys.Count, 2);
-        }
-
-        [TestMethod]
-        public void NestedEntity()
-        {
-            var gql = CreateDefaultContext();
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, account { id, name } }")["data"];
-            Assert.AreEqual(user["id"], 1);
-            Assert.AreEqual(user.Keys.Count, 2);
-            Assert.IsTrue(user.ContainsKey("account"));
-            var account = (IDictionary<string, object>) user["account"];
-            Assert.AreEqual(account["id"], 1);
-            Assert.AreEqual(account["name"], "My Test Account");
-            Assert.AreEqual(account.Keys.Count, 2);
-        }
+        [TestMethod] public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
+        [TestMethod] public void AliasOneField() => GenericTests.AliasOneField(CreateDefaultContext());
+        [TestMethod] public void NestedEntity() => GenericTests.NestedEntity(CreateDefaultContext());
+        [TestMethod] public void NoUserQueryReturnsNull() => GenericTests.NoUserQueryReturnsNull(CreateDefaultContext());
+        [TestMethod] public void CustomFieldSubQuery() => GenericTests.CustomFieldSubQuery(CreateDefaultContext());
+        [TestMethod] public void CustomFieldSubQueryUsingContext() => GenericTests.CustomFieldSubQueryUsingContext(CreateDefaultContext());
+        [TestMethod] public void List() => GenericTests.List(CreateDefaultContext());
+        [TestMethod] public void ListTypeIsList() => GenericTests.ListTypeIsList(CreateDefaultContext());
+        [TestMethod] public void NestedEntityList() => GenericTests.NestedEntityList(CreateDefaultContext());
+        [TestMethod] public void PostField() => GenericTests.PostField(CreateDefaultContext());
+        [TestMethod] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(CreateDefaultContext());
+        [TestMethod] public void TypeName() => GenericTests.TypeName(CreateDefaultContext());
 
         [TestMethod]
         public void AddAllFields()
@@ -130,82 +110,12 @@ namespace Tests
             Assert.AreEqual(user.Keys.Count, 2);
         }
 
-        [TestMethod]
-        public void NoUserQueryReturnsNull()
+        class Sub
         {
-            var gql = CreateDefaultContext();
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:0) { id, account { id, name } }")["data"];
-            Assert.IsNull(user);
+            public int Id { get; set; }
         }
 
-        [TestMethod]
-        public void CustomFieldSubQuery()
-        {
-            var gql = CreateDefaultContext();
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, accountPaid }")["data"];
-            Assert.AreEqual(user["id"], 1);
-            Assert.AreEqual(user["accountPaid"], true);
-            Assert.AreEqual(user.Keys.Count, 2);
-        }
-
-        [TestMethod]
-        public void CustomFieldSubQueryUsingContext()
-        {
-            var gql = CreateDefaultContext();
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, total }")["data"];
-            Assert.AreEqual(user["id"], 1);
-            Assert.AreEqual(user["total"], 2);
-            Assert.AreEqual(user.Keys.Count, 2);
-        }
-
-        [TestMethod]
-        public void List()
-        {
-            var gql = CreateDefaultContext();
-            var users = ((List<IDictionary<string, object>>)gql.ExecuteQuery("query users { id, name }")["data"]).ToList();
-            Assert.AreEqual(users.Count, 2);
-            Assert.AreEqual(users[0]["id"], 1);
-            Assert.AreEqual(users[0]["name"], "Joe User");
-            Assert.AreEqual(users[0].Keys.Count, 2);
-            Assert.AreEqual(users[1]["id"], 2);
-            Assert.AreEqual(users[1]["name"], "Late Paying User");
-            Assert.AreEqual(users[1].Keys.Count, 2);
-        }
-
-        [TestMethod]
-        public void ListTypeIsList()
-        {
-            var gql = CreateDefaultContext();
-            var users = gql.ExecuteQuery("query users { id, name }")["data"];
-            Assert.AreEqual(users.GetType(), typeof(List<IDictionary<string, object>>));
-        }
-
-        [TestMethod]
-        public void NestedEntityList()
-        {
-            var gql = CreateDefaultContext();
-            var account = (IDictionary<string, object>)gql.ExecuteQuery("query account(id:1) { id, users { id, name } }")["data"];
-            Assert.AreEqual(account["id"], 1);
-            Assert.AreEqual(account.Keys.Count, 2);
-            Assert.IsTrue(account.ContainsKey("users"));
-            var users = (List<IDictionary<string, object>>) account["users"];
-            Assert.AreEqual(users.Count, 1);
-            Assert.AreEqual(users[0]["id"], 1);
-            Assert.AreEqual(users[0]["name"], "Joe User");
-            Assert.AreEqual(users[0].Keys.Count, 2);
-        }
-
-        [TestMethod]
-        public void PostField()
-        {
-            var gql = CreateDefaultContext();
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, abc }")["data"];
-            Assert.AreEqual(user["id"], 1);
-            Assert.AreEqual(user["abc"], "easy as 123");
-            Assert.AreEqual(user.Keys.Count, 2);
-        }
-
-        public class EfContext : DbContext
+        class EfContext : DbContext
         {
             public EfContext() : base("DefaultConnection")
             {
@@ -215,7 +125,7 @@ namespace Tests
             public IDbSet<Account> Accounts { get; set; }
         }
 
-        public class User
+        class User
         {
             public int Id { get; set; }
             public string Name { get; set; }
@@ -224,7 +134,7 @@ namespace Tests
             public Account Account { get; set; }
         }
 
-        public class Account
+        class Account
         {
             public int Id { get; set; }
             public string Name { get; set; }

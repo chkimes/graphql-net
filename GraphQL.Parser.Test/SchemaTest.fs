@@ -154,6 +154,21 @@ type SchemaTest() =
 "
 
     [<TestMethod>]
+    member __.TestBogusArgumentType() =
+        bad "invalid argument ``id''" @"
+{
+    user(id: 1) {
+        id
+        name
+        friend(id: ""jeremy"") {
+            id
+            name
+        }
+    }
+}
+"
+
+    [<TestMethod>]
     member __.TestBogusRootField() =
         bad "``team'' is not a field of type ``Root''" @"
 {

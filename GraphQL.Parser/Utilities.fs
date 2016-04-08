@@ -66,3 +66,11 @@ let mapDictionaryWithSource transform inputs =
 let toReadOnlyList xs = xs |> Seq.toArray :> IReadOnlyList<_>
 
 let appendReadOnlyList xs ys = Seq.append xs ys |> toReadOnlyList
+
+let obj2option x =
+    if obj.ReferenceEquals(x, null) then None
+    else Some x
+
+[<GeneralizableValue>]
+let emptyDictionary<'k, 'v when 'k : equality> : IReadOnlyDictionary<'k, 'v> =
+    [||] |> dictionary :> IReadOnlyDictionary<'k, 'v>

@@ -74,7 +74,7 @@ type SchemaFieldCS<'s>() =
     default this.Info = Unchecked.defaultof<'s>
     abstract member Arguments : IReadOnlyDictionary<string, ISchemaArgument<'s>>
     default this.Arguments = emptyDictionary
-    abstract member EstimateComplexity : ISchemaArgument<'s> seq -> Complexity
+    abstract member EstimateComplexity : args : ISchemaArgument<'s> seq -> Complexity
     default this.EstimateComplexity(_) = Complexity.One
     interface ISchemaField<'s> with
         member this.DeclaringType = this.DeclaringType

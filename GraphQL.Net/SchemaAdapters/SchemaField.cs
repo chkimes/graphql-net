@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using GraphQL.Parser;
@@ -26,5 +27,15 @@ namespace GraphQL.Net.SchemaAdapters
         public override string Description => _field.Description;
         public override Info Info => new Info(_field);
         public override IReadOnlyDictionary<string, ISchemaArgument<Info>> Arguments { get; }
+        public override Complexity EstimateComplexity(IEnumerable<ISchemaArgument<Info>> args)
+        {
+            if (_field.Type.IsScalar) return Complexity.Zero; // scalars are practically free to select
+            if (!_field.IsList) return Complexity.One;
+            return args.Any(a => a.ArgumentName.Equals("id", StringComparison.OrdinalIgnoreCase))
+                ? Complexity.One
+                // wild guess: we can have 0 to 200 related entities
+                // can we let the underlying schema provide more accurate info here?
+                : Complexity.Of(0, 200);
+        }
     }
 }

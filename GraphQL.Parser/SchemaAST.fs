@@ -88,6 +88,8 @@ type Complexity =
         | Range(_, max) -> max
     static member Zero = Exactly 0L
     static member One = Exactly 1L
+    static member Of(x) = Exactly (int64 x)
+    static member Of(min, max) = Range(int64 min, int64 max)
     static member private Combine(f, left, right) =
         match left, right with
         | Exactly c1, Exactly c2 -> Exactly (f c1 c2)

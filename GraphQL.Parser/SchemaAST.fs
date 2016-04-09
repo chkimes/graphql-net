@@ -194,7 +194,7 @@ and CoreVariableType =
         | NamedType schemaType, vt ->
             schemaType.CoreType.AcceptsVariableType(vt)
         | ListType vt1, ListType vt2 ->
-            vt1.Type.AcceptsVariableType(vt2)
+            (vt1.Type : CoreVariableType).AcceptsVariableType(vt2)
         | ObjectType o1, ObjectType o2 ->
             seq {
                 for KeyValue(name, vt1) in o1 do
@@ -236,11 +236,39 @@ and CoreVariableType =
                         | Some fv -> ty.AcceptsValueExpression(fv.Value)
             } |> Seq.forall id
         | _ -> false
-and VariableType =
-    {
-        Type : CoreVariableType
-        Nullable : bool
-    }
+and VariableType(coreType: CoreVariableType, isNullable : bool) =
+    static let primitiveTypeLookup =
+        [
+            typeof<int8>, IntType
+            typeof<int16>, IntType
+            typeof<int32>, IntType
+            typeof<int64>, IntType
+            typeof<uint8>, IntType
+            typeof<uint16>, IntType
+            typeof<uint32>, IntType
+            typeof<uint64>, IntType
+
+            typeof<single>, FloatType
+            typeof<double>, FloatType
+            typeof<decimal>, FloatType
+
+            typeof<string>, StringType
+
+            typeof<bool>, BooleanType
+        ] |> dictionary
+    static let coreTypeOfCLRType (ty : System.Type) =
+        match primitiveTypeLookup.TryFind(ty) with
+        | Some p -> PrimitiveType p
+        | None ->
+            let interfaces = ty.GetInterfaces()
+            let ienumerable = interfaces |> Array.tryFind(fun i -> i.IsGenericType && i.GetGenericTypeDefinition() = typedefof<_ seq>)
+            match ienumerable with
+            | None -> failwith (sprintf "Can't guess core type for CLR type ``%O''" ty)
+            | Some ienumerable ->
+                let elementTy = ienumerable.GetGenericArguments().[0]
+                ListType (VariableType.GuessFromCLRType(elementTy))   
+    member this.Type = coreType
+    member this.Nullable = isNullable
     member this.AcceptsVariableType(vtype : VariableType) =
         this.Type.AcceptsVariableType(vtype)
     member this.AcceptsValueExpression(vexpr : ValueExpression) =
@@ -251,6 +279,12 @@ and VariableType =
         match value with
         | NullValue -> this.Nullable
         | notNull -> this.Type.AcceptsValue(notNull)
+    static member GuessFromCLRType(ty : System.Type) =
+        if ty.IsValueType && ty.IsGenericType && ty.GetGenericTypeDefinition() = typedefof<System.Nullable<_>> then
+            let wrapped = ty.GetGenericArguments().[0]
+            new VariableType(coreTypeOfCLRType ty, true)
+        else
+            new VariableType(coreTypeOfCLRType ty, not ty.IsValueType)
 and VariableDefinition =
     {
         VariableName : string

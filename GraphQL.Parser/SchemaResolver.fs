@@ -89,7 +89,7 @@ module private Extensions =
                         | Some valueTy -> NamedType valueTy
                 | ParserAST.ListType plty ->
                     this.ResolveVariableType(plty, pos) |> ListType
-            { Type = coreTy; Nullable = ptype.Nullable }
+            new VariableType(coreTy, ptype.Nullable)
         member this.ResolveValueConst(pvalue : ParserAST.ValueConst, pos : SourceInfo) : Value =
             match pvalue with
             | ParserAST.PrimitiveValueConst p ->

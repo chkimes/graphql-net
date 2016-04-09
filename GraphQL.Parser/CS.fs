@@ -90,7 +90,7 @@ type SchemaQueryableFieldCS<'s>() =
 [<AbstractClass>]
 type SchemaValueFieldCS<'s>() =
     inherit SchemaFieldCS<'s>()
-    override this.FieldType = ValueField { Nullable = this.IsNullable; Type = this.ValueFieldType }
+    override this.FieldType = ValueField (new VariableType(this.ValueFieldType, this.IsNullable))
     abstract member IsNullable : bool
     default this.IsNullable = false
     abstract member ValueFieldType : CoreVariableType

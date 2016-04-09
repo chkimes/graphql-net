@@ -73,6 +73,33 @@ type EnumValue =
         Value : EnumTypeValue
     }
 
+/// Represents an estimate of the complexity of a query operation, in
+/// arbitrary units of work.
+type Complexity =
+    | Range of (int64 * int64)
+    | Exactly of int64
+    member this.Minimum =
+        match this with
+        | Exactly x -> x
+        | Range(min, max) -> min
+    member this.Maximum =
+        match this with
+        | Exactly x -> x
+        | Range(_, max) -> max
+    static member Zero = Exactly 0L
+    static member One = Exactly 1L
+    static member private Combine(f, left, right) =
+        match left, right with
+        | Exactly c1, Exactly c2 -> Exactly (f c1 c2)
+        | Range(low1, high1), Exactly c2 ->
+            Range(f low1 c2, f high1 c2)
+        | Range(low1, high1), Range(low2, high2) ->
+            Range(f low1 low2, f high1 high2)
+        | Exactly c1, Range(low2, high2) ->
+            Range(f c1 low2, f c1 high2)
+    static member (*) (left, right) = Complexity.Combine(Checked.(*), left, right)
+    static member (+) (left, right) = Complexity.Combine(Checked.(+), left, right)
+
 type ListWithSource<'a> = IReadOnlyList<'a WithSource>
 
 type ISchemaInfo<'s> =
@@ -110,6 +137,9 @@ and ISchemaField<'s> =
     /// Get the possible arguments of this field, keyed by name.
     /// May be empty if the field accepts no arguments.
     abstract member Arguments : IReadOnlyDictionary<string, ISchemaArgument<'s>>
+    /// Given the arguments (without values) supplied to this field, give a ballpark estimate of
+    /// how much work it will take to select.
+    abstract member EstimateComplexity : ISchemaArgument<'s> seq -> Complexity
 /// Represents argument information provided by the schema implementation for validation
 /// and for inclusion in the validated AST.
 and ISchemaArgument<'s> =
@@ -373,6 +403,24 @@ type LonghandOperation<'s> =
 type Operation<'s> =
     | ShorthandOperation of Selection<'s> ListWithSource
     | LonghandOperation of LonghandOperation<'s>
+    static member private EstimateComplexity(selections : Selection<'s> ListWithSource) =
+        selections
+        |> Seq.map (fun s -> s.Value)
+        |> Seq.sumBy Operation<'s>.EstimateComplexity 
+    static member private EstimateComplexity(selection : Selection<'s>) =
+        match selection with
+        | FieldSelection field ->
+            let fieldComplexity =
+                field.SchemaField.EstimateComplexity(field.Arguments |> Seq.map (fun a -> a.Value.Argument))
+            let subComplexity =
+                Operation<'s>.EstimateComplexity(field.Selections)
+            fieldComplexity + fieldComplexity * subComplexity
+        | FragmentSpreadSelection spread -> Operation<'s>.EstimateComplexity(spread.Fragment.Selections)
+        | InlineFragmentSelection frag -> Operation<'s>.EstimateComplexity(frag.Selections)
+    member this.EstimateComplexity() =
+        match this with
+        | ShorthandOperation sels -> Operation<'s>.EstimateComplexity(sels)
+        | LonghandOperation op -> Operation<'s>.EstimateComplexity(op.Selections)
 
 // Note: we don't include fragment definitions in the schema-validated AST.
 // This is because the Fragment<'s> type only makes sense where a fragment is

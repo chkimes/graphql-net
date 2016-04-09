@@ -52,6 +52,16 @@ type UserType() =
             member __.Description = Some ("Description of " + name)
             member __.Info = "Info for " + name
             member __.Arguments = args |> dictionary :> _
+            member __.EstimateComplexity(args) =
+                match fieldType with
+                | ValueField _ -> Exactly(0L)
+                | QueryField _ ->
+                    if args |> Seq.exists(fun a -> a.ArgumentName = "id") then
+                        Exactly(1L)
+                    else if args |> Seq.exists(fun a -> a.ArgumentName = "name") then
+                        Range(0L, 30L)
+                    else
+                        Range(1L, 100L)
         }
     interface ISchemaQueryType<FakeData> with
         member this.TypeName = "User"
@@ -77,6 +87,11 @@ type RootType() =
             member __.Description = Some ("Description of " + name)
             member __.Info = "Info for " + name
             member __.Arguments = args |> dictionary :> _
+            member __.EstimateComplexity(args) =
+                if args |> Seq.exists(fun a -> a.ArgumentName = "id") then
+                    Exactly(1L)
+                else
+                    Range(1L, 100L)
         }
     interface ISchemaQueryType<FakeData> with
         member this.TypeName = "Root"
@@ -114,6 +129,8 @@ type SchemaTest() =
         let doc = GraphQLDocument.Parse(schema, source)
         if doc.Operations.Count <= 0 then
             failwith "No operations in document!"
+        for op in doc.Operations do
+            printfn "Operation complexity: %A" (op.Value.EstimateComplexity())
     let bad reason source =
         try
             ignore <| GraphQLDocument.Parse(schema, source)

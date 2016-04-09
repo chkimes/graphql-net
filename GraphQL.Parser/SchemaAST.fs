@@ -69,12 +69,15 @@ type EnumValue =
 
 type ListWithSource<'a> = IReadOnlyList<'a WithSource>
 
+type ISchemaInfo<'s> =
+    abstract member Info : 's
+
 /// Represents type information provided by the schema implementation for validation
 /// and for inclusion in the validated AST.
 type ISchemaQueryType<'s> =
+    inherit ISchemaInfo<'s>
     abstract member TypeName : string
     abstract member Description : string option
-    abstract member Info : 's
     /// Get the fields of this type, keyed by name.
     /// May be empty, for example if the type is a primitive.
     abstract member Fields : IReadOnlyDictionary<string, ISchemaField<'s>>
@@ -93,25 +96,25 @@ and SchemaFieldType<'s> =
 /// Represents field information provided by the schema implementation for validation
 /// and for inclusion in the validated AST.
 and ISchemaField<'s> =
+    inherit ISchemaInfo<'s>
     abstract member DeclaringType : ISchemaQueryType<'s>
     abstract member FieldType : SchemaFieldType<'s>
     abstract member FieldName : string
     abstract member Description : string option
-    abstract member Info : 's
     /// Get the possible arguments of this field, keyed by name.
     /// May be empty if the field accepts no arguments.
     abstract member Arguments : IReadOnlyDictionary<string, ISchemaArgument<'s>>
 /// Represents argument information provided by the schema implementation for validation
 /// and for inclusion in the validated AST.
 and ISchemaArgument<'s> =
+    inherit ISchemaInfo<'s>
     abstract member ArgumentName : string
     abstract member ArgumentType : CoreVariableType
     abstract member Description : string option
-    abstract member Info : 's
 and ISchemaDirective<'s> =
+    inherit ISchemaInfo<'s>
     abstract member DirectiveName : string
     abstract member Description : string option
-    abstract member Info : 's
     /// Get the possible arguments of this directive, keyed by name.
     /// May be empty if the directive accepts no arguments.
     abstract member Arguments : IReadOnlyDictionary<string, ISchemaArgument<'s>>

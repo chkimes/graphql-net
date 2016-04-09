@@ -12,7 +12,13 @@
             Type = type;
         }
 
+        public Info(GraphQLQueryBase query)
+        {
+            Query = query;
+        }
+
         public GraphQLField Field { get; }
         public GraphQLType Type { get; }
+        public GraphQLQueryBase Query { get; }
     }
 }

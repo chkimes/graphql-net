@@ -1,5 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using GraphQL.Net.SchemaAdapters;
+using GraphQL.Parser;
+using GraphQL.Parser.Execution;
 
 namespace GraphQL.Net
 {
@@ -29,9 +33,17 @@ namespace GraphQL.Net
             if (!_schema.Completed)
                 throw new InvalidOperationException("Schema must be Completed before executing a query. Try calling the schema's Complete method.");
 
-            var parsed = Parser.Parse(queryStr);
-            var query = _schema.FindQuery(parsed.Name);
-            return query.Execute(parsed);
+            var document = GraphQLDocument<Info>.Parse(_schema.Adapter, queryStr);
+            var context = DefaultExecContext.Instance; // TODO use a real IExecContext to support passing variables
+            var operation = document.Operations.Single(); // TODO support multiple operations, look up by name
+            var execSelections = context.ToExecSelections(operation.Value);
+            var outputs = new Dictionary<string, object>();
+            foreach (var execSelection in execSelections.Select(s => s.Value))
+            {
+                var query = execSelection.SchemaField.Query();
+                outputs[execSelection.Name] = query.Execute(null); // TODO make execute take an ExecSelection
+            }
+            return outputs;
         }
     }
 }

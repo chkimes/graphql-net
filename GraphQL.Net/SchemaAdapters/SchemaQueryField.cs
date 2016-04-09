@@ -17,5 +17,6 @@ namespace GraphQL.Net.SchemaAdapters
         public override ISchemaQueryType<Info> DeclaringType => _declaringType;
         public override string FieldName => _query.Name;
         public override ISchemaQueryType<Info> QueryableFieldType => SchemaType.OfType(_query.Type);
+        public override Info Info => new Info(_query);
     }
 }

@@ -5,13 +5,17 @@ using System.Linq.Expressions;
 
 namespace GraphQL.Net
 {
-    internal abstract class GraphQLQueryBase<TContext>
+    internal abstract class GraphQLQueryBase
     {
         public string Name { get; set; }
         public GraphQLType Type { get; set; }
         public ResolutionType ResolutionType { get; set; }
-        public GraphQLSchema<TContext> Schema { get; set; }
         public abstract IDictionary<string, object> Execute(Query query);
+    }
+
+    internal abstract class GraphQLQueryBase<TContext> : GraphQLQueryBase
+    {
+        public GraphQLSchema<TContext> Schema { get; set; }
         public abstract IDictionary<string, object> Execute(TContext context, Query query);
         public Func<TContext> ContextCreator { get; set; }
     }

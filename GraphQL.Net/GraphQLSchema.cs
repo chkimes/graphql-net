@@ -42,6 +42,8 @@ namespace GraphQL.Net
             return new GraphQLTypeBuilder<TContext, TEntity>(this, type);
         }
 
+        internal SchemaAdapters.Schema<TContext> Adapter { get; private set; }
+
         public void Complete()
         {
             if (Completed)
@@ -52,6 +54,7 @@ namespace GraphQL.Net
             foreach (var type in _types.Where(t => t.QueryType == null))
                 CompleteType(type);
 
+            Adapter = new SchemaAdapters.Schema<TContext>(this);
             Completed = true;
         }
 

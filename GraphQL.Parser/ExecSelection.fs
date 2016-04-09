@@ -47,6 +47,7 @@ type ExecSelection<'s> =
         Directives : ExecDirective<'s> ListWithSource
         Selections : ExecSelection<'s> ListWithSource
     }
+    member this.Name = defaultArg this.Alias this.SchemaField.FieldName
 
 type IExecContext =
     abstract member GetVariableValue : string -> Value option

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using GraphQL.Net.SchemaAdapters;
+using GraphQL.Parser.Execution;
 
 namespace GraphQL.Net
 {
@@ -28,7 +30,7 @@ namespace GraphQL.Net
         /// <typeparam name="TArgs"></typeparam>
         /// <param name="inputs"></param>
         /// <returns></returns>
-        public static TArgs GetArgs<TArgs>(List<Input> inputs)
+        internal static TArgs GetArgs<TArgs>(IEnumerable<ExecArgument<Info>> inputs)
         {
             var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
             if (paramlessCtor != null)
@@ -37,15 +39,15 @@ namespace GraphQL.Net
             return GetAnonymousArgs<TArgs>(anonTypeCtor, inputs);
         }
 
-        private static TArgs GetParamlessArgs<TArgs>(ConstructorInfo paramlessCtor, List<Input> inputs)
+        private static TArgs GetParamlessArgs<TArgs>(ConstructorInfo paramlessCtor, IEnumerable<ExecArgument<Info>> inputs)
         {
             var args = (TArgs)paramlessCtor.Invoke(null);
             foreach (var input in inputs)
-                typeof(TArgs).GetProperty(input.Name).GetSetMethod().Invoke(args, new[] { input.Value });
+                typeof(TArgs).GetProperty(input.Argument.ArgumentName).GetSetMethod().Invoke(args, new[] { input.Value.ToObject() });
             return args;
         }
 
-        private static TArgs GetAnonymousArgs<TArgs>(ConstructorInfo anonTypeCtor, List<Input> inputs)
+        private static TArgs GetAnonymousArgs<TArgs>(ConstructorInfo anonTypeCtor, IEnumerable<ExecArgument<Info>> inputs)
         {
             var parameters = anonTypeCtor
                 .GetParameters()
@@ -54,10 +56,10 @@ namespace GraphQL.Net
             return (TArgs)anonTypeCtor.Invoke(parameters);
         }
 
-        private static object GetParameter(ParameterInfo param, List<Input> inputs)
+        private static object GetParameter(ParameterInfo param, IEnumerable<ExecArgument<Info>> inputs)
         {
-            var input = inputs.FirstOrDefault(i => i.Name == param.Name);
-            return input != null ? input.Value : GetDefault(param.ParameterType);
+            var input = inputs.FirstOrDefault(i => i.Argument.ArgumentName == param.Name);
+            return input != null ? input.Value.ToObject() : GetDefault(param.ParameterType);
         }
 
         private static object GetDefault(Type type)

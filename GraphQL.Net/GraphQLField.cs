@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using GraphQL.Net.SchemaAdapters;
+using GraphQL.Parser.Execution;
 
 namespace GraphQL.Net
 {
@@ -15,7 +17,7 @@ namespace GraphQL.Net
         public virtual bool IsPost => false;
 
         public abstract GraphQLType Type { get; }
-        public abstract LambdaExpression GetExpression(List<Input> inputs);
+        public abstract LambdaExpression GetExpression(IEnumerable<ExecArgument<Info>> inputs);
         public virtual object ResolvePostField() => null;
     }
 
@@ -31,7 +33,7 @@ namespace GraphQL.Net
             Name = name;
         }
 
-        public override LambdaExpression GetExpression(List<Input> inputs)
+        public override LambdaExpression GetExpression(IEnumerable<ExecArgument<Info>> inputs)
         {
             var args = TypeHelpers.GetArgs<TArgs>(inputs);
             return ExprFunc(args);
@@ -72,7 +74,7 @@ namespace GraphQL.Net
 
         private GraphQLType _type;
         public override GraphQLType Type => _type ?? (_type = _schema.GetGQLType(typeof(TField)));
-        public override LambdaExpression GetExpression(List<Input> inputs)
+        public override LambdaExpression GetExpression(IEnumerable<ExecArgument<Info>> inputs)
         {
             throw new NotImplementedException();
         }

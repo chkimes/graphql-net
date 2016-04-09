@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
+using GraphQL.Net.SchemaAdapters;
 
 namespace GraphQL.Net
 {
@@ -42,7 +42,7 @@ namespace GraphQL.Net
             return new GraphQLTypeBuilder<TContext, TEntity>(this, type);
         }
 
-        internal SchemaAdapters.Schema<TContext> Adapter { get; private set; }
+        internal Schema<TContext> Adapter { get; private set; }
 
         public void Complete()
         {
@@ -54,7 +54,7 @@ namespace GraphQL.Net
             foreach (var type in _types.Where(t => t.QueryType == null))
                 CompleteType(type);
 
-            Adapter = new SchemaAdapters.Schema<TContext>(this);
+            Adapter = new Schema<TContext>(this);
             Completed = true;
         }
 

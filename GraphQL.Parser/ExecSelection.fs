@@ -60,12 +60,7 @@ type DefaultExecContext() =
 
 module private Execution =
     let execArgument (context : IExecContext) ({ Source = pos; Value = { Argument = argument; Expression = expr } }) =
-        let getVariable name =
-            match context.GetVariableValue(name) with
-            | None ->
-                failAt pos (sprintf "no value provided for variable ``%s''" name)
-            | Some value -> value
-        let argValue = expr.ToValue(getVariable)
+        let argValue = expr.ToValue(context.GetVariableValue)
         if not <| argument.ArgumentType.AcceptsValue(argValue) then
             failAt pos (sprintf "unacceptable value for argument ``%s''" argument.ArgumentName)
         {

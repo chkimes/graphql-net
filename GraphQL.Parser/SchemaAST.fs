@@ -43,6 +43,12 @@ type Primitive =
         | FloatPrimitive _ -> FloatType
         | StringPrimitive _ -> StringType
         | BooleanPrimitive _ -> BooleanType
+    member this.ToObject() =
+        match this with
+        | IntPrimitive i -> box i
+        | FloatPrimitive f -> box f
+        | StringPrimitive s -> box s
+        | BooleanPrimitive b -> box b
 and PrimitiveType =
     | IntType
     | FloatType
@@ -141,6 +147,13 @@ and Value =
     | EnumValue of EnumValue
     | ListValue of Value ListWithSource
     | ObjectValue of IReadOnlyDictionary<string, Value WithSource>
+    member this.ToObject() =
+        match this with
+        | PrimitiveValue p -> p.ToObject()
+        | NullValue -> null
+        | EnumValue e -> box e.Value.ValueName // TODO can we do better than this?
+        | ListValue vs -> box <| new ResizeArray<_>(vs |> Seq.map (fun v -> v.Value))
+        | ObjectValue o -> failwith "Can't convert object literal to unknown object type" // TODO wtf should we do here?
     member this.ToExpression() =
         match this with
         | PrimitiveValue p -> PrimitiveExpression p
@@ -167,7 +180,16 @@ and ValueExpression =
     | ObjectExpression of IReadOnlyDictionary<string, ValueExpression WithSource>
     member this.ToValue(resolveVariable) =
         match this with
-        | VariableExpression vdef -> resolveVariable vdef.VariableName
+        | VariableExpression vdef ->
+            let attempt = resolveVariable vdef.VariableName
+            match attempt with
+            | Some v ->
+                if vdef.VariableType.AcceptsValue(v) then v
+                else failwith (sprintf "unacceptable value for variable ``%s''" vdef.VariableName)
+            | None ->
+                match vdef.DefaultValue with
+                | None -> failwith (sprintf "no value provided for variable ``%s''" vdef.VariableName)
+                | Some def -> def
         | PrimitiveExpression prim -> PrimitiveValue prim
         | NullExpression -> NullValue
         | EnumExpression en -> EnumValue en

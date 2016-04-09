@@ -23,6 +23,7 @@
 namespace GraphQL.Parser.CS
 open GraphQL.Parser
 open System.Collections.Generic
+open System.Runtime.CompilerServices
 
 // This module adds abstract classes suitable as a starting point for implementing
 // a schema from a C# project.
@@ -94,5 +95,10 @@ type SchemaValueFieldCS<'s>() =
     abstract member IsNullable : bool
     default this.IsNullable = false
     abstract member ValueFieldType : CoreVariableType
+
+[<Extension>]
+type CSExtensions =
+    [<Extension>]
+    static member Values<'a>(elements : 'a WithSource seq) = elements |> Seq.map (fun e -> e.Value)
 
         

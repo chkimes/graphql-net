@@ -9,7 +9,7 @@ namespace Tests
     {
         public static void LookupSingleEntity<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, name }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, name } }")["user"];
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user["name"], "Joe User");
             Assert.AreEqual(user.Keys.Count, 2);
@@ -17,7 +17,7 @@ namespace Tests
 
         public static void AliasOneField<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { idAlias : id, name }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { idAlias : id, name } }")["user"];
             Assert.IsFalse(user.ContainsKey("id"));
             Assert.AreEqual(user["idAlias"], 1);
             Assert.AreEqual(user["name"], "Joe User");
@@ -26,7 +26,7 @@ namespace Tests
 
         public static void NestedEntity<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, account { id, name } }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, account { id, name } } }")["user"];
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user.Keys.Count, 2);
             Assert.IsTrue(user.ContainsKey("account"));
@@ -38,13 +38,13 @@ namespace Tests
 
         public static void NoUserQueryReturnsNull<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:0) { id, account { id, name } }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:0) { id, account { id, name } } }")["user"];
             Assert.IsNull(user);
         }
 
         public static void CustomFieldSubQuery<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, accountPaid }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, accountPaid } }")["user"];
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user["accountPaid"], true);
             Assert.AreEqual(user.Keys.Count, 2);
@@ -52,7 +52,7 @@ namespace Tests
 
         public static void CustomFieldSubQueryUsingContext<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, total }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, total } }")["user"];
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user["total"], 2);
             Assert.AreEqual(user.Keys.Count, 2);
@@ -60,7 +60,7 @@ namespace Tests
 
         public static void List<TContext>(GraphQL<TContext> gql)
         {
-            var users = ((List<IDictionary<string, object>>)gql.ExecuteQuery("query users { id, name }")["data"]).ToList();
+            var users = ((List<IDictionary<string, object>>)gql.ExecuteQuery("{ users { id, name } }")["users"]).ToList();
             Assert.AreEqual(users.Count, 2);
             Assert.AreEqual(users[0]["id"], 1);
             Assert.AreEqual(users[0]["name"], "Joe User");
@@ -72,13 +72,13 @@ namespace Tests
 
         public static void ListTypeIsList<TContext>(GraphQL<TContext> gql)
         {
-            var users = gql.ExecuteQuery("query users { id, name }")["data"];
+            var users = gql.ExecuteQuery("{ users { id, name } }")["users"];
             Assert.AreEqual(users.GetType(), typeof(List<IDictionary<string, object>>));
         }
 
         public static void NestedEntityList<TContext>(GraphQL<TContext> gql)
         {
-            var account = (IDictionary<string, object>)gql.ExecuteQuery("query account(id:1) { id, users { id, name } }")["data"];
+            var account = (IDictionary<string, object>)gql.ExecuteQuery("{ account(id:1) { id, users { id, name } } }")["account"];
             Assert.AreEqual(account["id"], 1);
             Assert.AreEqual(account.Keys.Count, 2);
             Assert.IsTrue(account.ContainsKey("users"));
@@ -91,7 +91,7 @@ namespace Tests
 
         public static void PostField<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, abc }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, abc } }")["user"];
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user["abc"], "easy as 123");
             Assert.AreEqual(user.Keys.Count, 2);
@@ -99,7 +99,7 @@ namespace Tests
 
         public static void PostFieldSubQuery<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { sub { id } }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { sub { id } } }")["user"];
             Assert.AreEqual(user.Keys.Count, 1);
             var sub = (IDictionary<string, object>)user["sub"];
             Assert.AreEqual(sub["id"], 1);
@@ -108,7 +108,7 @@ namespace Tests
 
         public static void TypeName<TContext>(GraphQL<TContext> gql)
         {
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, __typename }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, __typename } }")["user"];
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user["__typename"], "User");
             Assert.AreEqual(user.Keys.Count, 2);

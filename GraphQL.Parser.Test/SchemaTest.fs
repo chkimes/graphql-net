@@ -213,6 +213,39 @@ type SchemaTest() =
     [<TestMethod>]
     member __.TestRecursionDepth() =
         bad "exceeded maximum recursion depth" @"
+{
+    user {
+        friend(name: ""bob"") {
+            friend(name: ""bob"") {
+                friend(name: ""bob"") {
+                    friend(name: ""bob"") {
+                        friend(name: ""bob"") {
+                            friend(name: ""bob"") {
+                                friend(name: ""bob"") {
+                                    friend(name: ""bob"") {
+                                        friend(name: ""bob"") {
+                                            friend(name: ""bob"") {
+                                                friend(name: ""bob"") {
+                                                    id
+                                                    name
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"
+
+    [<TestMethod>]
+    member __.TestRecursionBan() =
+        bad "use of fragment ``friendNamedBobForever'' is recursive" @"
 fragment friendNamedBobForever on User {
     friend(name: ""bob"") {
         ...friendNamedBobForever

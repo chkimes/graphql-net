@@ -124,9 +124,10 @@ type Resolver<'s>
     ( schemaType : ISchemaQueryType<'s> // the type being selected from
     , opContext : IOperationContext<'s>
     , recursionDepth : int
+    , fragmentContext : string list
     ) =
     static let maxRecursionDepth = 10 // should be plenty for real queries
-    member private this.ResolveArguments
+    member private __.ResolveArguments
         ( schemaArgs : IReadOnlyDictionary<string, ISchemaArgument<'s>>
         , pargs : ParserAST.Argument WithSource seq
         ) =
@@ -169,7 +170,7 @@ type Resolver<'s>
                             failAt
                                 pfield.Selections.[0].Source
                                 (sprintf "exceeded maximum recursion depth of %d" maxRecursionDepth)
-                        let child = new Resolver<'s>(queryType, opContext, recursionDepth + 1)
+                        let child = new Resolver<'s>(queryType, opContext, recursionDepth + 1, fragmentContext)
                         child.ResolveSelections(pfield.Selections)
                     | ValueField _ ->
                         fieldInfo.FieldName
@@ -182,14 +183,17 @@ type Resolver<'s>
                 Arguments = arguments
                 Selections = selections
             }
-    member private this.ResolveTypeCondition(typeName : string, pos : SourceInfo) =
+    member private __.ResolveTypeCondition(typeName : string, pos : SourceInfo) =
         match opContext.Schema.ResolveQueryTypeByName(typeName) with
         | None -> failAt pos (sprintf "unknown type ``%s'' in type condition" typeName)
         | Some ty -> ty
-    member private this.ResolveFragment(pfrag : ParserAST.Fragment, pos : SourceInfo) =
-        let directives = this.ResolveDirectives(pfrag.Directives)
-        let selections = this.ResolveSelections(pfrag.Selections)
-        let typeCondition = this.ResolveTypeCondition(pfrag.TypeCondition, pos)
+    member private __.ResolveFragment(pfrag : ParserAST.Fragment, pos : SourceInfo) =
+        if fragmentContext |> List.contains(pfrag.FragmentName) then
+            failAt pos (sprintf "use of fragment ``%s'' is recursive" pfrag.FragmentName)
+        let sub = new Resolver<'s>(schemaType, opContext, recursionDepth, pfrag.FragmentName :: fragmentContext)
+        let directives = sub.ResolveDirectives(pfrag.Directives)
+        let selections = sub.ResolveSelections(pfrag.Selections)
+        let typeCondition = sub.ResolveTypeCondition(pfrag.TypeCondition, pos)
         {
             FragmentName = pfrag.FragmentName
             TypeCondition = typeCondition
@@ -285,7 +289,7 @@ type DocumentContext<'s>(schema : ISchema<'s>, document : ParserAST.Document) =
                 match definition with
                 | ParserAST.OperationDefinition operation ->
                     let opContext = new OperationContext<'s>(schema, this)
-                    let resolver = new Resolver<'s>(schema.RootType, opContext, 0)
+                    let resolver = new Resolver<'s>(schema.RootType, opContext, 0, [])
                     let op = resolver.ResolveOperation(operation, pos)
                     yield { Source = pos; Value = op }
                 | ParserAST.FragmentDefinition _ -> () // ignore fragments

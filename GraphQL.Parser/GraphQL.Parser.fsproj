@@ -60,7 +60,6 @@
     <Compile Include="ExecSelection.fs" />
     <Compile Include="GraphQLDocument.fs" />
     <Compile Include="CS.fs" />
-    <Compile Include="GraphQLParser.fs" />
     <Content Include="app.config" />
     <Content Include="packages.config" />
   </ItemGroup>

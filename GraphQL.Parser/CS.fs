@@ -63,9 +63,9 @@ type SchemaQueryTypeCS<'s>() =
         member this.Fields = this.Fields
 
 [<AbstractClass>]
-type SchemaQueryableFieldCS<'s>() =
+type SchemaFieldCS<'s>() =
     abstract member DeclaringType : ISchemaQueryType<'s>
-    abstract member FieldType : ISchemaQueryType<'s>
+    abstract member FieldType : SchemaFieldType<'s>
     abstract member FieldName : string
     abstract member Description : string
     default this.Description = null
@@ -75,36 +75,24 @@ type SchemaQueryableFieldCS<'s>() =
     default this.Arguments = emptyDictionary
     interface ISchemaField<'s> with
         member this.DeclaringType = this.DeclaringType
-        member this.FieldType = QueryField this.FieldType
+        member this.FieldType = this.FieldType
         member this.FieldName = this.FieldName
         member this.Description = this.Description |> obj2option
         member this.Info = this.Info
         member this.Arguments = this.Arguments
 
 [<AbstractClass>]
+type SchemaQueryableFieldCS<'s>() =
+    inherit SchemaFieldCS<'s>()
+    override this.FieldType = QueryField this.QueryableFieldType
+    abstract member QueryableFieldType : ISchemaQueryType<'s>
+
+[<AbstractClass>]
 type SchemaValueFieldCS<'s>() =
-    abstract member DeclaringType : ISchemaQueryType<'s>
+    inherit SchemaFieldCS<'s>()
+    override this.FieldType = ValueField { Nullable = this.IsNullable; Type = this.ValueFieldType }
     abstract member IsNullable : bool
     default this.IsNullable = false
-    abstract member FieldType : CoreVariableType
-    abstract member FieldName : string
-    abstract member Description : string
-    default this.Description = null
-    abstract member Info : 's
-    default this.Info = Unchecked.defaultof<'s>
-    abstract member Arguments : IReadOnlyDictionary<string, ISchemaArgument<'s>>
-    default this.Arguments = emptyDictionary
-    static member Integer = PrimitiveType IntType
-    static member Float = PrimitiveType FloatType
-    static member String = PrimitiveType StringType
-    static member Boolean = PrimitiveType BooleanType
-    interface ISchemaField<'s> with
-        member this.DeclaringType = this.DeclaringType
-        member this.FieldType = ValueField { Nullable = this.IsNullable; Type = this.FieldType }
-        member this.FieldName = this.FieldName
-        member this.Description = this.Description |> obj2option
-        member this.Info = this.Info
-        member this.Arguments = this.Arguments
-
+    abstract member ValueFieldType : CoreVariableType
 
         

@@ -48,11 +48,17 @@ type ExecSelection<'s> =
         Selections : ExecSelection<'s> ListWithSource
     }
 
-type IExecContext<'s> =
+type IExecContext =
     abstract member GetVariableValue : string -> Value option
 
+type DefaultExecContext() =
+    interface IExecContext with
+        member this.GetVariableValue(_) = None
+    static member Instance = new DefaultExecContext() :> IExecContext
+    
+
 module private Execution =
-    let execArgument (context : IExecContext<'s>) ({ Source = pos; Value = { Argument = argument; Expression = expr } }) =
+    let execArgument (context : IExecContext) ({ Source = pos; Value = { Argument = argument; Expression = expr } }) =
         let getVariable name =
             match context.GetVariableValue(name) with
             | None ->
@@ -69,12 +75,12 @@ module private Execution =
                 Value = argValue
             }
         }
-    let execDirective (context : IExecContext<'s>) (directive : Directive<'s>) =
+    let execDirective (context : IExecContext) (directive : Directive<'s>) =
         {
             SchemaDirective = directive.SchemaDirective
             Arguments = directive.Arguments |> Seq.map (execArgument context) |> toReadOnlyList
         }
-    let rec execSelections (context : IExecContext<'s>) (selection : Selection<'s> WithSource) =
+    let rec execSelections (context : IExecContext) (selection : Selection<'s> WithSource) =
         match selection.Value with
         | FieldSelection field ->
             {
@@ -104,3 +110,18 @@ module private Execution =
                 }
             frag.Selections
             |> Seq.collect (execSelections context >> mapWithSource subMap)
+
+[<Extension>]
+type ExecContextExtensions =
+    [<Extension>]
+    static member ToExecSelections(context : IExecContext, selection : Selection<'s> WithSource) =
+        Execution.execSelections context selection
+    [<Extension>]
+    static member ToExecSelections(context : IExecContext, selections : Selection<'s> ListWithSource) =
+        selections |> Seq.collect (Execution.execSelections context)
+    [<Extension>]
+    static member ToExecSelections(context : IExecContext, operation : Operation<'s>) =
+        match operation with
+        | ShorthandOperation sels -> ExecContextExtensions.ToExecSelections(context, sels)
+        // TODO propagate directives from top level
+        | LonghandOperation op -> ExecContextExtensions.ToExecSelections(context, op.Selections)

@@ -143,6 +143,9 @@ namespace GraphQL.Net
         internal GraphQLType GetGQLType(Type type) => GetGQLType(type, _types);
         private static GraphQLType GetGQLType(Type type, List<GraphQLType> types) => types.First(t => t.CLRType == type);
 
+        internal IEnumerable<GraphQLQueryBase<TContext>> Queries => _queries;
+        internal IEnumerable<GraphQLType> Types => _types;
+
         private static IEnumerable<GraphQLType> GetPrimitives()
         {
             return new[]

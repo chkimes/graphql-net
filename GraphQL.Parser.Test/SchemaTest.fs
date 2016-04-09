@@ -245,7 +245,7 @@ type SchemaTest() =
 
     [<TestMethod>]
     member __.TestRecursionBan() =
-        bad "use of fragment ``friendNamedBobForever'' is recursive" @"
+        bad "fragment ``friendNamedBobForever'' is recursive" @"
 fragment friendNamedBobForever on User {
     friend(name: ""bob"") {
         ...friendNamedBobForever

@@ -189,7 +189,7 @@ type Resolver<'s>
         | Some ty -> ty
     member private __.ResolveFragment(pfrag : ParserAST.Fragment, pos : SourceInfo) =
         if fragmentContext |> List.contains(pfrag.FragmentName) then
-            failAt pos (sprintf "use of fragment ``%s'' is recursive" pfrag.FragmentName)
+            failAt pos (sprintf "fragment ``%s'' is recursive" pfrag.FragmentName)
         let sub = new Resolver<'s>(schemaType, opContext, recursionDepth, pfrag.FragmentName :: fragmentContext)
         let directives = sub.ResolveDirectives(pfrag.Directives)
         let selections = sub.ResolveSelections(pfrag.Selections)

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using GraphQL.Parser;
 using GraphQL.Parser.CS;
 
@@ -14,6 +16,7 @@ namespace GraphQL.Net.SchemaAdapters
             FieldType = _field.Type.IsScalar
                 ? SchemaFieldType<Info>.NewValueField(VariableType.GuessFromCLRType(_field.Type.CLRType))
                 : SchemaFieldType<Info>.NewQueryField(SchemaType.OfType(_field.Type));
+            Arguments = _field.Arguments.ToDictionary(a => a.ArgumentName);
         }
 
         public override ISchemaQueryType<Info> DeclaringType { get; }
@@ -22,5 +25,6 @@ namespace GraphQL.Net.SchemaAdapters
         public override string FieldName => _field.Name;
         public override string Description => _field.Description;
         public override Info Info => new Info(_field);
+        public override IReadOnlyDictionary<string, ISchemaArgument<Info>> Arguments { get; }
     }
 }

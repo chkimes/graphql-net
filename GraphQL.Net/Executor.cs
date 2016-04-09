@@ -10,7 +10,7 @@ namespace GraphQL.Net
 {
     internal static class Executor<TContext>
     {
-        public static IDictionary<string, object> Execute<TArgs, TEntity>
+        public static object Execute<TArgs, TEntity>
             (GraphQLSchema<TContext> schema, GraphQLQuery<TContext, TArgs, TEntity> gqlQuery, ExecSelection<Info> query)
         {
             var context = schema.ContextCreator();
@@ -19,7 +19,7 @@ namespace GraphQL.Net
             return results;
         }
 
-        public static IDictionary<string, object> Execute<TArgs, TEntity>
+        public static object Execute<TArgs, TEntity>
             (TContext context, GraphQLQuery<TContext, TArgs, TEntity> gqlQuery, ExecSelection<Info> query)
         {
             var args = TypeHelpers.GetArgs<TArgs>(query.Arguments.Values());
@@ -50,7 +50,7 @@ namespace GraphQL.Net
                     throw new ArgumentOutOfRangeException();
             }
 
-            return new Dictionary<string, object> {{"data", results}};
+            return results;
         }
 
         private static IDictionary<string, object> MapResults(object queryObject, IEnumerable<ExecSelection<Info>> selections)

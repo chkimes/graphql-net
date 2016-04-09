@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using GraphQL.Net.SchemaAdapters;
+using GraphQL.Parser;
 using GraphQL.Parser.Execution;
+using Microsoft.FSharp.Core;
 
 namespace GraphQL.Net
 {
@@ -21,6 +23,34 @@ namespace GraphQL.Net
 
             var baseType = givenType.BaseType;
             return baseType != null && IsAssignableToGenericType(baseType, genericType);
+        }
+
+        class SchemaArgument : ISchemaArgument<Info>
+        {
+            private readonly Type _type;
+            private readonly string _name;
+
+            public SchemaArgument(Type type, string name)
+            {
+                _type = type;
+                _name = name;
+            }
+
+            public Info Info => null;
+            public string ArgumentName => _name;
+            public CoreVariableType ArgumentType => VariableType.GuessFromCLRType(_type).Type;
+            public FSharpOption<string> Description => null;
+        }
+
+        internal static IEnumerable<ISchemaArgument<Info>> GetArgs<TArgs>()
+        {
+            var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
+            if (paramlessCtor != null)
+                return typeof(TArgs).GetProperties()
+                    .Select(p => new SchemaArgument(p.PropertyType, p.Name));
+            var anonTypeCtor = typeof(TArgs).GetConstructors().Single();
+            return anonTypeCtor.GetParameters()
+                .Select(p => new SchemaArgument(p.ParameterType, p.Name));
         }
 
         /// <summary>
@@ -43,7 +73,11 @@ namespace GraphQL.Net
         {
             var args = (TArgs)paramlessCtor.Invoke(null);
             foreach (var input in inputs)
-                typeof(TArgs).GetProperty(input.Argument.ArgumentName).GetSetMethod().Invoke(args, new[] { input.Value.ToObject() });
+            {
+                var prop = typeof(TArgs).GetProperty(input.Argument.ArgumentName);
+                prop.GetSetMethod()
+                    .Invoke(args, new[] { Convert.ChangeType(input.Value.ToObject(), prop.PropertyType) });
+            } 
             return args;
         }
 
@@ -59,7 +93,9 @@ namespace GraphQL.Net
         private static object GetParameter(ParameterInfo param, IEnumerable<ExecArgument<Info>> inputs)
         {
             var input = inputs.FirstOrDefault(i => i.Argument.ArgumentName == param.Name);
-            return input != null ? input.Value.ToObject() : GetDefault(param.ParameterType);
+            return input != null
+                ? Convert.ChangeType(input.Value.ToObject(), param.ParameterType)
+                : GetDefault(param.ParameterType);
         }
 
         private static object GetDefault(Type type)

@@ -1,0 +1,2 @@
+language: csharp
+solution: GraphQL.Net.sln

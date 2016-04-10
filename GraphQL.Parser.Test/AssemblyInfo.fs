@@ -1,4 +1,4 @@
-﻿namespace TestParsec.AssemblyInfo
+﻿namespace GraphQL.Parser.Test.AssemblyInfo
 
 open System.Reflection
 open System.Runtime.CompilerServices
@@ -7,12 +7,12 @@ open System.Runtime.InteropServices
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[<assembly: AssemblyTitle("TestParsec")>]
+[<assembly: AssemblyTitle("GraphQL.Parser.Test")>]
 [<assembly: AssemblyDescription("")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("")>]
-[<assembly: AssemblyProduct("TestParsec")>]
-[<assembly: AssemblyCopyright("Copyright ©  2015")>]
+[<assembly: AssemblyProduct("GraphQL.Parser.Test")>]
+[<assembly: AssemblyCopyright("Copyright ©  2016")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
 
@@ -22,7 +22,7 @@ open System.Runtime.InteropServices
 [<assembly: ComVisible(false)>]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[<assembly: Guid("72fa4e3c-b772-47c9-a015-d900919a24c9")>]
+[<assembly: Guid("75cdf08f-dbcf-4c68-b713-377776337bbf")>]
 
 // Version information for an assembly consists of the following four values:
 // 

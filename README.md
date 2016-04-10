@@ -99,8 +99,8 @@ In our first query, we want to see all users so we can just return the entire li
 ## Executing Queries
 
 ```csharp
-var query = @"
-query user(id:1) {
+var query = @"{
+user(id:1) {
     userId : id
     userName : name
     account {
@@ -114,7 +114,7 @@ var dict = GraphQL<TestContext>.Execute(query);
 Console.WriteLine(JsonConvert.SerializeObject(dict, Formatting.Indented));
 
 // {
-//   "data": {
+//   "user": {
 //     "userId": 1,
 //     "userName": "Joe User",
 //     "account": {
@@ -136,5 +136,8 @@ PM> Install-Package GraphQL.Net
 ```
 
 ## TODO
-Flesh out the parsing options - only field selection from queries is currently supported  
+Support directives like @skip.
+Support field arguments with complex types.
+Support enum types.
+Support custom primitive types (ID, datetime, etc).
 Introspection  

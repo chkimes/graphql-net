@@ -51,17 +51,29 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="GraphQLParser.fs" />
-    <Content Include="packages.config" />
+    <Compile Include="SourceTypes.fs" />
+    <Compile Include="Utilities.fs" />
+    <Compile Include="ParserAST.fs" />
+    <Compile Include="Parser.fs" />
+    <Compile Include="SchemaAST.fs" />
+    <Compile Include="SchemaResolver.fs" />
+    <Compile Include="ExecSelection.fs" />
+    <Compile Include="GraphQLDocument.fs" />
+    <Compile Include="CS.fs" />
     <Content Include="app.config" />
+    <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FParsec">
-      <HintPath>..\packages\FParsec.1.0.1\lib\net40-client\FParsec.dll</HintPath>
+      <HintPath>..\packages\FParsec.1.0.2\lib\net40-client\FParsec.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="FParsec-Pipes">
+      <HintPath>..\packages\FParsec-Pipes.0.1.1.0\lib\net45\FParsec-Pipes.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="FParsecCS">
-      <HintPath>..\packages\FParsec.1.0.1\lib\net40-client\FParsecCS.dll</HintPath>
+      <HintPath>..\packages\FParsec.1.0.2\lib\net40-client\FParsecCS.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="mscorlib" />

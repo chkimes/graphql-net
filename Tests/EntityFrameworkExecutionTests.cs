@@ -104,7 +104,7 @@ namespace Tests
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
             schema.Complete();
             var gql = new GraphQL<EfContext>(schema);
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("query user(id:1) { id, name }")["data"];
+            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, name } }")["user"];
             Assert.AreEqual(user["id"], 1);
             Assert.AreEqual(user["name"], "Joe User");
             Assert.AreEqual(user.Keys.Count, 2);

@@ -21,8 +21,8 @@
 //SOFTWARE.
 
 namespace GraphQL.Parser.Test
+open NUnit.Framework
 open GraphQL.Parser
-open Microsoft.VisualStudio.TestTools.UnitTesting
 
 // Tests that the schema resolution code works as expected with a pretend schema.
 
@@ -122,7 +122,7 @@ type FakeSchema() =
         member this.RootType = root
         
 
-[<TestClass>]
+[<TestFixture>]
 type SchemaTest() =
     let schema = new FakeSchema() :> ISchema<_>
     let good source =
@@ -139,7 +139,7 @@ type SchemaTest() =
         | :? SourceException as ex ->
             if (ex.Message.Contains(reason)) then ()
             else reraise()
-    [<TestMethod>]
+    [<Test>]
     member __.TestGoodUserQuery() =
         good @"
 {
@@ -154,7 +154,7 @@ type SchemaTest() =
 }
 "
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestBogusArgument() =
         bad "unknown argument ``occupation''" @"
 {
@@ -169,7 +169,7 @@ type SchemaTest() =
 }
 "
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestBogusArgumentType() =
         bad "invalid argument ``id''" @"
 {
@@ -184,7 +184,7 @@ type SchemaTest() =
 }
 "
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestBogusRootField() =
         bad "``team'' is not a field of type ``Root''" @"
 {
@@ -195,7 +195,7 @@ type SchemaTest() =
 }
 "
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestBogusSubField() =
         bad "``parent'' is not a field of type ``User''" @"
 {
@@ -210,7 +210,7 @@ type SchemaTest() =
 }
 "
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestRecursionDepth() =
         bad "exceeded maximum recursion depth" @"
 {
@@ -243,7 +243,7 @@ type SchemaTest() =
 }
 "
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestRecursionBan() =
         bad "fragment ``friendNamedBobForever'' is recursive" @"
 fragment friendNamedBobForever on User {

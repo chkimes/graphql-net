@@ -23,17 +23,17 @@
 namespace GraphQL.Parser.Test
 open GraphQL.Parser
 open GraphQL.Parser.ParserAST
-open Microsoft.VisualStudio.TestTools.UnitTesting
+open NUnit.Framework
 
 // Tests that the parser succeeds on examples taken from the draft GraphQL spec.
 
-[<TestClass>]
+[<TestFixture>]
 type ParserTest() =
     let good source =
         let doc = GraphQLParserDocument.Parse(source)
         if doc.AST.Definitions.Count <= 0 then
             failwith "No definitions in document!"
-    [<TestMethod>]
+    [<Test>]
     member __.TestMutation() =
         good @"
 mutation {
@@ -43,13 +43,13 @@ mutation {
     }
   }
 }"
-    [<TestMethod>]
+    [<Test>]
     member __.TestShorthand() =
         good @"
 {
   field
 }"
-    [<TestMethod>]
+    [<Test>]
     member __.TestShorthand3Fields() =
         good @"
 {
@@ -57,7 +57,7 @@ mutation {
   firstName
   lastName
 }"
-    [<TestMethod>]
+    [<Test>]
     member __.TestNestingShorthand() =
         good @"
 {
@@ -75,7 +75,7 @@ mutation {
   }
 }"
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestMultiWithComments() =
         good @"
 # `me` could represent the currently logged in viewer.
@@ -93,7 +93,7 @@ mutation {
   }
 }"
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestArguments() =
         good @"
 {
@@ -103,7 +103,7 @@ mutation {
     profilePic(size: 100)
   }
 }"
-    [<TestMethod>]
+    [<Test>]
     member __.TestMultiArguments() =
         good @"
 {
@@ -113,7 +113,7 @@ mutation {
     profilePic(width: 100, height: 50)
   }
 }"
-    [<TestMethod>]
+    [<Test>]
     member __.TestFieldAlias() =
         good @"
 {
@@ -125,7 +125,7 @@ mutation {
   }
 }"
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestFragments() =
         good @"
 query withFragments {
@@ -145,7 +145,7 @@ fragment friendFields on User {
   profilePic(size: 50)
 }
 "
-    [<TestMethod>]
+    [<Test>]
     member __.TestNestedFragments() =
         good @"
 query withNestedFragments {
@@ -169,7 +169,7 @@ fragment standardProfilePic on User {
   profilePic(size: 50)
 }"
 
-    [<TestMethod>]
+    [<Test>]
     member __.TestFragmentTyping() =
         good @"
 query FragmentTyping {
@@ -192,7 +192,7 @@ fragment pageFragment on Page {
   }
 }
 "
-    [<TestMethod>]
+    [<Test>]
     member __.TestInlineFragmentTyping() =
         good @"
 query inlineFragmentTyping {
@@ -211,7 +211,7 @@ query inlineFragmentTyping {
   }
 }
 "
-    [<TestMethod>]
+    [<Test>]
     member __.TestInlineFragmentNoTypeDirective() =
         good @"
 query inlineFragmentNoType($expandedInfo: Boolean) {
@@ -226,7 +226,7 @@ query inlineFragmentNoType($expandedInfo: Boolean) {
   }
 }
 "
-    [<TestMethod>]
+    [<Test>]
     member __.TestVariables() =
         good @"
 query getZuckProfile($devicePicSize: Int) {

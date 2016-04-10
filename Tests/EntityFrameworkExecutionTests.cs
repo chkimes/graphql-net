@@ -4,6 +4,7 @@ using System.Data.Entity;
 using System.Linq;
 using GraphQL.Net;
 using NUnit.Framework;
+using SQLite.CodeFirst;
 
 namespace Tests
 {
@@ -117,10 +118,14 @@ namespace Tests
 
         class EfContext : DbContext
         {
-            public EfContext() : base("DefaultConnection")
+            public EfContext() : base("DefaultConnection") { }
+
+            protected override void OnModelCreating(DbModelBuilder modelBuilder)
             {
-                Database.SetInitializer(new DropCreateDatabaseIfModelChanges<EfContext>());
+                Database.SetInitializer(new SqliteDropCreateDatabaseWhenModelChanges<EfContext>(modelBuilder));
+                base.OnModelCreating(modelBuilder);
             }
+
             public IDbSet<User> Users { get; set; }
             public IDbSet<Account> Accounts { get; set; }
         }

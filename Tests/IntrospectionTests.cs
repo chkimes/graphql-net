@@ -14,7 +14,7 @@ namespace Tests
         public void TypeName()
         {
             var gql = MemContext.CreateDefaultContext();
-            var type = (IDictionary<string, object>)gql.ExecuteQuery("query __type(name: \"User\") { name }")["data"];
+            var type = (IDictionary<string, object>)gql.ExecuteQuery("{ __type(name: \"User\") { name } }")["__type"];
             Assert.AreEqual(type["name"], "User");
             Assert.AreEqual(type.Keys.Count, 1);
         }

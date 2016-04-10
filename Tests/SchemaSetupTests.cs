@@ -1,18 +1,17 @@
 ﻿using System;
 using GraphQL.Net;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NUnit.Framework;
 
 namespace Tests
 {
-    [TestClass]
+    [TestFixture]
     public class SchemaSetupTests
     {
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Test]
         public void IncompleteSchemaCantBeQueried()
         {
             var schema = new GraphQLSchema<object>(() => null);
-            new GraphQL<object>(schema).ExecuteQuery("query users { id }");
+            Assert.Throws<InvalidOperationException>(() => new GraphQL<object>(schema).ExecuteQuery("query users { id }"));
         }
     }
 }

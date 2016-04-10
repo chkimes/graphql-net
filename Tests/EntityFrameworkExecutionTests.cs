@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using GraphQL.Net;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NUnit.Framework;
 
 namespace Tests
 {
-    [TestClass]
+    [TestFixture]
     public class EntityFrameworkExecutionTests
     {
-        [ClassInitialize]
-        public static void Init(TestContext c)
+        [OneTimeSetUp]
+        public static void Init()
         {
             using (var db = new EfContext())
             {
@@ -82,20 +82,20 @@ namespace Tests
             schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.Where(a => a.Id == args.id).FirstOrDefault());
         }
 
-        [TestMethod] public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
-        [TestMethod] public void AliasOneField() => GenericTests.AliasOneField(CreateDefaultContext());
-        [TestMethod] public void NestedEntity() => GenericTests.NestedEntity(CreateDefaultContext());
-        [TestMethod] public void NoUserQueryReturnsNull() => GenericTests.NoUserQueryReturnsNull(CreateDefaultContext());
-        [TestMethod] public void CustomFieldSubQuery() => GenericTests.CustomFieldSubQuery(CreateDefaultContext());
-        [TestMethod] public void CustomFieldSubQueryUsingContext() => GenericTests.CustomFieldSubQueryUsingContext(CreateDefaultContext());
-        [TestMethod] public void List() => GenericTests.List(CreateDefaultContext());
-        [TestMethod] public void ListTypeIsList() => GenericTests.ListTypeIsList(CreateDefaultContext());
-        [TestMethod] public void NestedEntityList() => GenericTests.NestedEntityList(CreateDefaultContext());
-        [TestMethod] public void PostField() => GenericTests.PostField(CreateDefaultContext());
-        [TestMethod] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(CreateDefaultContext());
-        [TestMethod] public void TypeName() => GenericTests.TypeName(CreateDefaultContext());
+        [Test] public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
+        [Test] public void AliasOneField() => GenericTests.AliasOneField(CreateDefaultContext());
+        [Test] public void NestedEntity() => GenericTests.NestedEntity(CreateDefaultContext());
+        [Test] public void NoUserQueryReturnsNull() => GenericTests.NoUserQueryReturnsNull(CreateDefaultContext());
+        [Test] public void CustomFieldSubQuery() => GenericTests.CustomFieldSubQuery(CreateDefaultContext());
+        [Test] public void CustomFieldSubQueryUsingContext() => GenericTests.CustomFieldSubQueryUsingContext(CreateDefaultContext());
+        [Test] public void List() => GenericTests.List(CreateDefaultContext());
+        [Test] public void ListTypeIsList() => GenericTests.ListTypeIsList(CreateDefaultContext());
+        [Test] public void NestedEntityList() => GenericTests.NestedEntityList(CreateDefaultContext());
+        [Test] public void PostField() => GenericTests.PostField(CreateDefaultContext());
+        [Test] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(CreateDefaultContext());
+        [Test] public void TypeName() => GenericTests.TypeName(CreateDefaultContext());
 
-        [TestMethod]
+        [Test]
         public void AddAllFields()
         {
             var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());

@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NUnit.Framework;
 
 namespace Tests
 {
-    [TestClass]
+    [TestFixture]
     public class IntrospectionTests
     {
-        [TestMethod]
+        [Test]
         public void TypeName()
         {
             var gql = MemContext.CreateDefaultContext();

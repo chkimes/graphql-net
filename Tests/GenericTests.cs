@@ -5,7 +5,7 @@ using NUnit.Framework;
 
 namespace Tests
 {
-    static class GenericTests
+    public static class GenericTests
     {
         public static void LookupSingleEntity<TContext>(GraphQL<TContext> gql)
         {

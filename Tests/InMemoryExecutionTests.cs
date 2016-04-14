@@ -27,7 +27,7 @@ namespace Tests
             var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());
             schema.AddType<User>().AddAllFields();
             schema.AddType<Account>().AddAllFields();
-            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().Where(u => u.Id == args.id).FirstOrDefault());
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Id == args.id));
             schema.Complete();
             var gql = new GraphQL<MemContext>(schema);
             var user = gql.ExecuteQuery("{ user(id:1) { id, name } }")["user"] as IDictionary<string, object>;

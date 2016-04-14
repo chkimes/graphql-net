@@ -68,7 +68,7 @@ namespace Tests
                 .AddPostField("sub", () => new Sub { Id = 1 });
             schema.AddType<Sub>().AddField(s => s.Id);
             schema.AddQuery("users", db => db.Users);
-            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));
         }
 
         private static string GetAbcPostField() => "easy as 123"; // mimic an in-memory function
@@ -80,7 +80,7 @@ namespace Tests
                 .AddField(a => a.Name)
                 .AddField(a => a.Paid)
                 .AddField(a => a.Users);
-            schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.Where(a => a.Id == args.id).FirstOrDefault());
+            schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.FirstOrDefault(a => a.Id == args.id));
         }
 
         [Test] public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
@@ -102,7 +102,7 @@ namespace Tests
             var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
             schema.AddType<User>().AddAllFields();
             schema.AddType<Account>().AddAllFields();
-            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id).FirstOrDefault());
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));
             schema.Complete();
             var gql = new GraphQL<EfContext>(schema);
             var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, name } }")["user"];

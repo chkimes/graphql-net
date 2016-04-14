@@ -97,8 +97,6 @@ namespace GraphQL.Net
 
             if (mce.Method.DeclaringType != typeof (Queryable)) return info; // TODO: Enumerable?
             if (!mce.Method.IsStatic) return info;
-            if (mce.Method.Name != "First" && mce.Method.Name != "FirstOrDefault") return info;
-            if (mce.Method.GetParameters().Length > 1) throw new Exception("First and FirstOrDefault are not supported with a predicate. Please use .Where(predicate).First() or .Where(predicate).FirstOrDefault().");
 
             switch (mce.Method.Name)
             {
@@ -109,10 +107,15 @@ namespace GraphQL.Net
                     info.ResolutionType = ResolutionType.FirstOrDefault;
                     break;
                 default:
-                    throw new Exception("Can't get here");
+                    return info;
             }
 
             var baseQueryable = mce.Arguments[0];
+            if (mce.Arguments.Count > 1)
+            {
+                baseQueryable = Expression.Call(typeof (Queryable), "Where", new[] {typeof (TEntity)}, baseQueryable, mce.Arguments[1]);
+            }
+
             info.BaseQuery = Expression.Lambda<Func<TContext, IQueryable<TEntity>>>(baseQueryable, queryableGetter.Parameters[0]);
 
             return info;

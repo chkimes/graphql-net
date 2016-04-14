@@ -72,7 +72,7 @@ namespace Tests
                 .AddPostField("sub", () => new Sub { Id = 1 });
             schema.AddType<Sub>().AddField(s => s.Id);
             schema.AddQuery("users", db => db.Users.AsQueryable());
-            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().Where(u => u.Id == args.id).FirstOrDefault());
+            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Id == args.id));
         }
 
         private static string GetAbcPostField() => "easy as 123"; // mimic an in-memory function
@@ -84,7 +84,7 @@ namespace Tests
                 .AddField(a => a.Name)
                 .AddField(a => a.Paid)
                 .AddField(a => a.Users);
-            schema.AddQuery("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().Where(a => a.Id == args.id).FirstOrDefault());
+            schema.AddQuery("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.Id == args.id));
         }
     }
 

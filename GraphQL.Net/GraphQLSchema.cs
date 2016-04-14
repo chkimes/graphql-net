@@ -21,13 +21,15 @@ namespace GraphQL.Net
             ContextCreator = contextCreator;
         }
 
-        public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string description = null)
+        public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string name = null, string description = null)
         {
             var type = typeof (TEntity);
             if (_types.Any(t => t.CLRType == type))
                 throw new ArgumentException("Type has already been added");
 
             var gqlType = new GraphQLType(type) {IsScalar = type.IsPrimitive, Description = description ?? ""};
+            if (!string.IsNullOrEmpty(name))
+                gqlType.Name = name;
             _types.Add(gqlType);
 
             return new GraphQLTypeBuilder<TContext, TEntity>(this, gqlType);
@@ -78,7 +80,28 @@ namespace GraphQL.Net
 
         private void AddDefaultTypes()
         {
-            AddType<GraphQLType>().AddField(t => t.Name);
+            AddType<GraphQLSchema<TContext>>("__Schema")
+                .AddField("types", (db, s) => s.Types.ToList())
+                .AddField("queryType", (db, s) => (GraphQLType) null) // TODO: queryType
+                .AddField("mutationType", (db, s) => (GraphQLType) null) // TODO: mutations + mutationType
+                .AddField("directives", (db, s) => new List<GraphQLType>()); // TODO: Directives
+
+            AddType<GraphQLType>("__Type")
+                .AddField("kind", (db, t) => GetTypeKind(t))
+                .AddField(t => t.Name)
+                .AddField(t => t.Description)
+                .AddField(t => t.Fields) // TODO: includeDeprecated
+                .AddField("interfaces", (db, t) => new List<GraphQLType>());
+
+            AddType<GraphQLField>("__Field")
+                .AddField(f => f.Name)
+                .AddField(f => f.Description)
+                //.AddField(f => f.Arguments) // TODO:
+                .AddField(f => f.Type)
+                .AddField("isDeprecated", (db, f) => false) // TODO: deprecation
+                .AddField("deprecationReason", (db, f) => "");
+
+            this.AddQuery("__schema", db => this);
             this.AddQuery("__type", new {name = ""}, (db, args) => _types.AsQueryable().Where(t => t.Name == args.name).First());
 
             var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -87,6 +110,14 @@ namespace GraphQL.Net
                 var genMethod = method.MakeGenericMethod(type.CLRType);
                 genMethod.Invoke(this, new object[] {type});
             }
+        }
+
+        private static string GetTypeKind(GraphQLType type)
+        {
+            if (type.IsScalar)
+                return "SCALAR";
+            return "OBJECT";
+            // TODO: interface?, union? enum, input_object, list, non_null
         }
 
         private void AddTypeNameField<TEntity>(GraphQLType type)
@@ -153,8 +184,8 @@ namespace GraphQL.Net
         {
             return new[]
             {
-                new GraphQLType(typeof(int)) { IsScalar = true },
-                new GraphQLType(typeof(float)) { IsScalar = true },
+                new GraphQLType(typeof(int)) { IsScalar = true, Name = "Int"},
+                new GraphQLType(typeof(float)) { IsScalar = true, Name = "Float" },
                 new GraphQLType(typeof(string)) { IsScalar = true },
                 new GraphQLType(typeof(bool)) { IsScalar = true },
                 new GraphQLType(typeof(Guid)) { Name = "ID", IsScalar = true }

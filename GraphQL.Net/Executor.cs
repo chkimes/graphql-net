@@ -23,34 +23,47 @@ namespace GraphQL.Net
             (TContext context, GraphQLQuery<TContext, TArgs, TEntity> gqlQuery, ExecSelection<Info> query)
         {
             var args = TypeHelpers.GetArgs<TArgs>(query.Arguments.Values());
-            var queryableFuncExpr = gqlQuery.QueryableExprGetter(args);
-            var replaced = (Expression<Func<TContext, IQueryable<TEntity>>>)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
-            var selector = GetSelector(typeof(TEntity), gqlQuery.Type, query.Selections.Values());
-
-            var selectorExpr = Expression.Quote(selector);
-            var call = Expression.Call(typeof(Queryable), "Select", new[] { typeof(TEntity), gqlQuery.Type.QueryType }, replaced.Body, selectorExpr);
-            var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
-            var transformed = (IQueryable<object>)expr.Compile().DynamicInvoke(context);
-
-            object results;
-            switch (gqlQuery.ResolutionType)
+            if (gqlQuery.ResolutionType != ResolutionType.Unmodified)
             {
-                case ResolutionType.Unmodified:
-                    throw new Exception("Queries cannot have unmodified resolution. May change in the future.");
-                case ResolutionType.ToList:
-                    results = transformed.ToList().Select(o => MapResults(o, query.Selections.Values())).ToList();
-                    break;
-                case ResolutionType.FirstOrDefault:
-                    results = MapResults(transformed.FirstOrDefault(), query.Selections.Values());
-                    break;
-                case ResolutionType.First:
-                    results = MapResults(transformed.First(), query.Selections.Values());
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
+                var queryableFuncExpr = gqlQuery.QueryableExprGetter(args);
+                var replaced = (Expression<Func<TContext, IQueryable<TEntity>>>)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+                var selector = GetSelector(typeof(TEntity), gqlQuery.Type, query.Selections.Values());
 
-            return results;
+                var selectorExpr = Expression.Quote(selector);
+                var call = Expression.Call(typeof(Queryable), "Select", new[] { typeof(TEntity), gqlQuery.Type.QueryType }, replaced.Body, selectorExpr);
+                var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
+                var transformed = (IQueryable<object>)expr.Compile().DynamicInvoke(context);
+
+                object results;
+                switch (gqlQuery.ResolutionType)
+                {
+                    case ResolutionType.Unmodified:
+                        throw new Exception("Queries cannot have unmodified resolution. May change in the future.");
+                    case ResolutionType.ToList:
+                        results = transformed.ToList().Select(o => MapResults(o, query.Selections.Values())).ToList();
+                        break;
+                    case ResolutionType.FirstOrDefault:
+                        results = MapResults(transformed.FirstOrDefault(), query.Selections.Values());
+                        break;
+                    case ResolutionType.First:
+                        results = MapResults(transformed.First(), query.Selections.Values());
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                return results;
+            }
+            else
+            {
+                var funcExpr = gqlQuery.ExprGetter(args);
+                var replaced = (Expression<Func<TContext, TEntity>>)ParameterReplacer.Replace(funcExpr, funcExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+                var selector = GetSelector(typeof (TEntity), gqlQuery.Type, query.Selections.Values());
+                var invocation = Expression.Invoke(selector, replaced.Body);
+                var expr = Expression.Lambda(invocation, GraphQLSchema<TContext>.DbParam);
+                var result = expr.Compile().DynamicInvoke(context);
+                return MapResults(result, query.Selections.Values());
+            }
         }
 
         private static IDictionary<string, object> MapResults(object queryObject, IEnumerable<ExecSelection<Info>> selections)

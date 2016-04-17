@@ -179,6 +179,25 @@ and Value =
     | EnumValue of EnumValue
     | ListValue of Value ListWithSource
     | ObjectValue of IReadOnlyDictionary<string, Value WithSource>
+    member this.GetString() =
+        match this with | PrimitiveValue (StringPrimitive s) -> s | _ -> failwith "Value is not a string"
+    member this.GetInteger() =
+        match this with
+        | PrimitiveValue (IntPrimitive i) -> i
+        | _ -> failwith "Value is not an integer"
+    member this.GetFloat() =
+        match this with
+        | PrimitiveValue (FloatPrimitive f) -> f
+        | _ -> failwith "Value is not a float"
+    member this.GetNumber() =
+        match this with
+        | PrimitiveValue (FloatPrimitive f) -> f
+        | PrimitiveValue (IntPrimitive i) -> double i
+        | _ -> failwith "Value is not a number"
+    member this.GetBoolean() =
+        match this with
+        | PrimitiveValue (BooleanPrimitive b) -> b
+        | _ -> failwith "Value is not a boolean"
     member this.ToObject() =
         match this with
         | PrimitiveValue p -> p.ToObject()

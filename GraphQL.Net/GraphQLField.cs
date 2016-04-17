@@ -29,10 +29,10 @@ namespace GraphQL.Net
         public GraphQLType Type => _type ?? (_type = Schema.GetGQLType(FieldCLRType));
 
         public virtual IEnumerable<ISchemaArgument<Info>> Arguments
-            => TypeHelpers.GetArgs(ArgsCLRType);
+            => TypeHelpers.GetArgs(Schema.VariableTypes, ArgsCLRType);
 
         public virtual LambdaExpression GetExpression(IEnumerable<ExecArgument<Info>> inputs)
-            => (LambdaExpression) ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, inputs));
+            => (LambdaExpression) ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
 
         public static GraphQLField Post<TField>(GraphQLSchema schema, string name, Func<TField> fieldFunc)
         {

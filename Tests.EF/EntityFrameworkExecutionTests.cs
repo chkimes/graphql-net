@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.IO;
 using System.Linq;
 using GraphQL.Net;
 using NUnit.Framework;
@@ -22,7 +23,8 @@ namespace Tests
                 var account = new Account
                 {
                     Name = "My Test Account",
-                    Paid = true
+                    Paid = true,
+                    PaidUtc = new DateTime(2016, 1, 1),
                 };
                 db.Accounts.Add(account);
                 var user = new User
@@ -51,6 +53,7 @@ namespace Tests
         private static GraphQL<EfContext> CreateDefaultContext()
         {
             var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
+            schema.AddString(DateTime.Parse);
             InitializeUserSchema(schema);
             InitializeAccountSchema(schema);
             schema.Complete();
@@ -83,6 +86,9 @@ namespace Tests
                 .AddField(a => a.Users)
                 .AddField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
             schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.FirstOrDefault(a => a.Id == args.id));
+            schema.AddQuery
+                ("accountPaidBy", new { paid = default(DateTime) },
+                    (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
         }
 
         [Test] public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
@@ -97,6 +103,7 @@ namespace Tests
         [Test] public void PostField() => GenericTests.PostField(CreateDefaultContext());
         [Test] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(CreateDefaultContext());
         [Test] public void TypeName() => GenericTests.TypeName(CreateDefaultContext());
+        [Test] public void DateTimeFilter() => GenericTests.DateTimeFilter(CreateDefaultContext());
         [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(CreateDefaultContext());
 
         [Test]
@@ -148,6 +155,7 @@ namespace Tests
             public int Id { get; set; }
             public string Name { get; set; }
             public bool Paid { get; set; }
+            public DateTime? PaidUtc { get; set; }
 
             public List<User> Users { get; set; }
         }

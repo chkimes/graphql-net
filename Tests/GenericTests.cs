@@ -113,6 +113,14 @@ namespace Tests
             Assert.AreEqual(user.Keys.Count, 2);
         }
 
+        public static void DateTimeFilter<TConext>(GraphQL<TConext> gql)
+        {
+            var acct =
+                (IDictionary<string, object>)
+                    gql.ExecuteQuery("{ accountPaidBy(paid: \"2016-02-01T00:00:00\") { id } }")["accountPaidBy"];
+            Assert.AreEqual(acct["id"], 1);
+        }
+
         public static void EnumerableSubField<TContext>(GraphQL<TContext> gql)
         {
             var account = (IDictionary<string, object>) gql.ExecuteQuery("{ account(id:1) { activeUsers { id, name } } }")["account"];

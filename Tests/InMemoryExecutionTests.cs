@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using GraphQL.Net;
 using NUnit.Framework;
@@ -20,6 +21,7 @@ namespace Tests
         [Test] public void PostField() => GenericTests.PostField(MemContext.CreateDefaultContext());
         [Test] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(MemContext.CreateDefaultContext());
         [Test] public void TypeName() => GenericTests.TypeName(MemContext.CreateDefaultContext());
+        [Test] public void DateTimeFilter() => GenericTests.DateTimeFilter(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

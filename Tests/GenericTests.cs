@@ -113,5 +113,12 @@ namespace Tests
             Assert.AreEqual(user["__typename"], "User");
             Assert.AreEqual(user.Keys.Count, 2);
         }
+
+        public static void DateTimeFilter<TConext>(GraphQL<TConext> gql)
+        {
+            var acct =
+                (IDictionary<string, object>)gql.ExecuteQuery("{ accountPaidBy(paid: \"2016-02-01T00:00:00\") { id } }")["accountPaidBy"];
+            Assert.AreEqual(acct["id"], 1);
+        }
     }
 }

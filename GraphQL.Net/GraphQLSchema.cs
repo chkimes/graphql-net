@@ -10,8 +10,9 @@ namespace GraphQL.Net
     public class GraphQLSchema<TContext>
     {
         internal readonly Func<TContext> ContextCreator;
-        private readonly List<GraphQLType> _types = GetPrimitives().ToList();
+        private readonly List<GraphQLType> _types = new List<GraphQLType>();
         private readonly List<GraphQLQueryBase<TContext>> _queries = new List<GraphQLQueryBase<TContext>>();
+        internal readonly VariableTypes VariableTypes = new VariableTypes();
         internal bool Completed;
 
         public static readonly ParameterExpression DbParam = Expression.Parameter(typeof (TContext), "db");
@@ -20,6 +21,18 @@ namespace GraphQL.Net
         {
             ContextCreator = contextCreator;
         }
+
+        public void AddString<T>(Func<string, T> translate, string name = null)
+            => VariableTypes.AddType(CustomVariableType.String(translate, name));
+
+        public void AddInteger<T>(Func<long, T> translate, string name = null)
+            => VariableTypes.AddType(CustomVariableType.Integer(translate, name));
+
+        public void AddFloat<T>(Func<double, T> translate, string name = null)
+            => VariableTypes.AddType(CustomVariableType.Float(translate, name));
+
+        public void AddBoolean<T>(Func<bool, T> translate, string name = null)
+            => VariableTypes.AddType(CustomVariableType.Boolean(translate, name));
 
         public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string name = null, string description = null)
         {
@@ -174,22 +187,11 @@ namespace GraphQL.Net
 
         internal GraphQLQueryBase<TContext> FindQuery(string name) => _queries.FirstOrDefault(q => q.Name == name);
 
-        internal GraphQLType GetGQLType(Type type) => GetGQLType(type, _types);
-        private static GraphQLType GetGQLType(Type type, List<GraphQLType> types) => types.First(t => t.CLRType == type);
+        internal GraphQLType GetGQLType(Type type)
+            => _types.FirstOrDefault(t => t.CLRType == type)
+            ?? new GraphQLType(type) { IsScalar = true };
 
         internal IEnumerable<GraphQLQueryBase<TContext>> Queries => _queries;
         internal IEnumerable<GraphQLType> Types => _types;
-
-        private static IEnumerable<GraphQLType> GetPrimitives()
-        {
-            return new[]
-            {
-                new GraphQLType(typeof(int)) { IsScalar = true, Name = "Int"},
-                new GraphQLType(typeof(float)) { IsScalar = true, Name = "Float" },
-                new GraphQLType(typeof(string)) { IsScalar = true },
-                new GraphQLType(typeof(bool)) { IsScalar = true },
-                new GraphQLType(typeof(Guid)) { Name = "ID", IsScalar = true }
-            };
-        }
     }
 }

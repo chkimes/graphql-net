@@ -27,30 +27,27 @@ namespace GraphQL.Net
 
         class SchemaArgument : ISchemaArgument<Info>
         {
-            private readonly Type _type;
-            private readonly string _name;
-
-            public SchemaArgument(Type type, string name)
+            public SchemaArgument(string argumentName, CoreVariableType argumentType)
             {
-                _type = type;
-                _name = name;
+                ArgumentName = argumentName;
+                ArgumentType = argumentType;
             }
 
             public Info Info => null;
-            public string ArgumentName => _name;
-            public CoreVariableType ArgumentType => VariableType.GuessFromCLRType(_type).Type;
+            public string ArgumentName { get; }
+            public CoreVariableType ArgumentType { get; }
             public FSharpOption<string> Description => null;
         }
 
-        internal static IEnumerable<ISchemaArgument<Info>> GetArgs<TArgs>()
+        internal static IEnumerable<ISchemaArgument<Info>> GetArgs<TArgs>(VariableTypes variableTypes)
         {
             var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
             if (paramlessCtor != null)
                 return typeof(TArgs).GetProperties()
-                    .Select(p => new SchemaArgument(p.PropertyType, p.Name));
+                    .Select(p => new SchemaArgument(p.Name, variableTypes.VariableTypeOf(p.PropertyType)));
             var anonTypeCtor = typeof(TArgs).GetConstructors().Single();
             return anonTypeCtor.GetParameters()
-                .Select(p => new SchemaArgument(p.ParameterType, p.Name));
+                .Select(p => new SchemaArgument(p.Name, variableTypes.VariableTypeOf(p.ParameterType)));
         }
 
         /// <summary>
@@ -58,43 +55,49 @@ namespace GraphQL.Net
         /// This works for objects with parameterless constructors or anonymous types.
         /// </summary>
         /// <typeparam name="TArgs"></typeparam>
+        /// <param name="variableTypes"></param>
         /// <param name="inputs"></param>
         /// <returns></returns>
-        internal static TArgs GetArgs<TArgs>(IEnumerable<ExecArgument<Info>> inputs)
+        internal static TArgs GetArgs<TArgs>(VariableTypes variableTypes, IEnumerable<ExecArgument<Info>> inputs)
         {
             var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
             if (paramlessCtor != null)
-                return GetParamlessArgs<TArgs>(paramlessCtor, inputs);
+                return GetParamlessArgs<TArgs>(paramlessCtor, variableTypes, inputs);
             var anonTypeCtor = typeof(TArgs).GetConstructors().Single();
-            return GetAnonymousArgs<TArgs>(anonTypeCtor, inputs);
+            return GetAnonymousArgs<TArgs>(anonTypeCtor, variableTypes, inputs);
         }
 
-        private static TArgs GetParamlessArgs<TArgs>(ConstructorInfo paramlessCtor, IEnumerable<ExecArgument<Info>> inputs)
+        private static TArgs GetParamlessArgs<TArgs>
+            (ConstructorInfo paramlessCtor, VariableTypes variableTypes, IEnumerable<ExecArgument<Info>> inputs)
         {
             var args = (TArgs)paramlessCtor.Invoke(null);
             foreach (var input in inputs)
             {
                 var prop = typeof(TArgs).GetProperty(input.Argument.ArgumentName);
                 prop.GetSetMethod()
-                    .Invoke(args, new[] { Convert.ChangeType(input.Value.ToObject(), prop.PropertyType) });
+                    .Invoke(args, new[]
+                    {
+                        variableTypes.TranslateValue(input.Value, prop.PropertyType)
+                    });
             } 
             return args;
         }
 
-        private static TArgs GetAnonymousArgs<TArgs>(ConstructorInfo anonTypeCtor, IEnumerable<ExecArgument<Info>> inputs)
+        private static TArgs GetAnonymousArgs<TArgs>
+            (ConstructorInfo anonTypeCtor, VariableTypes variableTypes, IEnumerable<ExecArgument<Info>> inputs)
         {
             var parameters = anonTypeCtor
                 .GetParameters()
-                .Select(p => GetParameter(p, inputs))
+                .Select(p => GetParameter(p, variableTypes, inputs))
                 .ToArray();
             return (TArgs)anonTypeCtor.Invoke(parameters);
         }
 
-        private static object GetParameter(ParameterInfo param, IEnumerable<ExecArgument<Info>> inputs)
+        private static object GetParameter(ParameterInfo param, VariableTypes variableTypes, IEnumerable<ExecArgument<Info>> inputs)
         {
             var input = inputs.FirstOrDefault(i => i.Argument.ArgumentName == param.Name);
             return input != null
-                ? Convert.ChangeType(input.Value.ToObject(), param.ParameterType)
+                ? variableTypes.TranslateValue(input.Value, param.ParameterType)
                 : GetDefault(param.ParameterType);
         }
 

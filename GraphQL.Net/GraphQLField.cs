@@ -36,10 +36,10 @@ namespace GraphQL.Net
             Name = name;
         }
 
-        public override IEnumerable<ISchemaArgument<Info>> Arguments => TypeHelpers.GetArgs<TArgs>();
+        public override IEnumerable<ISchemaArgument<Info>> Arguments => TypeHelpers.GetArgs<TArgs>(Schema.VariableTypes);
         public override LambdaExpression GetExpression(IEnumerable<ExecArgument<Info>> inputs)
         {
-            var args = TypeHelpers.GetArgs<TArgs>(inputs);
+            var args = TypeHelpers.GetArgs<TArgs>(Schema.VariableTypes, inputs);
             return ExprFunc(args);
         }
 

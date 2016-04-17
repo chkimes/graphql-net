@@ -28,7 +28,7 @@ namespace GraphQL.Net
         public Func<TArgs, Expression<Func<TContext, TEntity>>> ExprGetter { get; set; }
         public Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> QueryableExprGetter { get; set; }
 
-        public override IEnumerable<ISchemaArgument<Info>> Arguments => TypeHelpers.GetArgs<TArgs>();
+        public override IEnumerable<ISchemaArgument<Info>> Arguments => TypeHelpers.GetArgs<TArgs>(Schema.VariableTypes);
 
         public override object Execute(ExecSelection<Info> query)
         {

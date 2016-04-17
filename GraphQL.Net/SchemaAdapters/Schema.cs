@@ -5,16 +5,35 @@ using GraphQL.Parser.CS;
 
 namespace GraphQL.Net.SchemaAdapters
 {
-    class Schema<TContext> : SchemaCS<Info>
+    abstract class Schema : SchemaCS<Info>
     {
+        internal readonly GraphQLSchema GraphQLSchema;
+        protected Schema(GraphQLSchema schema)
+        {
+            GraphQLSchema = schema;
+        }
+
+        private readonly Dictionary<GraphQLType, SchemaType> _typeMap = new Dictionary<GraphQLType, SchemaType>();
+
+        public SchemaType OfType(GraphQLType type)
+        {
+            SchemaType existing;
+            if (_typeMap.TryGetValue(type, out existing)) return existing;
+            return _typeMap[type] = new SchemaType(type, this);
+        }
+    }
+    class Schema<TContext> : Schema
+    {
+        private readonly GraphQLSchema<TContext> _schema;
         private readonly Dictionary<string, ISchemaQueryType<Info>> _queryTypes;
 
-        public Schema(GraphQLSchema<TContext> schema)
+        public Schema(GraphQLSchema<TContext> schema) : base(schema)
         {
-            RootType = new SchemaRootType<TContext>(schema);
+            RootType = new SchemaRootType<TContext>(this, schema.Queries);
+            _schema = schema;
             _queryTypes = schema.Types
                 .Where(t => !t.IsScalar)
-                .Select(SchemaType.OfType)
+                .Select(OfType)
                 .ToDictionary(t => t.TypeName, t => t as ISchemaQueryType<Info>);
         }
 
@@ -23,6 +42,9 @@ namespace GraphQL.Net.SchemaAdapters
             ISchemaQueryType<Info> result;
             return _queryTypes.TryGetValue(name, out result) ? result : null;
         }
+
+        public override ISchemaVariableType ResolveVariableType(string name)
+            => _schema.VariableTypes.ResolveVariableTypeByName(name);
 
         public override ISchemaQueryType<Info> RootType { get; }
     }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using GraphQL.Net;
@@ -12,7 +13,8 @@ namespace Tests
             {
                 Id = 1,
                 Name = "My Test Account",
-                Paid = true
+                Paid = true,
+                PaidUtc = new DateTime(2016, 1, 1),
             };
             Accounts.Add(account);
             var user = new User
@@ -56,6 +58,7 @@ namespace Tests
         public static GraphQLSchema<MemContext> CreateDefaultSchema()
         {
             var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());
+            schema.AddString(DateTime.Parse);
             InitializeUserSchema(schema);
             InitializeAccountSchema(schema);
             return schema;
@@ -87,6 +90,9 @@ namespace Tests
                 .AddField(a => a.Users)
                 .AddField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
             schema.AddQuery("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddQuery
+                ("accountPaidBy", new { paid = default(DateTime) },
+                    (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
         }
     }
 
@@ -105,6 +111,7 @@ namespace Tests
         public int Id { get; set; }
         public string Name { get; set; }
         public bool Paid { get; set; }
+        public DateTime? PaidUtc { get; set; }
 
         public List<User> Users { get; set; }
     }

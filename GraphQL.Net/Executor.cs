@@ -22,7 +22,7 @@ namespace GraphQL.Net
         public static object Execute<TArgs, TEntity>
             (TContext context, GraphQLQuery<TContext, TArgs, TEntity> gqlQuery, ExecSelection<Info> query)
         {
-            var args = TypeHelpers.GetArgs<TArgs>(query.Arguments.Values());
+            var args = TypeHelpers.GetArgs<TArgs>(gqlQuery.Schema.VariableTypes, query.Arguments.Values());
             if (gqlQuery.ResolutionType != ResolutionType.Unmodified)
             {
                 var queryableFuncExpr = gqlQuery.QueryableExprGetter(args);

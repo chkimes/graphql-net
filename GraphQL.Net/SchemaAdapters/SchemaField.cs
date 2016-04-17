@@ -8,15 +8,23 @@ namespace GraphQL.Net.SchemaAdapters
 {
     class SchemaField : SchemaFieldCS<Info>
     {
+        private readonly Schema _schema;
         private readonly GraphQLField _field;
 
-        public SchemaField(ISchemaQueryType<Info> declaringType, GraphQLField field)
+        public SchemaField(ISchemaQueryType<Info> declaringType, GraphQLField field, Schema schema)
         {
             DeclaringType = declaringType;
             _field = field;
-            FieldType = _field.Type.IsScalar
-                ? SchemaFieldType<Info>.NewValueField(VariableType.GuessFromCLRType(_field.Type.CLRType))
-                : SchemaFieldType<Info>.NewQueryField(SchemaType.OfType(_field.Type));
+            _schema = schema;
+            if (_field.Type.IsScalar)
+            {
+                var varType = _schema.GraphQLSchema.VariableTypes.VariableTypeOf(_field.Type.CLRType);
+                FieldType = SchemaFieldType<Info>.NewValueField(new VariableType(varType, true)); // TODO non-nullability
+            }
+            else
+            {
+                FieldType = SchemaFieldType<Info>.NewQueryField(_schema.OfType(_field.Type));;
+            }
             Arguments = _field.Arguments.ToDictionary(a => a.ArgumentName);
         }
 

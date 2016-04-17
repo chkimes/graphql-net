@@ -7,10 +7,10 @@ namespace GraphQL.Net.SchemaAdapters
 {
     class SchemaRootType<TContext> : SchemaQueryTypeCS<Info>
     {
-        public SchemaRootType(GraphQLSchema<TContext> schema)
+        public SchemaRootType(Schema schema, IEnumerable<GraphQLQueryBase<TContext>> queries)
         {
-            Fields = schema.Queries
-                .Select(f => new SchemaQueryField<TContext>(this, f))
+            Fields = queries
+                .Select(f => new SchemaQueryField<TContext>(this, f, schema))
                 .ToDictionary(f => f.FieldName, f => f as ISchemaField<Info>);
         }
 

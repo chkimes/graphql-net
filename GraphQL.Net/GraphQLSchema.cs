@@ -25,6 +25,7 @@ namespace GraphQL.Net
         public GraphQLSchema(Func<TContext> contextCreator)
         {
             ContextCreator = contextCreator;
+            AddDefaultPrimitives();
         }
 
         public void AddString<T>(Func<string, T> translate, string name = null)
@@ -38,6 +39,13 @@ namespace GraphQL.Net
 
         public void AddBoolean<T>(Func<bool, T> translate, string name = null)
             => VariableTypes.AddType(CustomVariableType.Boolean(translate, name));
+
+        private void AddDefaultPrimitives()
+        {
+            AddString(Guid.Parse);
+            AddFloat(d => (float)d, "Float32");
+            AddInteger(i => (int)i, "Int");
+        }
 
         public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string name = null, string description = null)
         {

@@ -7,7 +7,12 @@ using GraphQL.Net.SchemaAdapters;
 
 namespace GraphQL.Net
 {
-    public class GraphQLSchema<TContext>
+    public abstract class GraphQLSchema
+    {
+        internal abstract GraphQLType GetGQLType(Type type);
+    }
+
+    public class GraphQLSchema<TContext> : GraphQLSchema
     {
         internal readonly Func<TContext> ContextCreator;
         private readonly List<GraphQLType> _types = GetPrimitives().ToList();
@@ -153,7 +158,6 @@ namespace GraphQL.Net
                 QueryableExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = type,
-                ContextCreator = ContextCreator
             });
         }
 
@@ -168,13 +172,12 @@ namespace GraphQL.Net
                 ExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = ResolutionType.Unmodified,
-                ContextCreator = ContextCreator
             });
         }
 
         internal GraphQLQueryBase<TContext> FindQuery(string name) => _queries.FirstOrDefault(q => q.Name == name);
 
-        internal GraphQLType GetGQLType(Type type) => GetGQLType(type, _types);
+        internal override GraphQLType GetGQLType(Type type) => GetGQLType(type, _types);
         private static GraphQLType GetGQLType(Type type, List<GraphQLType> types) => types.First(t => t.CLRType == type);
 
         internal IEnumerable<GraphQLQueryBase<TContext>> Queries => _queries;

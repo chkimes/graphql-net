@@ -26,9 +26,7 @@ namespace GraphQL.Net
         //        Fields can use TContext as well, so we have to return an Expression<Func<TContext, TEntity, TField>> and replace the TContext parameter when needed
         public GraphQLTypeBuilder<TContext, TEntity> AddField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
         {
-            var field = TypeHelpers.IsAssignableToGenericType(typeof (TField), typeof (List<>))
-                ? CreateGenericField(name, exprFunc, typeof (TField))
-                : new GraphQLField<TContext, TArgs, TEntity, TField>(_schema, name, exprFunc);
+            var field = GraphQLField.New(_schema, name, exprFunc, typeof (TField));
             _type.Fields.Add(field);
             return this;
         }
@@ -69,27 +67,12 @@ namespace GraphQL.Net
             var argsExpr = Expression.Lambda(Expression.Quote(lambda), objectParam);
             var exprFunc = argsExpr.Compile();
 
-            return CreateGenericField(prop.Name.ToCamelCase(), exprFunc, prop.PropertyType);
-        }
-
-        private GraphQLField CreateGenericField(string name, Delegate exprFunc, Type memberType)
-        {
-            if (TypeHelpers.IsAssignableToGenericType(memberType, typeof(List<>)))
-            {
-                var genericType = memberType.GetGenericArguments()[0];
-                var fieldType = typeof(GraphQLListField<,,,>).MakeGenericType(typeof(TContext), typeof(object), typeof(TEntity), genericType);
-                return (GraphQLField)Activator.CreateInstance(fieldType, _schema, name, exprFunc);
-            }
-            else
-            {
-                var fieldType = typeof(GraphQLField<,,,>).MakeGenericType(typeof(TContext), typeof(object), typeof(TEntity), memberType);
-                return (GraphQLField)Activator.CreateInstance(fieldType, _schema, name, exprFunc);
-            }
+            return GraphQLField.New(_schema, prop.Name.ToCamelCase(), (Func<object, LambdaExpression>) exprFunc, prop.PropertyType);
         }
 
         public GraphQLTypeBuilder<TContext, TEntity> AddPostField<TField>(string name, Func<TField> fieldFunc)
         {
-            _type.Fields.Add(new GraphQLPostField<TContext, TField>(_schema, name, fieldFunc));
+            _type.Fields.Add(GraphQLField.Post(_schema, name, fieldFunc));
             return this;
         }
     }

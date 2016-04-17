@@ -20,7 +20,8 @@ namespace Tests
                 Id = 1,
                 Name = "Joe User",
                 AccountId = 1,
-                Account = account
+                Account = account,
+                Active = true
             };
             Users.Add(user);
             account.Users = new List<User> { user };
@@ -83,7 +84,8 @@ namespace Tests
                 .AddField(a => a.Id)
                 .AddField(a => a.Name)
                 .AddField(a => a.Paid)
-                .AddField(a => a.Users);
+                .AddField(a => a.Users)
+                .AddField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
             schema.AddQuery("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.Id == args.id));
         }
     }
@@ -92,6 +94,7 @@ namespace Tests
     {
         public int Id { get; set; }
         public string Name { get; set; }
+        public bool Active { get; set; }
 
         public int AccountId { get; set; }
         public Account Account { get; set; }

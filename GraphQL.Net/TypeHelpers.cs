@@ -42,13 +42,14 @@ namespace GraphQL.Net
             public FSharpOption<string> Description => null;
         }
 
-        internal static IEnumerable<ISchemaArgument<Info>> GetArgs<TArgs>()
+        internal static IEnumerable<ISchemaArgument<Info>> GetArgs<TArgs>() => GetArgs(typeof (TArgs));
+        internal static IEnumerable<ISchemaArgument<Info>> GetArgs(Type argsType)
         {
-            var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
+            var paramlessCtor = argsType.GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
             if (paramlessCtor != null)
-                return typeof(TArgs).GetProperties()
+                return argsType.GetProperties()
                     .Select(p => new SchemaArgument(p.PropertyType, p.Name));
-            var anonTypeCtor = typeof(TArgs).GetConstructors().Single();
+            var anonTypeCtor = argsType.GetConstructors().Single();
             return anonTypeCtor.GetParameters()
                 .Select(p => new SchemaArgument(p.ParameterType, p.Name));
         }
@@ -60,34 +61,35 @@ namespace GraphQL.Net
         /// <typeparam name="TArgs"></typeparam>
         /// <param name="inputs"></param>
         /// <returns></returns>
-        internal static TArgs GetArgs<TArgs>(IEnumerable<ExecArgument<Info>> inputs)
+        internal static TArgs GetArgs<TArgs>(IEnumerable<ExecArgument<Info>> inputs) => (TArgs) GetArgs(typeof (TArgs), inputs);
+        internal static object GetArgs(Type argsType, IEnumerable<ExecArgument<Info>> inputs)
         {
-            var paramlessCtor = typeof(TArgs).GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
+            var paramlessCtor = argsType.GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 0);
             if (paramlessCtor != null)
-                return GetParamlessArgs<TArgs>(paramlessCtor, inputs);
-            var anonTypeCtor = typeof(TArgs).GetConstructors().Single();
-            return GetAnonymousArgs<TArgs>(anonTypeCtor, inputs);
+                return GetParamlessArgs(argsType, paramlessCtor, inputs);
+            var anonTypeCtor = argsType.GetConstructors().Single();
+            return GetAnonymousArgs(anonTypeCtor, inputs);
         }
 
-        private static TArgs GetParamlessArgs<TArgs>(ConstructorInfo paramlessCtor, IEnumerable<ExecArgument<Info>> inputs)
+        private static object GetParamlessArgs(Type argsType, ConstructorInfo paramlessCtor, IEnumerable<ExecArgument<Info>> inputs)
         {
-            var args = (TArgs)paramlessCtor.Invoke(null);
+            var args = paramlessCtor.Invoke(null);
             foreach (var input in inputs)
             {
-                var prop = typeof(TArgs).GetProperty(input.Argument.ArgumentName);
+                var prop = argsType.GetProperty(input.Argument.ArgumentName);
                 prop.GetSetMethod()
                     .Invoke(args, new[] { Convert.ChangeType(input.Value.ToObject(), prop.PropertyType) });
             } 
             return args;
         }
 
-        private static TArgs GetAnonymousArgs<TArgs>(ConstructorInfo anonTypeCtor, IEnumerable<ExecArgument<Info>> inputs)
+        private static object GetAnonymousArgs(ConstructorInfo anonTypeCtor, IEnumerable<ExecArgument<Info>> inputs)
         {
             var parameters = anonTypeCtor
                 .GetParameters()
                 .Select(p => GetParameter(p, inputs))
                 .ToArray();
-            return (TArgs)anonTypeCtor.Invoke(parameters);
+            return anonTypeCtor.Invoke(parameters);
         }
 
         private static object GetParameter(ParameterInfo param, IEnumerable<ExecArgument<Info>> inputs)

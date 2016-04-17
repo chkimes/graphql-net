@@ -20,6 +20,7 @@ namespace Tests
         [Test] public void PostField() => GenericTests.PostField(MemContext.CreateDefaultContext());
         [Test] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(MemContext.CreateDefaultContext());
         [Test] public void TypeName() => GenericTests.TypeName(MemContext.CreateDefaultContext());
+        [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

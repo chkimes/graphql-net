@@ -77,7 +77,7 @@ namespace GraphQL.Net
                 var key = map.Name;
                 var field = map.SchemaField.Field();
                 var obj = field.IsPost
-                    ? field.ResolvePostField()
+                    ? field.PostFieldFunc()
                     : type.GetProperty(field.Name).GetGetMethod().Invoke(queryObject, new object[] {});
 
                 if (field.IsPost && map.Selections.Any())

@@ -30,7 +30,8 @@ namespace Tests
                 var user = new User
                 {
                     Name = "Joe User",
-                    Account = account
+                    Account = account,
+                    Active = true,
                 };
                 db.Users.Add(user);
                 var account2 = new Account
@@ -82,7 +83,8 @@ namespace Tests
                 .AddField(a => a.Id)
                 .AddField(a => a.Name)
                 .AddField(a => a.Paid)
-                .AddField(a => a.Users);
+                .AddField(a => a.Users)
+                .AddField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
             schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.FirstOrDefault(a => a.Id == args.id));
             schema.AddQuery
                 ("accountPaidBy", new { paid = default(DateTime) },
@@ -102,6 +104,7 @@ namespace Tests
         [Test] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(CreateDefaultContext());
         [Test] public void TypeName() => GenericTests.TypeName(CreateDefaultContext());
         [Test] public void DateTimeFilter() => GenericTests.DateTimeFilter(CreateDefaultContext());
+        [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -141,6 +144,7 @@ namespace Tests
         {
             public int Id { get; set; }
             public string Name { get; set; }
+            public bool Active { get; set; }
 
             public int AccountId { get; set; }
             public Account Account { get; set; }

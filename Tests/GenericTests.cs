@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using GraphQL.Net;
 using NUnit.Framework;
 
@@ -60,7 +59,7 @@ namespace Tests
 
         public static void List<TContext>(GraphQL<TContext> gql)
         {
-            var users = ((List<IDictionary<string, object>>)gql.ExecuteQuery("{ users { id, name } }")["users"]).ToList();
+            var users = (List<IDictionary<string, object>>)gql.ExecuteQuery("{ users { id, name } }")["users"];
             Assert.AreEqual(users.Count, 2);
             Assert.AreEqual(users[0]["id"], 1);
             Assert.AreEqual(users[0]["name"], "Joe User");
@@ -117,8 +116,25 @@ namespace Tests
         public static void DateTimeFilter<TConext>(GraphQL<TConext> gql)
         {
             var acct =
-                (IDictionary<string, object>)gql.ExecuteQuery("{ accountPaidBy(paid: \"2016-02-01T00:00:00\") { id } }")["accountPaidBy"];
+                (IDictionary<string, object>)
+                    gql.ExecuteQuery("{ accountPaidBy(paid: \"2016-02-01T00:00:00\") { id } }")["accountPaidBy"];
             Assert.AreEqual(acct["id"], 1);
+        }
+
+        public static void EnumerableSubField<TContext>(GraphQL<TContext> gql)
+        {
+            var account = (IDictionary<string, object>) gql.ExecuteQuery("{ account(id:1) { activeUsers { id, name } } }")["account"];
+            Assert.AreEqual(account.Keys.Count, 1);
+            var activeUsers = (List<IDictionary<string, object>>) account["activeUsers"];
+            Assert.AreEqual(activeUsers.Count, 1);
+            Assert.AreEqual(activeUsers[0]["id"], 1);
+            Assert.AreEqual(activeUsers[0]["name"], "Joe User");
+            Assert.AreEqual(activeUsers[0].Keys.Count, 2);
+
+            var account2 = (IDictionary<string, object>) gql.ExecuteQuery("{ account(id:2) { activeUsers { id, name } } }")["account"];
+            Assert.AreEqual(account2.Keys.Count, 1);
+            var activeUsers2 = (List<IDictionary<string, object>>) account2["activeUsers"];
+            Assert.AreEqual(activeUsers2.Count, 0);
         }
     }
 }

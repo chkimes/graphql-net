@@ -21,7 +21,6 @@ namespace GraphQL.Net
         public GraphQLSchema<TContext> Schema { get; set; }
         public abstract IEnumerable<ISchemaArgument<Info>> Arguments { get; }
         public abstract object Execute(TContext context, ExecSelection<Info> query);
-        public Func<TContext> ContextCreator { get; set; }
     }
 
     internal class GraphQLQuery<TContext, TArgs, TEntity> : GraphQLQueryBase<TContext>

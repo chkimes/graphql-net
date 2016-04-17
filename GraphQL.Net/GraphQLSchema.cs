@@ -7,12 +7,17 @@ using GraphQL.Net.SchemaAdapters;
 
 namespace GraphQL.Net
 {
-    public class GraphQLSchema<TContext>
+    public abstract class GraphQLSchema
+    {
+        internal readonly VariableTypes VariableTypes = new VariableTypes();
+        internal abstract GraphQLType GetGQLType(Type type);
+    }
+
+    public class GraphQLSchema<TContext> : GraphQLSchema
     {
         internal readonly Func<TContext> ContextCreator;
         private readonly List<GraphQLType> _types = new List<GraphQLType>();
         private readonly List<GraphQLQueryBase<TContext>> _queries = new List<GraphQLQueryBase<TContext>>();
-        internal readonly VariableTypes VariableTypes = new VariableTypes();
         internal bool Completed;
 
         public static readonly ParameterExpression DbParam = Expression.Parameter(typeof (TContext), "db");
@@ -166,7 +171,6 @@ namespace GraphQL.Net
                 QueryableExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = type,
-                ContextCreator = ContextCreator
             });
         }
 
@@ -181,13 +185,12 @@ namespace GraphQL.Net
                 ExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = ResolutionType.Unmodified,
-                ContextCreator = ContextCreator
             });
         }
 
         internal GraphQLQueryBase<TContext> FindQuery(string name) => _queries.FirstOrDefault(q => q.Name == name);
 
-        internal GraphQLType GetGQLType(Type type)
+        internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)
             ?? new GraphQLType(type) { IsScalar = true };
 

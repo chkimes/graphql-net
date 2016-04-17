@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using GraphQL.Parser;
 
 namespace GraphQL.Net
@@ -62,5 +63,9 @@ namespace GraphQL.Net
             _customByName.Add(custom.TypeName, custom);
             _customByCLRType.Add(custom.CLRType, custom);
         }
+
+        internal IEnumerable<GraphQLType> IntrospectionTypes =>
+            _customByCLRType.Values.Select
+                (v => new GraphQLType(v.CLRType) { IsScalar = true, Name = v.TypeName });
     }
 }

@@ -107,7 +107,7 @@ namespace GraphQL.Net
         private void AddDefaultTypes()
         {
             AddType<GraphQLSchema<TContext>>("__Schema")
-                .AddField("types", (db, s) => s.Types.ToList())
+                .AddField("types", (db, s) => s.Types.Concat(VariableTypes.IntrospectionTypes).ToList())
                 .AddField("queryType", (db, s) => (GraphQLType) null) // TODO: queryType
                 .AddField("mutationType", (db, s) => (GraphQLType) null) // TODO: mutations + mutationType
                 .AddField("directives", (db, s) => new List<GraphQLType>()); // TODO: Directives
@@ -200,7 +200,8 @@ namespace GraphQL.Net
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)
-            ?? new GraphQLType(type) { IsScalar = true };
+                ?? VariableTypes.IntrospectionTypes.FirstOrDefault(f => f.CLRType == type)
+                ?? new GraphQLType(type) { IsScalar = true };
 
         internal IEnumerable<GraphQLQueryBase<TContext>> Queries => _queries;
         internal IEnumerable<GraphQLType> Types => _types;

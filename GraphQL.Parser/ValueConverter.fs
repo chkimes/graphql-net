@@ -1,4 +1,5 @@
 ﻿namespace GraphQL.Parser
+open System
 open System.Reflection
 open System.Collections.Generic
 
@@ -20,37 +21,69 @@ type TypeTranslator(clrType : System.Type, varType : VariableType, translate : V
             , fun (v : Value) -> v.GetBoolean() |> translate |> box)
 
 type ITypeContext =
+    abstract member GetNamedTypes : CoreVariableType seq
     abstract member GetTranslator : targetType : System.Type -> TypeTranslator option
 
 type IValueConverter =
+    abstract member GetNamedTypes : CoreVariableType seq
     abstract member VariableTypeOf : targetType : System.Type -> VariableType
     abstract member TranslateValueTo : ty : System.Type * value : Value -> obj
 
 type BuiltinTypeContext() =
+    static let integer (convert : int64 -> 'a) name (min, max) =
+        new TypeTranslator
+            ( typeof<'a>
+            ,
+                ({ new ISchemaVariableType with
+                    member this.TypeName = name
+                    member this.CoreType = PrimitiveType IntType
+                    member this.ValidateValue(value) =
+                        match value with
+                        | PrimitiveValue (IntPrimitive i) ->
+                            i >= min && i <= max
+                        | _ -> false
+                } |> NamedType).NotNullable()
+            , fun v -> v.GetInteger() |> convert |> box
+            )
+    static let floating (convert : double -> 'a) name =
+        new TypeTranslator
+            ( typeof<'a>
+            ,
+                ({ new ISchemaVariableType with
+                    member this.TypeName = name
+                    member this.CoreType = PrimitiveType FloatType
+                    member this.ValidateValue(value) = true
+                } |> NamedType).NotNullable()
+            , fun v -> v.GetFloat() |> convert |> box
+            )
     static let builtinTypes =
         [
-            TypeTranslator.Integer(Checked.int8)
-            TypeTranslator.Integer(Checked.int16)
-            TypeTranslator.Integer(Checked.int32)
-            TypeTranslator.Integer(Checked.int64)
-            TypeTranslator.Integer(Checked.uint8)
-            TypeTranslator.Integer(Checked.uint16)
-            TypeTranslator.Integer(Checked.uint32)
-            TypeTranslator.Integer(Checked.uint64)
+            integer int8 "Int8" (int64 SByte.MinValue, int64 SByte.MaxValue)
+            integer int16 "Int16" (int64 Int16.MinValue, int64 Int16.MaxValue)
+            integer int32 "Int" (int64 Int32.MinValue, int64 Int32.MaxValue)
+            integer int64 "Int64" (Int64.MinValue, Int64.MaxValue)
+            integer uint8 "UInt8" (int64 Byte.MinValue, int64 Byte.MaxValue)
+            integer uint16 "UInt16" (int64 UInt16.MinValue, int64 UInt16.MaxValue)
+            integer uint32 "UInt32" (int64 UInt32.MinValue, int64 UInt32.MaxValue)
+            integer uint64 "UInt64" (Int64.MinValue, Int64.MaxValue) // maybe we shouldn't support this - representing ulongs with negative #s
 
-            TypeTranslator.Float(single)
-            TypeTranslator.Float(double)
-            TypeTranslator.Float(decimal)
+            floating double "Float"
+            floating single "Float32"
+            floating decimal "Decimal"
 
             TypeTranslator.String(id)
 
             TypeTranslator.Boolean(id)
         ] |> Seq.map (fun t -> t.CLRType, t) |> dictionary
     interface ITypeContext with
+        member this.GetNamedTypes =
+            builtinTypes.Values
+            |> Seq.map (fun t -> t.VariableType.Type)
         member this.GetTranslator(targetType) = builtinTypes.TryFind(targetType)
 
 type ChainTypeContext(primary : ITypeContext, fallback : ITypeContext) =
     interface ITypeContext with
+        member this.GetNamedTypes = Seq.append primary.GetNamedTypes fallback.GetNamedTypes
         member this.GetTranslator(targetType) =
             match primary.GetTranslator(targetType) with
             | Some r -> Some r
@@ -58,6 +91,7 @@ type ChainTypeContext(primary : ITypeContext, fallback : ITypeContext) =
 
 type NullableTypeContext(converter : IValueConverter) =
     interface ITypeContext with
+        member this.GetNamedTypes = upcast []
         member this.GetTranslator(ty) =
             if ty.IsValueType
                 && ty.IsGenericType
@@ -89,6 +123,7 @@ type ArrayTypeContext(converter : IValueConverter) =
             box arr
         | _ -> failwith "Value not suitable for array initialization"
     interface ITypeContext with
+        member this.GetNamedTypes = upcast []
         member this.GetTranslator(targetType) =
             if targetType.IsArray then
                 let clrElementType = targetType.GetElementType()
@@ -116,6 +151,7 @@ type CollectionTypeContext(converter : IValueConverter) =
             collection
         | _ -> failwith "Value not suitable for collection initialization"
     interface ITypeContext with
+        member this.GetNamedTypes = upcast []
         member this.GetTranslator(targetType) =
             let emptyCons = targetType.GetConstructor([||])
             if isNull emptyCons then None else
@@ -151,6 +187,7 @@ type EnumerableTypeContext(converter : IValueConverter) =
             cons.Invoke([|collection|])
         | _ -> failwith "Value not suitable for IEnumerable initialization"
     interface ITypeContext with
+        member this.GetNamedTypes = upcast []
         member this.GetTranslator(targetType) =
             let interfaces = targetType.GetInterfaces()
             let ienumerable =
@@ -172,6 +209,7 @@ type EnumerableTypeContext(converter : IValueConverter) =
 
 type SingleConstructorTypeContext(converter : IValueConverter) =
     interface ITypeContext with
+        member this.GetNamedTypes = upcast []
         member this.GetTranslator(targetType) =
             let constructors = targetType.GetConstructors()
             if constructors.Length <> 1 then None else
@@ -209,14 +247,15 @@ type ValueConverter(customContext : IValueConverter -> ITypeContext) as this =
     let mutable context : ITypeContext = Unchecked.defaultof<ITypeContext>
     do
         context <-
-            new BuiltinTypeContext()
+            customContext(this :> IValueConverter) // custom types get first precedence
+            |??| new BuiltinTypeContext()
             |??| new NullableTypeContext(this :> IValueConverter)
             |??| new ArrayTypeContext(this :> IValueConverter)
             |??| new CollectionTypeContext(this :> IValueConverter)
             |??| new EnumerableTypeContext(this :> IValueConverter)
             |??| new SingleConstructorTypeContext(this :> IValueConverter)
-            |??| customContext(this :> IValueConverter)
     interface IValueConverter with
+        member this.GetNamedTypes = context.GetNamedTypes
         // TODO: cache translators for CLR types
         member this.VariableTypeOf(targetType) =
             match context.GetTranslator(targetType) with

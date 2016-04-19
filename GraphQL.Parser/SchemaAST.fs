@@ -54,6 +54,12 @@ and PrimitiveType =
     | FloatType
     | StringType
     | BooleanType
+    member this.TypeName =
+        match this with
+        | IntType -> "Int"
+        | FloatType -> "Float"
+        | StringType -> "String"
+        | BooleanType -> "Boolean"
 
 type EnumTypeValue =
     {
@@ -261,6 +267,23 @@ and CoreVariableType =
     /// Not possible to declare this type in a GraphQL document, but it exists nonetheless.
     | ObjectType of IReadOnlyDictionary<string, VariableType>
     | NamedType of ISchemaVariableType
+    member this.Nullable(yes) = new VariableType(this, yes)
+    member this.Nullable() = new VariableType(this, true)
+    member this.NotNullable() = new VariableType(this, false)
+    member this.TypeName =
+        match this with
+        | PrimitiveType p -> p.TypeName
+        | EnumType e -> e.EnumName
+        | ListType element -> sprintf "[%s]" element.TypeName
+        /// Not possible to declare this type in a GraphQL document, but it exists nonetheless.
+        | ObjectType fields ->
+            let fieldNames =
+                seq {
+                    for KeyValue(name, ty) in fields do
+                        yield sprintf "%s: %s" name ty.TypeName
+                }
+            sprintf "{ %s }" (String.concat ", " fieldNames)
+        | NamedType schemaVariableType -> schemaVariableType.TypeName
     member this.AcceptsVariableType(vtype : CoreVariableType) =
         this = vtype ||
         match this, vtype with
@@ -310,36 +333,8 @@ and CoreVariableType =
             } |> Seq.forall id
         | _ -> false
 and VariableType(coreType: CoreVariableType, isNullable : bool) =
-    static let primitiveTypeLookup =
-        [
-            typeof<int8>, IntType
-            typeof<int16>, IntType
-            typeof<int32>, IntType
-            typeof<int64>, IntType
-            typeof<uint8>, IntType
-            typeof<uint16>, IntType
-            typeof<uint32>, IntType
-            typeof<uint64>, IntType
-
-            typeof<single>, FloatType
-            typeof<double>, FloatType
-            typeof<decimal>, FloatType
-
-            typeof<string>, StringType
-
-            typeof<bool>, BooleanType
-        ] |> dictionary
-    static let coreTypeOfCLRType (ty : System.Type) =
-        match primitiveTypeLookup.TryFind(ty) with
-        | Some p -> PrimitiveType p
-        | None ->
-            let interfaces = ty.GetInterfaces()
-            let ienumerable = interfaces |> Array.tryFind(fun i -> i.IsGenericType && i.GetGenericTypeDefinition() = typedefof<_ seq>)
-            match ienumerable with
-            | None -> failwith (sprintf "Can't guess core type for CLR type ``%O''" ty)
-            | Some ienumerable ->
-                let elementTy = ienumerable.GetGenericArguments().[0]
-                ListType (VariableType.GuessFromCLRType(elementTy))   
+    member this.TypeName =
+        coreType.TypeName + if isNullable then "" else "!"
     member this.Type = coreType
     member this.Nullable = isNullable
     member this.AcceptsVariableType(vtype : VariableType) =
@@ -352,12 +347,6 @@ and VariableType(coreType: CoreVariableType, isNullable : bool) =
         match value with
         | NullValue -> this.Nullable
         | notNull -> this.Type.AcceptsValue(notNull)
-    static member GuessFromCLRType(ty : System.Type) =
-        if ty.IsValueType && ty.IsGenericType && ty.GetGenericTypeDefinition() = typedefof<System.Nullable<_>> then
-            let wrapped = ty.GetGenericArguments().[0]
-            new VariableType(coreTypeOfCLRType ty, true)
-        else
-            new VariableType(coreTypeOfCLRType ty, not ty.IsValueType)
 and VariableDefinition =
     {
         VariableName : string

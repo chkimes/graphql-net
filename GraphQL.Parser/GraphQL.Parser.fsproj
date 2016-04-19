@@ -60,6 +60,7 @@
     <Compile Include="SchemaResolver.fs" />
     <Compile Include="ExecSelection.fs" />
     <Compile Include="GraphQLDocument.fs" />
+    <Compile Include="ValueConverter.fs" />
     <Compile Include="CS.fs" />
     <Content Include="app.config" />
     <Content Include="packages.config" />

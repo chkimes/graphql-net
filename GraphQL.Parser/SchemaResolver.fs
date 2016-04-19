@@ -34,12 +34,11 @@ type IOperationContext<'s> =
     abstract member ResolveFragmentDefinitionByName : string -> ParserAST.Fragment option
 
 let resolveBuiltinType name =
-    match name with
-    | "Int" -> PrimitiveType IntType |> Some
-    | "Boolean" -> PrimitiveType BooleanType |> Some
-    | "String" -> PrimitiveType StringType |> Some
-    | "Float" -> PrimitiveType FloatType |> Some
-    | _ -> None
+    if name = IntType.TypeName then PrimitiveType IntType |> Some
+    else if name = FloatType.TypeName then PrimitiveType FloatType |> Some
+    else if name = BooleanType.TypeName then PrimitiveType BooleanType |> Some
+    else if name = StringType.TypeName then PrimitiveType StringType |> Some
+    else None
 
 module private Extensions =
     type IOperationContext<'s> with

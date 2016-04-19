@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Tests
@@ -14,57 +12,59 @@ namespace Tests
         public void TypeDirectFields()
         {
             var gql = MemContext.CreateDefaultContext();
-            var type = (IDictionary<string, object>)gql.ExecuteQuery("{ __type(name: \"User\") { name, description, kind } }")["__type"];
-            Assert.AreEqual(type["name"], "User");
-            Assert.AreEqual(type["description"], "");
-            Assert.AreEqual(type["kind"], "OBJECT");
-            Assert.AreEqual(type.Keys.Count, 3);
+            var results = gql.ExecuteQuery("{ __type(name: \"User\") { name, description, kind } }");
+            Test.DeepEquals(results, "{ __type: { name: 'User', description: '', kind: 'OBJECT' } }");
         }
 
         [Test]
         public void TypeWithChildFields()
         {
             var gql = MemContext.CreateDefaultContext();
-            var type = (IDictionary<string, object>) gql.ExecuteQuery("{ __type(name: \"User\") { fields { name } } }")["__type"];
-            Assert.AreEqual(type.Keys.Count, 1);
-            var fields = (List<IDictionary<string, object>>) type["fields"];
-            Assert.IsTrue(fields.Any(f => (string)f["name"] == "id"));
-            Assert.IsTrue(fields.Any(f => (string)f["name"] == "name"));
-            Assert.IsTrue(fields.Any(f => (string)f["name"] == "account"));
+            var results =  gql.ExecuteQuery("{ __type(name: \"User\") { fields { name } } }");
+            Test.DeepEquals(results, 
+                @"{
+                      __type: {
+                          fields: [
+                              { name: 'id' },
+                              { name: 'name' },
+                              { name: 'account' },
+                              { name: 'total' },
+                              { name: 'accountPaid' },
+                              { name: 'abc' },
+                              { name: 'sub' },
+                              { name: '__typename' }
+                          ]
+                      }
+                  }");
         }
 
         [Test]
         public void ChildFieldType()
         {
             var gql = MemContext.CreateDefaultContext();
-            var type = (IDictionary<string, object>) gql.ExecuteQuery("{ __type(name: \"User\") { fields { name, type { name, kind } } } }")["__type"];
-            Assert.AreEqual(type.Keys.Count, 1);
-            var fields = (List<IDictionary<string, object>>) type["fields"];
-
-            var idField = fields.First(f => (string) f["name"] == "id");
-            var idType = (IDictionary<string, object>) idField["type"];
-            Assert.AreEqual(idType["name"], "Int");
-            Assert.AreEqual(idType["kind"], "SCALAR");
-
-            var nameField = fields.First(f => (string) f["name"] == "name");
-            var nameType = (IDictionary<string, object>) nameField["type"];
-            Assert.AreEqual(nameType["name"], "String");
-            Assert.AreEqual(nameType["kind"], "SCALAR");
-
-            var accountField = fields.First(f => (string) f["name"] == "account");
-            var accountType = (IDictionary<string, object>) accountField["type"];
-            Assert.AreEqual(accountType["name"], "Account");
-            Assert.AreEqual(accountType["kind"], "OBJECT");
-
-            var accountPaidField = fields.First(f => (string) f["name"] == "accountPaid");
-            var accountPaidType = (IDictionary<string, object>) accountPaidField["type"];
-            Assert.AreEqual(accountPaidType["name"], "Boolean");
-            Assert.AreEqual(accountPaidType["kind"], "SCALAR");
+            var results =  gql.ExecuteQuery("{ __type(name: \"User\") { fields { name, type { name, kind } } } }");
+            Test.DeepEquals(results,
+                @"{
+                      __type: {
+                          fields: [
+                              { name: 'id', type: { name: 'Int', kind: 'SCALAR' } },
+                              { name: 'name', type: { name: 'String', kind: 'SCALAR' } },
+                              { name: 'account', type: { name: 'Account', kind: 'OBJECT' } },
+                              { name: 'total', type: { name: 'Int', kind: 'SCALAR' } },
+                              { name: 'accountPaid', type: { name: 'Boolean', kind: 'SCALAR' } },
+                              { name: 'abc', type: { name: 'String', kind: 'SCALAR' } },
+                              { name: 'sub', type: { name: 'Sub', kind: 'OBJECT' } },
+                              { name: '__typename', type: { name: 'String', kind: 'SCALAR' } }
+                          ]
+                      }
+                  }");
         }
 
         [Test]
         public void SchemaTypes()
         {
+            // TODO: Use Test.DeepEquals once we get all the primitive type noise sorted out
+
             var gql = MemContext.CreateDefaultContext();
             var schema = (IDictionary<string, object>) gql.ExecuteQuery("{ __schema { types { name, kind, interfaces { name } } } }")["__schema"];
             var types = (List<IDictionary<string, object>>) schema["types"];

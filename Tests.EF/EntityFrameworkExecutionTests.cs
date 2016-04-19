@@ -114,11 +114,10 @@ namespace Tests
             schema.AddType<Account>().AddAllFields();
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));
             schema.Complete();
+
             var gql = new GraphQL<EfContext>(schema);
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, name } }")["user"];
-            Assert.AreEqual(user["id"], 1);
-            Assert.AreEqual(user["name"], "Joe User");
-            Assert.AreEqual(user.Keys.Count, 2);
+            var results = gql.ExecuteQuery("{ user(id:1) { id, name } }");
+            Test.DeepEquals(results, "{ user: { id: 1, name: 'Joe User' } }");
         }
 
         class Sub

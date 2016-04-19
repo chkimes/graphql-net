@@ -69,8 +69,8 @@ type UserType() =
         member this.Info = "Fake user type info"
         member this.Fields =
             [|
-                "id", this.Field("id", ValueField (VariableType.GuessFromCLRType(typeof<int>)), [||])
-                "name", this.Field("name", ValueField (VariableType.GuessFromCLRType(typeof<string>)), [||])
+                "id", this.Field("id", ValueField (ValueConverter.Default.VariableTypeOf(typeof<int>)), [||])
+                "name", this.Field("name", ValueField (ValueConverter.Default.VariableTypeOf(typeof<string>)), [||])
                 "friend", this.Field("friend", QueryField (this :> ISchemaQueryType<_>),
                     [|
                         "name", new NameArgument() :> _

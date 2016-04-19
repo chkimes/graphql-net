@@ -29,6 +29,11 @@ type IValueConverter =
     abstract member VariableTypeOf : targetType : System.Type -> VariableType
     abstract member TranslateValueTo : ty : System.Type * value : Value -> obj
 
+type ZeroTypeContext() =
+    interface ITypeContext with
+        member this.GetNamedTypes = upcast []
+        member this.GetTranslator _ = None
+
 type BuiltinTypeContext() =
     static let integer (convert : int64 -> 'a) name (min, max) =
         new TypeTranslator
@@ -254,6 +259,8 @@ type ValueConverter(customContext : IValueConverter -> ITypeContext) as this =
             |??| new CollectionTypeContext(this :> IValueConverter)
             |??| new EnumerableTypeContext(this :> IValueConverter)
             |??| new SingleConstructorTypeContext(this :> IValueConverter)
+    static let defaultInstance = new ValueConverter(fun _ -> new ZeroTypeContext() :> ITypeContext)
+    static member Default = defaultInstance :> IValueConverter
     interface IValueConverter with
         member this.GetNamedTypes = context.GetNamedTypes
         // TODO: cache translators for CLR types

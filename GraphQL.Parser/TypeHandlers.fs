@@ -3,40 +3,57 @@ open System
 open System.Reflection
 open System.Collections.Generic
 
-type TypeTranslator(clrType : System.Type, varType : VariableType, translate : Value -> obj) =
+type TypeMapping(clrType : System.Type, varType : VariableType, translate : Value -> obj) =
     member this.CLRType = clrType
     member this.VariableType = varType
     member this.Translate = translate
     static member Integer<'a>(translate : int64 -> 'a) =
-        new TypeTranslator(typeof<'a>, (PrimitiveType IntType).NotNullable()
+        new TypeMapping(typeof<'a>, (PrimitiveType IntType).NotNullable()
             , fun (v : Value) -> v.GetInteger() |> translate |> box)
     static member Float<'a>(translate : double -> 'a) =
-        new TypeTranslator(typeof<'a>, (PrimitiveType FloatType).NotNullable()
+        new TypeMapping(typeof<'a>, (PrimitiveType FloatType).NotNullable()
             , fun (v : Value) -> v.GetFloat() |> translate |> box)
     static member String<'a>(translate : string -> 'a) =
-        new TypeTranslator(typeof<'a>, (PrimitiveType StringType).NotNullable()
+        new TypeMapping(typeof<'a>, (PrimitiveType StringType).NotNullable()
             , fun (v : Value) -> v.GetString() |> translate |> box)
     static member Boolean<'a>(translate : bool -> 'a) =
-        new TypeTranslator(typeof<'a>, (PrimitiveType BooleanType).NotNullable()
+        new TypeMapping(typeof<'a>, (PrimitiveType BooleanType).NotNullable()
             , fun (v : Value) -> v.GetBoolean() |> translate |> box)
 
-type ITypeContext =
-    abstract member GetNamedTypes : CoreVariableType seq
-    abstract member GetTranslator : targetType : System.Type -> TypeTranslator option
+type ITypeHandler =
+    abstract member GetKnownTypes : CoreVariableType seq
+    abstract member GetMapping : targetType : System.Type -> TypeMapping option
 
-type IValueConverter =
-    abstract member GetNamedTypes : CoreVariableType seq
-    abstract member VariableTypeOf : targetType : System.Type -> VariableType
-    abstract member TranslateValueTo : ty : System.Type * value : Value -> obj
+type ZeroTypeHandler() =
+    interface ITypeHandler with
+        member this.GetKnownTypes = upcast []
+        member this.GetMapping _ = None
 
-type ZeroTypeContext() =
-    interface ITypeContext with
-        member this.GetNamedTypes = upcast []
-        member this.GetTranslator _ = None
+type ChainTypeContext(primary : ITypeHandler, fallback : ITypeHandler) =
+    interface ITypeHandler with
+        member this.GetKnownTypes = Seq.append primary.GetKnownTypes fallback.GetKnownTypes
+        member this.GetMapping(targetType) =
+            match primary.GetMapping(targetType) with
+            | Some r -> Some r
+            | None -> fallback.GetMapping(targetType)
+[<AutoOpen>]
+module TypeHandlerExtensions =
+    type ITypeHandler with
+        member this.VariableTypeOf(targetType) =
+            match this.GetMapping(targetType) with
+            | Some translator -> translator.VariableType
+            | None -> failwith (sprintf "Unsupported CLR type ``%s''" targetType.Name)
+        member this.TranslateValueTo(targetType, value) =
+            match this.GetMapping(targetType) with
+            | Some translator -> translator.Translate(value)
+            | None -> failwith (sprintf "Unsupported CLR type ``%s''" targetType.Name)
 
-type BuiltinTypeContext() =
+    let (<??>) (context1 : #ITypeHandler) (context2 : #ITypeHandler) =
+        new ChainTypeContext(context1, context2) :> ITypeHandler
+
+type BuiltinTypeHandler() =
     static let integer (convert : int64 -> 'a) name (min, max) =
-        new TypeTranslator
+        new TypeMapping
             ( typeof<'a>
             ,
                 ({ new ISchemaVariableType with
@@ -51,7 +68,7 @@ type BuiltinTypeContext() =
             , fun v -> v.GetInteger() |> convert |> box
             )
     static let floating (convert : double -> 'a) name =
-        new TypeTranslator
+        new TypeMapping
             ( typeof<'a>
             ,
                 ({ new ISchemaVariableType with
@@ -76,46 +93,38 @@ type BuiltinTypeContext() =
             floating single "Float32"
             floating decimal "Decimal"
 
-            TypeTranslator.String(id)
+            TypeMapping.String(id)
 
-            TypeTranslator.Boolean(id)
+            TypeMapping.Boolean(id)
         ] |> Seq.map (fun t -> t.CLRType, t) |> dictionary
-    interface ITypeContext with
-        member this.GetNamedTypes =
+    interface ITypeHandler with
+        member this.GetKnownTypes =
             builtinTypes.Values
             |> Seq.map (fun t -> t.VariableType.Type)
-        member this.GetTranslator(targetType) = builtinTypes.TryFind(targetType)
+        member this.GetMapping(targetType) = builtinTypes.TryFind(targetType)
 
-type ChainTypeContext(primary : ITypeContext, fallback : ITypeContext) =
-    interface ITypeContext with
-        member this.GetNamedTypes = Seq.append primary.GetNamedTypes fallback.GetNamedTypes
-        member this.GetTranslator(targetType) =
-            match primary.GetTranslator(targetType) with
-            | Some r -> Some r
-            | None -> fallback.GetTranslator(targetType)
-
-type NullableTypeContext(converter : IValueConverter) =
-    interface ITypeContext with
-        member this.GetNamedTypes = upcast []
-        member this.GetTranslator(ty) =
+type NullableTypeContext(rootHandler : ITypeHandler) =
+    interface ITypeHandler with
+        member this.GetKnownTypes = upcast []
+        member this.GetMapping(ty) =
             if ty.IsValueType
                 && ty.IsGenericType
                 && ty.GetGenericTypeDefinition() = typedefof<System.Nullable<_>>
             then
                 let clrElementType = ty.GetGenericArguments().[0]
-                let elementType = converter.VariableTypeOf(clrElementType).Type
-                new TypeTranslator
+                let elementType = rootHandler.VariableTypeOf(clrElementType).Type
+                new TypeMapping
                     ( ty
                     , new VariableType(elementType, isNullable = true)
                     , fun value ->
                         if value = NullValue then null
                         else
-                            let wrappedValue = converter.TranslateValueTo(clrElementType, value)
+                            let wrappedValue = rootHandler.TranslateValueTo(clrElementType, value)
                             ty.GetConstructor([|clrElementType|]).Invoke([|wrappedValue|])
                     ) |> Some
             else None
 
-type ArrayTypeContext(converter : IValueConverter) =
+type ArrayTypeContext(rootHandler : ITypeHandler) =
     let translateArray clrElementType value =
         match value with
         | NullValue -> null
@@ -123,24 +132,24 @@ type ArrayTypeContext(converter : IValueConverter) =
             let arr = System.Array.CreateInstance(clrElementType, [|vs.Count|])
             let mutable i = 0
             for { Value = v } in vs do
-                arr.SetValue(converter.TranslateValueTo(clrElementType, v), i)
+                arr.SetValue(rootHandler.TranslateValueTo(clrElementType, v), i)
                 i <- i + 1
             box arr
         | _ -> failwith "Value not suitable for array initialization"
-    interface ITypeContext with
-        member this.GetNamedTypes = upcast []
-        member this.GetTranslator(targetType) =
+    interface ITypeHandler with
+        member this.GetKnownTypes = upcast []
+        member this.GetMapping(targetType) =
             if targetType.IsArray then
                 let clrElementType = targetType.GetElementType()
-                let elementType = converter.VariableTypeOf(clrElementType)
-                new TypeTranslator
+                let elementType = rootHandler.VariableTypeOf(clrElementType)
+                new TypeMapping
                     ( targetType
                     , (ListType elementType).Nullable()
                     , translateArray clrElementType
                     ) |> Some
             else None
 
-type CollectionTypeContext(converter : IValueConverter) =
+type CollectionTypeContext(rootHandler : ITypeHandler) =
     let translateCollection
         (emptyCons : ConstructorInfo)
         (icollection : System.Type)
@@ -152,12 +161,12 @@ type CollectionTypeContext(converter : IValueConverter) =
         | ListValue vs ->
             let collection = emptyCons.Invoke([||])
             for { Value = v } in vs do
-                ignore <| add.Invoke(collection, [|converter.TranslateValueTo(clrElementType, v)|])
+                ignore <| add.Invoke(collection, [|rootHandler.TranslateValueTo(clrElementType, v)|])
             collection
         | _ -> failwith "Value not suitable for collection initialization"
-    interface ITypeContext with
-        member this.GetNamedTypes = upcast []
-        member this.GetTranslator(targetType) =
+    interface ITypeHandler with
+        member this.GetKnownTypes = upcast []
+        member this.GetMapping(targetType) =
             let emptyCons = targetType.GetConstructor([||])
             if isNull emptyCons then None else
             let interfaces = targetType.GetInterfaces()
@@ -169,14 +178,14 @@ type CollectionTypeContext(converter : IValueConverter) =
             | None -> None
             | Some icollection ->
                 let clrElementType = icollection.GetGenericArguments().[0]
-                let elementType = converter.VariableTypeOf(clrElementType)
-                new TypeTranslator
+                let elementType = rootHandler.VariableTypeOf(clrElementType)
+                new TypeMapping
                     ( targetType
                     , (ListType elementType).Nullable(not targetType.IsValueType)
                     , translateCollection emptyCons icollection clrElementType
                     ) |> Some
 
-type EnumerableTypeContext(converter : IValueConverter) =
+type EnumerableTypeContext(rootHandler : ITypeHandler) =
     let translateEnumerable
         (cons : ConstructorInfo) // constructor taking IEnumerable<clrElementType>
         (clrElementType : System.Type)
@@ -188,12 +197,12 @@ type EnumerableTypeContext(converter : IValueConverter) =
         | ListValue vs ->
             let collection = System.Activator.CreateInstance(collectionType)
             for { Value = v } in vs do
-                ignore <| collectionAdd.Invoke(collection, [|converter.TranslateValueTo(clrElementType, v)|])
+                ignore <| collectionAdd.Invoke(collection, [|rootHandler.TranslateValueTo(clrElementType, v)|])
             cons.Invoke([|collection|])
         | _ -> failwith "Value not suitable for IEnumerable initialization"
-    interface ITypeContext with
-        member this.GetNamedTypes = upcast []
-        member this.GetTranslator(targetType) =
+    interface ITypeHandler with
+        member this.GetKnownTypes = upcast []
+        member this.GetMapping(targetType) =
             let interfaces = targetType.GetInterfaces()
             let ienumerable =
                 interfaces
@@ -203,19 +212,19 @@ type EnumerableTypeContext(converter : IValueConverter) =
             | None -> None
             | Some ienumerable ->
                 let clrElementType = ienumerable.GetGenericArguments().[0]
-                let elementType = converter.VariableTypeOf(clrElementType)
+                let elementType = rootHandler.VariableTypeOf(clrElementType)
                 let cons = targetType.GetConstructor([|ienumerable|]) // can we be constructed from another IEnumerable<T>?
                 if isNull cons then None else
-                new TypeTranslator
+                new TypeMapping
                     ( targetType
                     , (ListType elementType).Nullable(not targetType.IsValueType)
                     , translateEnumerable cons clrElementType
                     ) |> Some
 
-type SingleConstructorTypeContext(converter : IValueConverter) =
-    interface ITypeContext with
-        member this.GetNamedTypes = upcast []
-        member this.GetTranslator(targetType) =
+type SingleConstructorTypeContext(rootHandler : ITypeHandler) =
+    interface ITypeHandler with
+        member this.GetKnownTypes = upcast []
+        member this.GetMapping(targetType) =
             let constructors = targetType.GetConstructors()
             if constructors.Length <> 1 then None else
             let cons = constructors.[0]
@@ -223,10 +232,10 @@ type SingleConstructorTypeContext(converter : IValueConverter) =
             let fields =
                 [
                     for parameter in parameters do
-                        let varTy = converter.VariableTypeOf(parameter.ParameterType)
+                        let varTy = rootHandler.VariableTypeOf(parameter.ParameterType)
                         yield parameter.Name, varTy
                 ] |> dictionary
-            new TypeTranslator
+            new TypeMapping
                 ( targetType
                 , (ObjectType fields).Nullable(not targetType.IsValueType)
                 ,
@@ -237,38 +246,26 @@ type SingleConstructorTypeContext(converter : IValueConverter) =
                         let mutable i = 0
                         for parameter in parameters do
                             let value = fields.[parameter.Name].Value
-                            let clrValue = converter.TranslateValueTo(parameter.ParameterType, value)
+                            let clrValue = rootHandler.TranslateValueTo(parameter.ParameterType, value)
                             arguments.[i] <- clrValue
                         cons.Invoke(arguments)
                     | _ -> failwith "Invalid object fields for constructor"
                 ) |> Some
 
-module private TypeContextUtilities =
-    let (|??|) (context1 : #ITypeContext) (context2 : #ITypeContext) =
-        new ChainTypeContext(context1, context2) :> ITypeContext
-open TypeContextUtilities
-
-type ValueConverter(customContext : IValueConverter -> ITypeContext) as this =
-    let mutable context : ITypeContext = Unchecked.defaultof<ITypeContext>
+type RootTypeHandler(customContext : ITypeHandler -> ITypeHandler) as this =
+    let mutable context : ITypeHandler = Unchecked.defaultof<ITypeHandler>
     do
         context <-
-            customContext(this :> IValueConverter) // custom types get first precedence
-            |??| new BuiltinTypeContext()
-            |??| new NullableTypeContext(this :> IValueConverter)
-            |??| new ArrayTypeContext(this :> IValueConverter)
-            |??| new CollectionTypeContext(this :> IValueConverter)
-            |??| new EnumerableTypeContext(this :> IValueConverter)
-            |??| new SingleConstructorTypeContext(this :> IValueConverter)
-    static let defaultInstance = new ValueConverter(fun _ -> new ZeroTypeContext() :> ITypeContext)
-    static member Default = defaultInstance :> IValueConverter
-    interface IValueConverter with
-        member this.GetNamedTypes = context.GetNamedTypes
-        // TODO: cache translators for CLR types
-        member this.VariableTypeOf(targetType) =
-            match context.GetTranslator(targetType) with
-            | Some translator -> translator.VariableType
-            | None -> failwith (sprintf "Unsupported CLR type ``%s''" targetType.Name)
-        member this.TranslateValueTo(targetType, value) =
-            match context.GetTranslator(targetType) with
-            | Some translator -> translator.Translate(value)
-            | None -> failwith (sprintf "Unsupported CLR type ``%s''" targetType.Name)
+            customContext(this :> ITypeHandler) // custom types get first precedence
+            <??> new BuiltinTypeHandler()
+            <??> new NullableTypeContext(this :> ITypeHandler)
+            <??> new ArrayTypeContext(this :> ITypeHandler)
+            <??> new CollectionTypeContext(this :> ITypeHandler)
+            <??> new EnumerableTypeContext(this :> ITypeHandler)
+            <??> new SingleConstructorTypeContext(this :> ITypeHandler)
+    static let defaultInstance = new RootTypeHandler(fun _ -> new ZeroTypeHandler() :> ITypeHandler)
+    static member Default = defaultInstance :> ITypeHandler
+    interface ITypeHandler with
+        member this.GetKnownTypes = context.GetKnownTypes
+        // TODO: cache mappings
+        member this.GetMapping(targetType) = context.GetMapping(targetType)

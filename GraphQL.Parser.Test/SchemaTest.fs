@@ -69,8 +69,8 @@ type UserType() =
         member this.Info = "Fake user type info"
         member this.Fields =
             [|
-                "id", this.Field("id", ValueField (ValueConverter.Default.VariableTypeOf(typeof<int>)), [||])
-                "name", this.Field("name", ValueField (ValueConverter.Default.VariableTypeOf(typeof<string>)), [||])
+                "id", this.Field("id", ValueField (RootTypeHandler.Default.VariableTypeOf(typeof<int>)), [||])
+                "name", this.Field("name", ValueField (RootTypeHandler.Default.VariableTypeOf(typeof<string>)), [||])
                 "friend", this.Field("friend", QueryField (this :> ISchemaQueryType<_>),
                     [|
                         "name", new NameArgument() :> _

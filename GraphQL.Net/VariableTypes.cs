@@ -31,7 +31,8 @@ namespace GraphQL.Net
             {
                 return CoreVariableType.NewNamedType(custom);
             }
-            return ValueConverter.Default.VariableTypeOf(clrType).Type;
+            // TODO
+            return RootTypeHandler.Default.GetMapping(clrType).Value.VariableType.Type;
         }
 
         /// <summary>

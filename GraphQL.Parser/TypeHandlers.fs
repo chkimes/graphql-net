@@ -288,6 +288,46 @@ type SingleConstructorTypeHandler(rootHandler : ITypeHandler) =
                     | _ -> failwith "Invalid object fields for constructor"
                 ) |> Some
 
+/// Handles enum types with a name for the type and a prefix for the members.
+/// The prefix is important because we need to know the type of an enum from its value
+/// (distinguishing Color.Orange from Fruit.Orange).
+type EnumTypeHandler(clrEnumType : Type, enumName : string, memberPrefix : string) =
+    let names = Enum.GetNames(clrEnumType)
+    let values = Enum.GetValues(clrEnumType)
+    let valueForPrefixedName =
+        [
+            for i = 0 to values.Length - 1 do
+                yield memberPrefix + names.[i], values.GetValue(i)
+        ] |> dictionary
+    let enumType =
+        {
+            EnumName = enumName
+            Description = None
+            Values =
+                [
+                    for name in names do
+                        let prefixedName = memberPrefix + name
+                        yield prefixedName,
+                            {
+                                ValueName = prefixedName
+                                Description = None
+                            }
+                ] |> dictionary
+        }
+    let mapping =
+        new TypeMapping
+            ( clrEnumType
+            , (EnumType enumType).NotNullable()
+            , function
+                | EnumValue en -> valueForPrefixedName.[en.Value.ValueName]
+                | _ -> failwith <| sprintf "Invalid value (expected enum ``%s'')" enumName
+            )
+    interface ITypeHandler with
+        member this.DefinedTypes = upcast [ EnumType enumType ]
+        member this.GetMapping(targetType) =
+            if targetType = clrEnumType then Some mapping
+            else None
+
 /// Handles `output' types by representing them with `repr' types, where `repr' is supported by `rootHandler'.
 type TranslationTypeHandler<'repr, 'output>
     ( rootHandler : ITypeHandler
@@ -319,6 +359,19 @@ type TranslationTypeHandler<'repr, 'output>
             if targetType = typeof<'output> then
                 Some mapping.Value
             else None
+
+/// C#-appropriate methods for creating custom TypeHandlers
+type TypeHandler =
+    static member Enum<'enum>(enumName : string, memberPrefix : string) =
+        new EnumTypeHandler(typeof<'enum>, enumName, memberPrefix)
+        :> ITypeHandler
+    static member Translate(rootHandler : ITypeHandler, name : string, validate : Func<'repr, bool>, translate : Func<'repr, 'output>) =
+        new TranslationTypeHandler<'repr, 'output>
+            ( rootHandler
+            , typeof<'output>.Name
+            , fun v -> validate.Invoke(v)
+            , fun v -> translate.Invoke(v)
+            ) :> ITypeHandler
 
 type IMetaTypeHandler =
     /// Given a reference to the root type handler that will ultimately

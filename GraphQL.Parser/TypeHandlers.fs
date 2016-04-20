@@ -43,17 +43,19 @@ type TypeMapping(clrType : Type, varType : VariableType, translate : Value -> ob
             , fun (v : Value) -> v.GetBoolean() |> translate |> box)
 
 type ITypeHandler =
-    abstract member GetKnownTypes : CoreVariableType seq
+    /// Get the types explicitly defined by this handler.
+    abstract member DefinedTypes : CoreVariableType seq
+    /// Get a mapping for `targetType`, if this handler supports it.
     abstract member GetMapping : targetType : Type -> TypeMapping option
 
 type ZeroTypeHandler() =
     interface ITypeHandler with
-        member this.GetKnownTypes = upcast []
+        member this.DefinedTypes = upcast []
         member this.GetMapping _ = None
 
-type ChainTypeContext(primary : ITypeHandler, fallback : ITypeHandler) =
+type ChainTypeHandler(primary : ITypeHandler, fallback : ITypeHandler) =
     interface ITypeHandler with
-        member this.GetKnownTypes = Seq.append primary.GetKnownTypes fallback.GetKnownTypes
+        member this.DefinedTypes = Seq.append primary.DefinedTypes fallback.DefinedTypes
         member this.GetMapping(targetType) =
             match primary.GetMapping(targetType) with
             | Some r -> Some r
@@ -70,8 +72,11 @@ module TypeHandlerExtensions =
             | Some translator -> translator.Translate(value)
             | None -> failwith (sprintf "Unsupported CLR type ``%s''" targetType.Name)
 
-    let (<??>) (context1 : #ITypeHandler) (context2 : #ITypeHandler) =
-        new ChainTypeContext(context1, context2) :> ITypeHandler
+    let (??>) (primary : #ITypeHandler) (secondary : #ITypeHandler) =
+        new ChainTypeHandler(primary, secondary) :> ITypeHandler
+
+    let (??<) (secondary : #ITypeHandler) (primary : #ITypeHandler) =
+        new ChainTypeHandler(primary, secondary) :> ITypeHandler
 
 type BuiltinTypeHandler() =
     static let integer (convert : int64 -> 'a) name (min, max) =
@@ -120,15 +125,15 @@ type BuiltinTypeHandler() =
             TypeMapping.Boolean(id)
         ] |> Seq.map (fun t -> t.CLRType, t) |> dictionary
     interface ITypeHandler with
-        member this.GetKnownTypes =
+        member this.DefinedTypes =
             builtinTypes.Values
             |> Seq.map (fun t -> t.VariableType.Type)
         member this.GetMapping(targetType) = builtinTypes.TryFind(targetType)
 
 /// Handles System.Nullable<T>, where T is supported by `rootHandler`.
-type NullableTypeContext(rootHandler : ITypeHandler) =
+type NullableTypeHandler(rootHandler : ITypeHandler) =
     interface ITypeHandler with
-        member this.GetKnownTypes = upcast []
+        member this.DefinedTypes = upcast []
         member this.GetMapping(ty) =
             if ty.IsValueType
                 && ty.IsGenericType
@@ -148,7 +153,7 @@ type NullableTypeContext(rootHandler : ITypeHandler) =
             else None
 
 /// Handles T[] arrays, where T is supported by `rootHandler`.
-type ArrayTypeContext(rootHandler : ITypeHandler) =
+type ArrayTypeHandler(rootHandler : ITypeHandler) =
     let translateArray clrElementType value =
         match value with
         | NullValue -> null
@@ -161,7 +166,7 @@ type ArrayTypeContext(rootHandler : ITypeHandler) =
             box arr
         | _ -> failwith "Value not suitable for array initialization"
     interface ITypeHandler with
-        member this.GetKnownTypes = upcast []
+        member this.DefinedTypes = upcast []
         member this.GetMapping(targetType) =
             if targetType.IsArray then
                 let clrElementType = targetType.GetElementType()
@@ -175,7 +180,7 @@ type ArrayTypeContext(rootHandler : ITypeHandler) =
 
 /// Handles types implementing ICollection<T> with public parameterless constructors,
 /// where T is supported by `rootHandler`.
-type CollectionTypeContext(rootHandler : ITypeHandler) =
+type CollectionTypeHandler(rootHandler : ITypeHandler) =
     let translateCollection
         (emptyCons : ConstructorInfo)
         (icollection : Type)
@@ -191,7 +196,7 @@ type CollectionTypeContext(rootHandler : ITypeHandler) =
             collection
         | _ -> failwith "Value not suitable for collection initialization"
     interface ITypeHandler with
-        member this.GetKnownTypes = upcast []
+        member this.DefinedTypes = upcast []
         member this.GetMapping(targetType) =
             let emptyCons = targetType.GetConstructor([||])
             if isNull emptyCons then None else
@@ -213,7 +218,7 @@ type CollectionTypeContext(rootHandler : ITypeHandler) =
 
 /// Handles types implementing IEnumerable<T> that have a constructor taking an IEnumerable<T>,
 /// where T is supported by `rootHandler`.
-type EnumerableTypeContext(rootHandler : ITypeHandler) =
+type EnumerableTypeHandler(rootHandler : ITypeHandler) =
     let translateEnumerable
         (cons : ConstructorInfo) // constructor taking IEnumerable<clrElementType>
         (clrElementType : Type)
@@ -229,7 +234,7 @@ type EnumerableTypeContext(rootHandler : ITypeHandler) =
             cons.Invoke([|collection|])
         | _ -> failwith "Value not suitable for IEnumerable initialization"
     interface ITypeHandler with
-        member this.GetKnownTypes = upcast []
+        member this.DefinedTypes = upcast []
         member this.GetMapping(targetType) =
             let interfaces = targetType.GetInterfaces()
             let ienumerable =
@@ -251,9 +256,9 @@ type EnumerableTypeContext(rootHandler : ITypeHandler) =
 
 /// Handles CLR types with a single constructor taking 1 or more parameter types,
 /// where all parameter types are supported by `rootHandler`.
-type SingleConstructorTypeContext(rootHandler : ITypeHandler) =
+type SingleConstructorTypeHandler(rootHandler : ITypeHandler) =
     interface ITypeHandler with
-        member this.GetKnownTypes = upcast []
+        member this.DefinedTypes = upcast []
         member this.GetMapping(targetType) =
             let constructors = targetType.GetConstructors()
             if constructors.Length <> 1 then None else
@@ -309,31 +314,45 @@ type TranslationTypeHandler<'repr, 'output>
                     )
         )
     interface ITypeHandler with
-        member this.GetKnownTypes = upcast []
+        member this.DefinedTypes = upcast [ mapping.Value.VariableType.Type ]
         member this.GetMapping(targetType) =
             if targetType = typeof<'output> then
                 Some mapping.Value
             else None
 
-type RootTypeHandler(customContext : ITypeHandler -> ITypeHandler) as this =
+type IMetaTypeHandler =
+    /// Given a reference to the root type handler that will ultimately
+    /// handle all supported types, produce a sequence of additional type handlers,
+    /// in order of priority ascending (the last handler will be tried first).
+    abstract member Handlers : rootHandler : ITypeHandler -> ITypeHandler seq
+
+type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
     let mappingCache = new Dictionary<Type, TypeMapping option>()
-    let mutable context : ITypeHandler = Unchecked.defaultof<ITypeHandler>
-    do
-        context <-
-            customContext(this :> ITypeHandler) // custom types get first precedence
-            <??> new BuiltinTypeHandler()
-            <??> new NullableTypeContext(this :> ITypeHandler)
-            <??> new ArrayTypeContext(this :> ITypeHandler)
-            <??> new CollectionTypeContext(this :> ITypeHandler)
-            <??> new EnumerableTypeContext(this :> ITypeHandler)
-            <??> new SingleConstructorTypeContext(this :> ITypeHandler)
-    static let defaultInstance = new RootTypeHandler(fun _ -> new ZeroTypeHandler() :> ITypeHandler)
+    let context =
+        lazy(
+            let root = this :> ITypeHandler
+            let zero = new ZeroTypeHandler() :> ITypeHandler
+            let customHandler =
+                Seq.fold (??<) zero (metaHandler.Handlers(root))
+            customHandler
+            ??> new BuiltinTypeHandler()
+            ??> new NullableTypeHandler(root)
+            ??> new ArrayTypeHandler(root)
+            ??> new CollectionTypeHandler(root)
+            ??> new EnumerableTypeHandler(root)
+            ??> new SingleConstructorTypeHandler(root)
+        )
+    static let defaultInstance =
+        new RootTypeHandler
+            ({ new IMetaTypeHandler with
+                member __.Handlers(_) = upcast []
+            })
     static member Default = defaultInstance :> ITypeHandler
     interface ITypeHandler with
-        member this.GetKnownTypes = context.GetKnownTypes
+        member this.DefinedTypes = context.Value.DefinedTypes
         member this.GetMapping(targetType) =
             let mutable cached = None
             if (not <| mappingCache.TryGetValue(targetType, &cached)) then
-                cached <- context.GetMapping(targetType)
+                cached <- context.Value.GetMapping(targetType)
                 mappingCache.[targetType] <- cached
             cached

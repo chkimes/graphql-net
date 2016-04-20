@@ -25,7 +25,7 @@ open System
 open System.Reflection
 open System.Collections.Generic
 
-type TypeMapping(clrType : System.Type, varType : VariableType, translate : Value -> obj) =
+type TypeMapping(clrType : Type, varType : VariableType, translate : Value -> obj) =
     member this.CLRType = clrType
     member this.VariableType = varType
     member this.Translate = translate
@@ -44,7 +44,7 @@ type TypeMapping(clrType : System.Type, varType : VariableType, translate : Valu
 
 type ITypeHandler =
     abstract member GetKnownTypes : CoreVariableType seq
-    abstract member GetMapping : targetType : System.Type -> TypeMapping option
+    abstract member GetMapping : targetType : Type -> TypeMapping option
 
 type ZeroTypeHandler() =
     interface ITypeHandler with
@@ -178,8 +178,8 @@ type ArrayTypeContext(rootHandler : ITypeHandler) =
 type CollectionTypeContext(rootHandler : ITypeHandler) =
     let translateCollection
         (emptyCons : ConstructorInfo)
-        (icollection : System.Type)
-        (clrElementType : System.Type)
+        (icollection : Type)
+        (clrElementType : Type)
         value =
         let add = icollection.GetMethod("Add", [|clrElementType|])
         match value with
@@ -216,7 +216,7 @@ type CollectionTypeContext(rootHandler : ITypeHandler) =
 type EnumerableTypeContext(rootHandler : ITypeHandler) =
     let translateEnumerable
         (cons : ConstructorInfo) // constructor taking IEnumerable<clrElementType>
-        (clrElementType : System.Type)
+        (clrElementType : Type)
         value =
         let collectionType = typedefof<List<_>>.MakeGenericType([|clrElementType|])
         let collectionAdd = collectionType.GetMethod("Add", [|clrElementType|])
@@ -316,6 +316,7 @@ type TranslationTypeHandler<'repr, 'output>
             else None
 
 type RootTypeHandler(customContext : ITypeHandler -> ITypeHandler) as this =
+    let mappingCache = new Dictionary<Type, TypeMapping option>()
     let mutable context : ITypeHandler = Unchecked.defaultof<ITypeHandler>
     do
         context <-
@@ -330,5 +331,9 @@ type RootTypeHandler(customContext : ITypeHandler -> ITypeHandler) as this =
     static member Default = defaultInstance :> ITypeHandler
     interface ITypeHandler with
         member this.GetKnownTypes = context.GetKnownTypes
-        // TODO: cache mappings
-        member this.GetMapping(targetType) = context.GetMapping(targetType)
+        member this.GetMapping(targetType) =
+            let mutable cached = None
+            if (not <| mappingCache.TryGetValue(targetType, &cached)) then
+                cached <- context.GetMapping(targetType)
+                mappingCache.[targetType] <- cached
+            cached

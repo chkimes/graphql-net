@@ -1,4 +1,26 @@
-﻿namespace GraphQL.Parser
+﻿//MIT License
+//
+//Copyright (c) 2016 Robert Peele
+//
+//Permission is hereby granted, free of charge, to any person obtaining a copy
+//of this software and associated documentation files (the "Software"), to deal
+//in the Software without restriction, including without limitation the rights
+//to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//copies of the Software, and to permit persons to whom the Software is
+//furnished to do so, subject to the following conditions:
+//
+//The above copyright notice and this permission notice shall be included in all
+//copies or substantial portions of the Software.
+//
+//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+//SOFTWARE.
+
+namespace GraphQL.Parser
 open System
 open System.Reflection
 open System.Collections.Generic
@@ -103,6 +125,7 @@ type BuiltinTypeHandler() =
             |> Seq.map (fun t -> t.VariableType.Type)
         member this.GetMapping(targetType) = builtinTypes.TryFind(targetType)
 
+/// Handles System.Nullable<T>, where T is supported by `rootHandler`.
 type NullableTypeContext(rootHandler : ITypeHandler) =
     interface ITypeHandler with
         member this.GetKnownTypes = upcast []
@@ -124,6 +147,7 @@ type NullableTypeContext(rootHandler : ITypeHandler) =
                     ) |> Some
             else None
 
+/// Handles T[] arrays, where T is supported by `rootHandler`.
 type ArrayTypeContext(rootHandler : ITypeHandler) =
     let translateArray clrElementType value =
         match value with
@@ -149,6 +173,8 @@ type ArrayTypeContext(rootHandler : ITypeHandler) =
                     ) |> Some
             else None
 
+/// Handles types implementing ICollection<T> with public parameterless constructors,
+/// where T is supported by `rootHandler`.
 type CollectionTypeContext(rootHandler : ITypeHandler) =
     let translateCollection
         (emptyCons : ConstructorInfo)
@@ -185,6 +211,8 @@ type CollectionTypeContext(rootHandler : ITypeHandler) =
                     , translateCollection emptyCons icollection clrElementType
                     ) |> Some
 
+/// Handles types implementing IEnumerable<T> that have a constructor taking an IEnumerable<T>,
+/// where T is supported by `rootHandler`.
 type EnumerableTypeContext(rootHandler : ITypeHandler) =
     let translateEnumerable
         (cons : ConstructorInfo) // constructor taking IEnumerable<clrElementType>
@@ -221,6 +249,8 @@ type EnumerableTypeContext(rootHandler : ITypeHandler) =
                     , translateEnumerable cons clrElementType
                     ) |> Some
 
+/// Handles CLR types with a single constructor taking 1 or more parameter types,
+/// where all parameter types are supported by `rootHandler`.
 type SingleConstructorTypeContext(rootHandler : ITypeHandler) =
     interface ITypeHandler with
         member this.GetKnownTypes = upcast []
@@ -229,6 +259,7 @@ type SingleConstructorTypeContext(rootHandler : ITypeHandler) =
             if constructors.Length <> 1 then None else
             let cons = constructors.[0]
             let parameters = cons.GetParameters()
+            if parameters.Length < 1 then None else
             let fields =
                 [
                     for parameter in parameters do
@@ -251,6 +282,38 @@ type SingleConstructorTypeContext(rootHandler : ITypeHandler) =
                         cons.Invoke(arguments)
                     | _ -> failwith "Invalid object fields for constructor"
                 ) |> Some
+
+/// Handles `output' types by representing them with `repr' types, where `repr' is supported by `rootHandler'.
+type TranslationTypeHandler<'repr, 'output>
+    ( rootHandler : ITypeHandler
+    , name : string
+    , validate : 'repr -> bool
+    , translate : 'repr -> 'output
+    ) =
+    let mapping =
+        lazy(
+            match rootHandler.GetMapping(typeof<'repr>) with
+            | None -> failwith <| sprintf "Unsupported represention type ``%s''" typeof<'repr>.Name
+            | Some reprMapping ->
+                let getReprValue value : 'repr =
+                    reprMapping.Translate(value) |> Unchecked.unbox
+                new TypeMapping
+                    ( typeof<'output>
+                    ,
+                        ({ new ISchemaVariableType with
+                            member this.TypeName = name
+                            member this.CoreType = reprMapping.VariableType.Type
+                            member this.ValidateValue(value) = getReprValue value |> validate
+                        } |> NamedType).Nullable(reprMapping.VariableType.Nullable)
+                    , getReprValue >> translate >> box
+                    )
+        )
+    interface ITypeHandler with
+        member this.GetKnownTypes = upcast []
+        member this.GetMapping(targetType) =
+            if targetType = typeof<'output> then
+                Some mapping.Value
+            else None
 
 type RootTypeHandler(customContext : ITypeHandler -> ITypeHandler) as this =
     let mutable context : ITypeHandler = Unchecked.defaultof<ITypeHandler>

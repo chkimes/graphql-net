@@ -32,14 +32,14 @@ type FakeData = string
 type NameArgument() =
     interface ISchemaArgument<FakeData> with
         member this.ArgumentName = "name"
-        member this.ArgumentType = PrimitiveType StringType
+        member this.ArgumentType = (PrimitiveType StringType).Nullable()
         member this.Description = Some "argument for filtering by name"
         member this.Info = "Fake name arg info"
 
 type IdArgument() =
     interface ISchemaArgument<FakeData> with
         member this.ArgumentName = "id"
-        member this.ArgumentType = PrimitiveType IntType
+        member this.ArgumentType = (PrimitiveType IntType).NotNullable()
         member this.Description = Some "argument for filtering by id"
         member this.Info = "Fake id arg info"
 

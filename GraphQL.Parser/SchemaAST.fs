@@ -153,7 +153,7 @@ and ISchemaField<'s> =
 and ISchemaArgument<'s> =
     inherit ISchemaInfo<'s>
     abstract member ArgumentName : string
-    abstract member ArgumentType : CoreVariableType
+    abstract member ArgumentType : VariableType
     abstract member Description : string option
 and ISchemaDirective<'s> =
     inherit ISchemaInfo<'s>

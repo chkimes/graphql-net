@@ -30,12 +30,12 @@ namespace GraphQL.Net
             public SchemaArgument(string argumentName, VariableType argumentType)
             {
                 ArgumentName = argumentName;
-                ArgumentType = argumentType.Type;
+                ArgumentType = argumentType;
             }
 
             public Info Info => null;
             public string ArgumentName { get; }
-            public CoreVariableType ArgumentType { get; }
+            public VariableType ArgumentType { get; }
             public FSharpOption<string> Description => null;
         }
 

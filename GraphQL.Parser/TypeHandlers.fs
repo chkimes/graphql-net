@@ -278,6 +278,7 @@ type SingleConstructorTypeHandler(rootHandler : ITypeHandler) =
                             let value = fields.[parameter.Name].Value
                             let clrValue = rootHandler.TranslateValueTo(parameter.ParameterType, value)
                             arguments.[i] <- clrValue
+                            i <- i + 1
                         cons.Invoke(arguments)
                     | _ -> invalid "Invalid object fields for constructor"
                 ) |> Some

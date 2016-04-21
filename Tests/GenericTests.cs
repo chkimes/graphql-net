@@ -117,7 +117,7 @@ namespace Tests
         {
             var acct =
                 (IDictionary<string, object>)
-                    gql.ExecuteQuery("{ accountPaidBy(paid: \"2016-02-01T00:00:00\") { id } }")["accountPaidBy"];
+                    gql.ExecuteQuery("{ accountPaidBy(paid: { year: 2016 month: 1 day: 1 }) { id } }")["accountPaidBy"];
             Assert.AreEqual(acct["id"], 1);
         }
 

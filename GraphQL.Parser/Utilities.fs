@@ -48,6 +48,15 @@ let invalid msg =
 let failAt pos msg =
     raise (new SourceException(msg, pos))
 
+let chooseWithSource transform inputs =
+    seq {
+        for { Source = pos; Value = v } in inputs do
+            match transform v with
+            | None -> ()
+            | Some tr ->
+                yield { Source = pos; Value = tr }
+    }
+
 let mapWithSource transform inputs =
     seq {
         for { Source = pos; Value = v } in inputs do

@@ -54,6 +54,9 @@ and PrimitiveType =
     | FloatType
     | StringType
     | BooleanType
+    member this.AcceptsPrimitive(input : PrimitiveType) =
+        this = input
+        || this = FloatType && input = IntType
     member this.TypeName =
         match this with
         | IntType -> "Int"
@@ -204,13 +207,6 @@ and Value =
         match this with
         | PrimitiveValue (BooleanPrimitive b) -> b
         | _ -> failwith "Value is not a boolean"
-    member this.ToObject() =
-        match this with
-        | PrimitiveValue p -> p.ToObject()
-        | NullValue -> null
-        | EnumValue e -> box e.Value.ValueName // TODO can we do better than this?
-        | ListValue vs -> box <| new ResizeArray<_>(vs |> Seq.map (fun v -> v.Value))
-        | ObjectValue o -> failwith "Can't convert object literal to unknown object type" // TODO wtf should we do here?
     member this.ToExpression() =
         match this with
         | PrimitiveValue p -> PrimitiveExpression p
@@ -235,7 +231,33 @@ and ValueExpression =
     | EnumExpression of EnumValue
     | ListExpression of ValueExpression ListWithSource
     | ObjectExpression of IReadOnlyDictionary<string, ValueExpression WithSource>
-    member this.ToValue(resolveVariable) =
+    member this.TryGetValue(resolveVariable) =
+        match this with
+        | VariableExpression vdef -> resolveVariable vdef.VariableName
+        | PrimitiveExpression prim -> Some (PrimitiveValue prim)
+        | NullExpression -> Some NullValue
+        | EnumExpression en -> Some (EnumValue en)
+        | ListExpression lst ->
+            let mappedList =
+                lst
+                |> chooseWithSource (fun v -> v.TryGetValue(resolveVariable))
+                |> toReadOnlyList
+            if mappedList.Count < lst.Count
+            then None
+            else Some (ListValue mappedList)
+        | ObjectExpression fields ->
+            let mappedFields =
+                seq {
+                    for KeyValue(name, { Source = pos; Value = v }) in fields do
+                        match v.TryGetValue(resolveVariable) with
+                        | None -> ()
+                        | Some res ->
+                            yield name, { Source = pos; Value = res }
+                } |> dictionary :> IReadOnlyDictionary<_, _>
+            if mappedFields.Count < fields.Count
+            then None
+            else Some (ObjectValue mappedFields)
+    member this.ToValue(resolveVariable) : Value =
         match this with
         | VariableExpression vdef ->
             let attempt = resolveVariable vdef.VariableName
@@ -291,6 +313,7 @@ and CoreVariableType =
     member this.AcceptsVariableType(vtype : CoreVariableType) =
         this = vtype ||
         match this, vtype with
+        | PrimitiveType pTy, PrimitiveType inputTy -> pTy.AcceptsPrimitive(inputTy)
         | NamedType schemaType, vt ->
             schemaType.CoreType.AcceptsVariableType(vt)
         | ListType vt1, ListType vt2 ->
@@ -309,7 +332,7 @@ and CoreVariableType =
     member this.AcceptsValue(value : Value) =
         match this, value with
         | NamedType schemaType, value -> schemaType.CoreType.AcceptsValue(value) && schemaType.ValidateValue(value)
-        | PrimitiveType pTy, PrimitiveValue pv -> pTy = pv.Type
+        | PrimitiveType pTy, PrimitiveValue pv -> pTy.AcceptsPrimitive(pv.Type)
         | EnumType eType, EnumValue eVal -> eType.EnumName = eVal.Type.EnumName
         | ListType lTy, ListValue vals -> vals |> Seq.forall (fun v -> lTy.AcceptsValue(v.Value))
         | ObjectType oTy, ObjectValue o ->
@@ -322,9 +345,12 @@ and CoreVariableType =
             } |> Seq.forall id
         | _ -> false
     member this.AcceptsValueExpression(vexpr : ValueExpression) =
+        match vexpr.TryGetValue(fun _ -> None) with
+        | Some value -> this.AcceptsValue(value)
+        | None ->
         match this, vexpr with
         | NamedType schemaType, vexpr -> schemaType.CoreType.AcceptsValueExpression(vexpr)
-        | PrimitiveType pTy, PrimitiveExpression pexpr -> pTy = pexpr.Type
+        | PrimitiveType pTy, PrimitiveExpression pexpr -> pTy.AcceptsPrimitive(pexpr.Type)
         | EnumType eType, EnumExpression eVal -> eType.EnumName = eVal.Type.EnumName
         | ListType lTy, ListExpression vals -> vals |> Seq.forall (fun v -> lTy.AcceptsValueExpression(v.Value))
         | ObjectType oTy, ObjectExpression o ->

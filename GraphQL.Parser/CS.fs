@@ -30,7 +30,7 @@ open System.Runtime.CompilerServices
 
 [<AbstractClass>]
 type SchemaCS<'s>() =
-    abstract member ResolveVariableType : name : string -> ISchemaVariableType
+    abstract member ResolveVariableType : name : string -> CoreVariableType
     default this.ResolveVariableType(_) = Unchecked.defaultof<_>
     abstract member ResolveQueryType : name : string -> ISchemaQueryType<'s>
     abstract member ResolveEnumValue : name : string -> EnumValue

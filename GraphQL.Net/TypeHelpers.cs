@@ -27,10 +27,10 @@ namespace GraphQL.Net
 
         class SchemaArgument : ISchemaArgument<Info>
         {
-            public SchemaArgument(string argumentName, CoreVariableType argumentType)
+            public SchemaArgument(string argumentName, VariableType argumentType)
             {
                 ArgumentName = argumentName;
-                ArgumentType = argumentType;
+                ArgumentType = argumentType.Type;
             }
 
             public Info Info => null;

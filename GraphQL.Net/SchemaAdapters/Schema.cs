@@ -43,7 +43,7 @@ namespace GraphQL.Net.SchemaAdapters
             return _queryTypes.TryGetValue(name, out result) ? result : null;
         }
 
-        public override ISchemaVariableType ResolveVariableType(string name)
+        public override CoreVariableType ResolveVariableType(string name)
             => _schema.VariableTypes.ResolveVariableTypeByName(name);
 
         public override ISchemaQueryType<Info> RootType { get; }

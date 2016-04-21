@@ -58,7 +58,7 @@ namespace Tests
         public static GraphQLSchema<MemContext> CreateDefaultSchema()
         {
             var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());
-            schema.AddString(DateTime.Parse);
+            schema.AddScalar("", DateTime.Parse);
             InitializeUserSchema(schema);
             InitializeAccountSchema(schema);
             return schema;

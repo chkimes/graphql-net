@@ -42,6 +42,9 @@ type IReadOnlyDictionary<'k, 'v> with
         if this.TryGetValue(key, &output) then Some output
         else None
 
+let invalid msg =
+    raise (new ValidationException(msg))
+
 let failAt pos msg =
     raise (new SourceException(msg, pos))
 

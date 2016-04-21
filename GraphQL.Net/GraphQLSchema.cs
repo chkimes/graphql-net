@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using GraphQL.Net.SchemaAdapters;
+using GraphQL.Parser;
 
 namespace GraphQL.Net
 {
@@ -25,27 +26,33 @@ namespace GraphQL.Net
         public GraphQLSchema(Func<TContext> contextCreator)
         {
             ContextCreator = contextCreator;
-            AddDefaultPrimitives();
         }
 
-        public void AddString<T>(Func<string, T> translate, string name = null)
-            => VariableTypes.AddType(CustomVariableType.String(translate, name));
+        public void AddEnum<TEnum>(string name = null, string prefix = null)
+            => VariableTypes.AddType(_ => TypeHandler.Enum<TEnum>(name ?? typeof(TEnum).Name, prefix ?? ""));
 
-        public void AddInteger<T>(Func<long, T> translate, string name = null)
-            => VariableTypes.AddType(CustomVariableType.Integer(translate, name));
+        public void AddScalar<TRepr, TOutput>(TRepr shape, Func<TRepr, bool> validate, Func<TRepr, TOutput> translate, string name = null)
+            => VariableTypes.AddType(t => TypeHandler.Translate
+                (t
+                , name ?? typeof(TOutput).Name
+                , validate
+                , translate
+                ));
 
-        public void AddFloat<T>(Func<double, T> translate, string name = null)
-            => VariableTypes.AddType(CustomVariableType.Float(translate, name));
-
-        public void AddBoolean<T>(Func<bool, T> translate, string name = null)
-            => VariableTypes.AddType(CustomVariableType.Boolean(translate, name));
-
-        private void AddDefaultPrimitives()
-        {
-            AddString(Guid.Parse);
-            AddFloat(d => (float)d, "Float32");
-            AddInteger(i => (int)i, "Int");
-        }
+        public void AddScalar<TRepr, TOutput>(TRepr shape, Func<TRepr, TOutput> translate, string name = null)
+            => AddScalar
+                (shape, r =>
+                {
+                    try
+                    {
+                        translate(r);
+                        return true;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }, translate, name);
 
         public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string name = null, string description = null)
         {
@@ -77,6 +84,8 @@ namespace GraphQL.Net
             if (Completed)
                 throw new InvalidOperationException("Schema has already been completed.");
 
+            VariableTypes.Complete();
+
             AddDefaultTypes();
 
             foreach (var type in _types.Where(t => t.QueryType == null))
@@ -107,7 +116,7 @@ namespace GraphQL.Net
         private void AddDefaultTypes()
         {
             AddType<GraphQLSchema<TContext>>("__Schema")
-                .AddField("types", (db, s) => s.Types.Concat(VariableTypes.IntrospectionTypes).ToList())
+                .AddField("types", (db, s) => s.Types.ToList())
                 .AddField("queryType", (db, s) => (GraphQLType) null) // TODO: queryType
                 .AddField("mutationType", (db, s) => (GraphQLType) null) // TODO: mutations + mutationType
                 .AddField("directives", (db, s) => new List<GraphQLType>()); // TODO: Directives
@@ -200,7 +209,6 @@ namespace GraphQL.Net
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)
-                ?? VariableTypes.IntrospectionTypes.FirstOrDefault(f => f.CLRType == type)
                 ?? new GraphQLType(type) { IsScalar = true };
 
         internal IEnumerable<GraphQLQueryBase<TContext>> Queries => _queries;

@@ -167,7 +167,7 @@ and ISchema<'s> =
     /// A core type is a type whose values can be expressed as a `Value` within
     /// a GraphQL document. This encompasses the values that can be provided as
     /// arguments to a field or directive or declared as variables for an operation.
-    abstract member ResolveVariableTypeByName : string -> ISchemaVariableType option
+    abstract member ResolveVariableTypeByName : string -> CoreVariableType option
     /// Return the type, if any, with the given name. These are types that
     /// may appear in a query and 
     abstract member ResolveQueryTypeByName : string -> ISchemaQueryType<'s> option
@@ -267,6 +267,10 @@ and CoreVariableType =
     /// Not possible to declare this type in a GraphQL document, but it exists nonetheless.
     | ObjectType of IReadOnlyDictionary<string, VariableType>
     | NamedType of ISchemaVariableType
+    member internal this.BottomType =
+        match this with
+        | NamedType n -> n.CoreType
+        | _ -> this
     member this.Nullable(yes) = new VariableType(this, yes)
     member this.Nullable() = new VariableType(this, true)
     member this.NotNullable() = new VariableType(this, false)

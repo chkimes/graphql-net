@@ -33,13 +33,6 @@ type IOperationContext<'s> =
     abstract member ResolveVariableByName : string -> VariableDefinition option
     abstract member ResolveFragmentDefinitionByName : string -> ParserAST.Fragment option
 
-let resolveBuiltinType name =
-    if name = IntType.TypeName then PrimitiveType IntType |> Some
-    else if name = FloatType.TypeName then PrimitiveType FloatType |> Some
-    else if name = BooleanType.TypeName then PrimitiveType BooleanType |> Some
-    else if name = StringType.TypeName then PrimitiveType StringType |> Some
-    else None
-
 module private Extensions =
     type IOperationContext<'s> with
         member this.ResolveValueExpression(pvalue : ParserAST.Value, pos : SourceInfo) : ValueExpression =
@@ -80,12 +73,9 @@ module private Extensions =
             let coreTy =
                 match ptype.Type with
                 | ParserAST.NamedType name ->
-                    match resolveBuiltinType name with
-                    | Some builtin -> builtin
-                    | None ->
-                        match this.ResolveVariableTypeByName(name) with
-                        | None -> failAt pos (sprintf "unknown value type ``%s''" name)
-                        | Some valueTy -> NamedType valueTy
+                    match this.ResolveVariableTypeByName(name) with
+                    | None -> failAt pos (sprintf "unknown value type ``%s''" name)
+                    | Some valueTy -> valueTy
                 | ParserAST.ListType plty ->
                     this.ResolveVariableType(plty, pos) |> ListType
             new VariableType(coreTy, ptype.Nullable)

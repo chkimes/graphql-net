@@ -29,12 +29,6 @@ type TypeMapping(clrType : Type, varType : VariableType, translate : Value -> ob
     member this.CLRType = clrType
     member this.VariableType = varType
     member this.Translate = translate
-    static member Integer<'a>(translate : int64 -> 'a) =
-        new TypeMapping(typeof<'a>, (PrimitiveType IntType).NotNullable()
-            , fun (v : Value) -> v.GetInteger() |> translate |> box)
-    static member Float<'a>(translate : double -> 'a) =
-        new TypeMapping(typeof<'a>, (PrimitiveType FloatType).NotNullable()
-            , fun (v : Value) -> v.GetFloat() |> translate |> box)
     static member String<'a>(translate : string -> 'a) =
         new TypeMapping(typeof<'a>, (PrimitiveType StringType).NotNullable()
             , fun (v : Value) -> v.GetString() |> translate |> box)
@@ -66,11 +60,11 @@ module TypeHandlerExtensions =
         member this.VariableTypeOf(targetType) =
             match this.GetMapping(targetType) with
             | Some translator -> translator.VariableType
-            | None -> failwith (sprintf "Unsupported CLR type ``%s''" targetType.Name)
+            | None -> invalid (sprintf "Unsupported CLR type ``%s''" targetType.Name)
         member this.TranslateValueTo(targetType, value) =
             match this.GetMapping(targetType) with
             | Some translator -> translator.Translate(value)
-            | None -> failwith (sprintf "Unsupported CLR type ``%s''" targetType.Name)
+            | None -> invalid (sprintf "Unsupported CLR type ``%s''" targetType.Name)
 
     let (??>) (primary : #ITypeHandler) (secondary : #ITypeHandler) =
         new ChainTypeHandler(primary, secondary) :> ITypeHandler
@@ -164,7 +158,7 @@ type ArrayTypeHandler(rootHandler : ITypeHandler) =
                 arr.SetValue(rootHandler.TranslateValueTo(clrElementType, v), i)
                 i <- i + 1
             box arr
-        | _ -> failwith "Value not suitable for array initialization"
+        | _ -> invalid "Value not suitable for array initialization"
     interface ITypeHandler with
         member this.DefinedTypes = upcast []
         member this.GetMapping(targetType) =
@@ -194,7 +188,7 @@ type CollectionTypeHandler(rootHandler : ITypeHandler) =
             for { Value = v } in vs do
                 ignore <| add.Invoke(collection, [|rootHandler.TranslateValueTo(clrElementType, v)|])
             collection
-        | _ -> failwith "Value not suitable for collection initialization"
+        | _ -> invalid "Value not suitable for collection initialization"
     interface ITypeHandler with
         member this.DefinedTypes = upcast []
         member this.GetMapping(targetType) =
@@ -232,7 +226,7 @@ type EnumerableTypeHandler(rootHandler : ITypeHandler) =
             for { Value = v } in vs do
                 ignore <| collectionAdd.Invoke(collection, [|rootHandler.TranslateValueTo(clrElementType, v)|])
             cons.Invoke([|collection|])
-        | _ -> failwith "Value not suitable for IEnumerable initialization"
+        | _ -> invalid "Value not suitable for IEnumerable initialization"
     interface ITypeHandler with
         member this.DefinedTypes = upcast []
         member this.GetMapping(targetType) =
@@ -285,7 +279,7 @@ type SingleConstructorTypeHandler(rootHandler : ITypeHandler) =
                             let clrValue = rootHandler.TranslateValueTo(parameter.ParameterType, value)
                             arguments.[i] <- clrValue
                         cons.Invoke(arguments)
-                    | _ -> failwith "Invalid object fields for constructor"
+                    | _ -> invalid "Invalid object fields for constructor"
                 ) |> Some
 
 /// Handles enum types with a name for the type and a prefix for the members.
@@ -320,7 +314,7 @@ type EnumTypeHandler(clrEnumType : Type, enumName : string, memberPrefix : strin
             , (EnumType enumType).NotNullable()
             , function
                 | EnumValue en -> valueForPrefixedName.[en.Value.ValueName]
-                | _ -> failwith <| sprintf "Invalid value (expected enum ``%s'')" enumName
+                | _ -> invalid <| sprintf "Invalid value (expected enum ``%s'')" enumName
             )
     interface ITypeHandler with
         member this.DefinedTypes = upcast [ EnumType enumType ]
@@ -338,7 +332,7 @@ type TranslationTypeHandler<'repr, 'output>
     let mapping =
         lazy(
             match rootHandler.GetMapping(typeof<'repr>) with
-            | None -> failwith <| sprintf "Unsupported represention type ``%s''" typeof<'repr>.Name
+            | None -> invalid <| sprintf "Unsupported represention type ``%s''" typeof<'repr>.Name
             | Some reprMapping ->
                 let getReprValue value : 'repr =
                     reprMapping.Translate(value) |> Unchecked.unbox
@@ -379,6 +373,7 @@ type IMetaTypeHandler =
     /// in order of priority ascending (the last handler will be tried first).
     abstract member Handlers : rootHandler : ITypeHandler -> ITypeHandler seq
 
+/// Aggregates a chain of type handlers to support exposing CLR types as GraphQL scalar types.
 type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
     let mappingCache = new Dictionary<Type, TypeMapping option>()
     let context =
@@ -395,12 +390,39 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
             ??> new EnumerableTypeHandler(root)
             ??> new SingleConstructorTypeHandler(root)
         )
+    let enumValuesByName = new Dictionary<string, EnumValue>()
+    let typesByName = new Dictionary<string, CoreVariableType>()
+    do
+        for definedType in context.Value.DefinedTypes do
+            if typesByName.ContainsKey(definedType.TypeName) then
+                invalid <| sprintf "The type ``%s'' is defined more than once" definedType.TypeName
+            typesByName.Add(definedType.TypeName, definedType)
+            match definedType.BottomType with
+            | EnumType enumType ->
+                for { ValueName = valueName } as typeValue in enumType.Values.Values do
+                    match enumValuesByName.TryFind(valueName) with
+                    | None ->
+                        enumValuesByName.[valueName] <-
+                            {
+                                Type = enumType
+                                Value = typeValue
+                            }
+                    | Some existing ->
+                        invalid <|
+                            sprintf "The enum value name ``%s'' is defined more than once, in enum types ``%s'' and ``%s''"
+                                valueName existing.Type.EnumName enumType.EnumName
+            | _ -> ()
+
     static let defaultInstance =
         new RootTypeHandler
             ({ new IMetaTypeHandler with
                 member __.Handlers(_) = upcast []
             })
     static member Default = defaultInstance :> ITypeHandler
+
+    member this.ResolveEnumValueByName(name) = enumValuesByName.TryFind(name)
+    member this.ResolveVariableTypeByName(name) = typesByName.TryFind(name)
+        
     interface ITypeHandler with
         member this.DefinedTypes = context.Value.DefinedTypes
         member this.GetMapping(targetType) =

@@ -375,6 +375,7 @@ type IMetaTypeHandler =
 
 /// Aggregates a chain of type handlers to support exposing CLR types as GraphQL scalar types.
 type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
+    let mutable initialized = false
     let mappingCache = new Dictionary<Type, TypeMapping option>()
     let context =
         lazy(
@@ -392,7 +393,9 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
         )
     let enumValuesByName = new Dictionary<string, EnumValue>()
     let typesByName = new Dictionary<string, CoreVariableType>()
-    do
+    let initialize() =
+        if initialized then () else
+        initialized <- true
         for definedType in context.Value.DefinedTypes do
             if typesByName.ContainsKey(definedType.TypeName) then
                 invalid <| sprintf "The type ``%s'' is defined more than once" definedType.TypeName
@@ -420,12 +423,19 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
             })
     static member Default = defaultInstance :> ITypeHandler
 
-    member this.ResolveEnumValueByName(name) = enumValuesByName.TryFind(name)
-    member this.ResolveVariableTypeByName(name) = typesByName.TryFind(name)
+    member this.ResolveEnumValueByName(name) =
+        initialize()
+        enumValuesByName.TryFind(name)
+    member this.ResolveVariableTypeByName(name) =
+        initialize()
+        typesByName.TryFind(name)
         
     interface ITypeHandler with
-        member this.DefinedTypes = context.Value.DefinedTypes
+        member this.DefinedTypes =
+            initialize()
+            context.Value.DefinedTypes
         member this.GetMapping(targetType) =
+            initialize()
             let mutable cached = None
             if (not <| mappingCache.TryGetValue(targetType, &cached)) then
                 cached <- context.Value.GetMapping(targetType)

@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using GraphQL.Parser;
 
 namespace GraphQL.Net
 {
@@ -18,6 +15,12 @@ namespace GraphQL.Net
         public GraphQLQueryBuilder WithDescription(string description)
         {
             _query.Description = description;
+            return this;
+        }
+
+        public GraphQLQueryBuilder WithComplexity(long min, long max)
+        {
+            _query.Complexity = Complexity.NewRange(Tuple.Create(min, max));
             return this;
         }
     }

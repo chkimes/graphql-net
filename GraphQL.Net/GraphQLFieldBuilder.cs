@@ -1,4 +1,7 @@
-﻿namespace GraphQL.Net
+﻿using System;
+using GraphQL.Parser;
+
+namespace GraphQL.Net
 {
     public class GraphQLFieldBuilder
     {
@@ -12,6 +15,12 @@
         public GraphQLFieldBuilder WithDescription(string description)
         {
             _field.Description = description;
+            return this;
+        }
+
+        public GraphQLFieldBuilder WithComplexity(long min, long max)
+        {
+            _field.Complexity = Complexity.NewRange(Tuple.Create(min, max));
             return this;
         }
     }

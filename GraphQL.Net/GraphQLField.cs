@@ -34,6 +34,8 @@ namespace GraphQL.Net
         public virtual LambdaExpression GetExpression(IEnumerable<ExecArgument<Info>> inputs)
             => (LambdaExpression) ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
 
+        public Complexity Complexity { get; set; }
+
         public static GraphQLField Post<TField>(GraphQLSchema schema, string name, Func<TField> fieldFunc)
         {
             return new GraphQLField

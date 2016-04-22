@@ -15,6 +15,8 @@ namespace GraphQL.Net
         public GraphQLType Type { get; set; }
         public ResolutionType ResolutionType { get; set; }
         public abstract object Execute(ExecSelection<Info> query);
+
+        public Complexity Complexity { get; set; }
     }
 
     internal abstract class GraphQLQueryBase<TContext> : GraphQLQueryBase

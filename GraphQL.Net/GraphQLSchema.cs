@@ -168,32 +168,36 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        internal void AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
+        internal GraphQLQueryBuilder<TArgs> AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
-            _queries.Add(new GraphQLQuery<TContext, TArgs, TEntity>
+            var query = new GraphQLQuery<TContext, TArgs, TEntity>
             {
                 Name = name,
-                Type = GetGQLType(typeof(TEntity)),
+                Type = GetGQLType(typeof (TEntity)),
                 QueryableExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = type,
-            });
+            };
+            _queries.Add(query);
+            return GraphQLQueryBuilder<TArgs>.New(query);
         }
 
-        internal void AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
+        internal GraphQLQueryBuilder<TArgs> AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
-            _queries.Add(new GraphQLQuery<TContext, TArgs, TEntity>
+            var query = new GraphQLQuery<TContext, TArgs, TEntity>
             {
                 Name = name,
                 Type = GetGQLType(typeof(TEntity)),
                 ExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = ResolutionType.Unmodified,
-            });
+            };
+            _queries.Add(query);
+            return GraphQLQueryBuilder<TArgs>.New(query);
         }
 
         internal GraphQLQueryBase<TContext> FindQuery(string name) => _queries.FirstOrDefault(q => q.Name == name);

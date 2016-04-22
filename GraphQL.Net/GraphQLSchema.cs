@@ -168,7 +168,7 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        internal GraphQLQueryBuilder<TArgs> AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
+        internal GraphQLQueryBuilder AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
@@ -181,10 +181,10 @@ namespace GraphQL.Net
                 ResolutionType = type,
             };
             _queries.Add(query);
-            return GraphQLQueryBuilder<TArgs>.New(query);
+            return new GraphQLQueryBuilder(query);
         }
 
-        internal GraphQLQueryBuilder<TArgs> AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
+        internal GraphQLQueryBuilder AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
@@ -197,7 +197,7 @@ namespace GraphQL.Net
                 ResolutionType = ResolutionType.Unmodified,
             };
             _queries.Add(query);
-            return GraphQLQueryBuilder<TArgs>.New(query);
+            return new GraphQLQueryBuilder(query);
         }
 
         internal GraphQLQueryBase<TContext> FindQuery(string name) => _queries.FirstOrDefault(q => q.Name == name);

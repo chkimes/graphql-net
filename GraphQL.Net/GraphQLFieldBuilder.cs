@@ -1,6 +1,6 @@
 ﻿namespace GraphQL.Net
 {
-    public class GraphQLFieldBuilder<TArgs>
+    public class GraphQLFieldBuilder
     {
         private readonly GraphQLField _field;
 
@@ -9,7 +9,7 @@
             _field = field;
         }
 
-        public GraphQLFieldBuilder<TArgs> WithDescription(string description)
+        public GraphQLFieldBuilder WithDescription(string description)
         {
             _field.Description = description;
             return this;

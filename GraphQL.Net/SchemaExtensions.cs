@@ -9,18 +9,18 @@ namespace GraphQL.Net
     {
         // This overload is provided to the user so they can shape TArgs with an anonymous type and rely on type inference for type parameters
         // e.g.  AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
-        public static GraphQLQueryBuilder<TArgs> AddQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
+        public static GraphQLQueryBuilder AddQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
             => AddQuery(context, name, queryableGetter);
 
         // Transform  (db, args) => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        private static GraphQLQueryBuilder<TArgs> AddQueryToListArgs<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
+        private static GraphQLQueryBuilder AddQueryToListArgs<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, IQueryable<TEntity>>> queryableGetter)
         {
             var innerLambda = Expression.Lambda<Func<TContext, IQueryable<TEntity>>>(queryableGetter.Body, queryableGetter.Parameters[0]);
             return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, TArgs, IQueryable<TEntity>>(innerLambda, queryableGetter.Parameters[1]), ResolutionType.ToList);
         }
 
         // Transform  (db, args) => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        public static GraphQLQueryBuilder<TArgs> AddQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
+        public static GraphQLQueryBuilder AddQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
         {
             // TODO: Check for IQueryable
             var queryables = typeof (TEntity).GetInterfaces().Concat(new [] {typeof(TEntity)}).Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof (IQueryable<>)).ToList();
@@ -31,7 +31,7 @@ namespace GraphQL.Net
                 var method = typeof (SchemaExtensions).GetMethod("AddQueryToListArgs", BindingFlags.Static | BindingFlags.NonPublic);
                 var genMethod = method.MakeGenericMethod(typeof (TContext), typeof(TArgs), entityType);
                 var getter = Expression.Lambda(typeof (Func<,,>).MakeGenericType(typeof (TContext), typeof(TArgs), queryables[0]), queryableGetter.Body, queryableGetter.Parameters[0], queryableGetter.Parameters[1]);
-                return (GraphQLQueryBuilder<TArgs>)genMethod.Invoke(null, new object[] {context, name, getter});
+                return (GraphQLQueryBuilder)genMethod.Invoke(null, new object[] {context, name, getter});
             }
             else
             {
@@ -54,13 +54,13 @@ namespace GraphQL.Net
         }
 
         // Transform  db => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        private static GraphQLQueryBuilder<object> AddQueryToListSimple<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter)
+        private static GraphQLQueryBuilder AddQueryToListSimple<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, IQueryable<TEntity>>> queryableGetter)
         {
             return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, object, IQueryable<TEntity>>(queryableGetter), ResolutionType.ToList);
         }
 
         // Transform  db => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        public static GraphQLQueryBuilder<object> AddQuery<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TEntity>> queryableGetter)
+        public static GraphQLQueryBuilder AddQuery<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TEntity>> queryableGetter)
         {
             var queryables = typeof (TEntity).GetInterfaces().Concat(new[] { typeof(TEntity) }).Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof (IQueryable<>)).ToList();
             if (queryables.Count > 1) throw new Exception("Types inheriting IQueryable<T> more than once are not supported.");
@@ -70,7 +70,7 @@ namespace GraphQL.Net
                 var method = typeof (SchemaExtensions).GetMethod("AddQueryToListSimple", BindingFlags.Static | BindingFlags.NonPublic);
                 var genMethod = method.MakeGenericMethod(typeof (TContext), entityType);
                 var getter = Expression.Lambda(typeof (Func<,>).MakeGenericType(typeof (TContext), queryables[0]), queryableGetter.Body, queryableGetter.Parameters[0]);
-                return (GraphQLQueryBuilder<object>)genMethod.Invoke(null, new object[] {context, name, getter});
+                return (GraphQLQueryBuilder)genMethod.Invoke(null, new object[] {context, name, getter});
             }
             else
             {

@@ -29,12 +29,6 @@ type TypeMapping(clrType : Type, varType : VariableType, translate : Value -> ob
     member this.CLRType = clrType
     member this.VariableType = varType
     member this.Translate = translate
-    static member String<'a>(translate : string -> 'a) =
-        new TypeMapping(typeof<'a>, (PrimitiveType StringType).NotNullable()
-            , fun (v : Value) -> v.GetString() |> translate |> box)
-    static member Boolean<'a>(translate : bool -> 'a) =
-        new TypeMapping(typeof<'a>, (PrimitiveType BooleanType).NotNullable()
-            , fun (v : Value) -> v.GetBoolean() |> translate |> box)
 
 type ITypeHandler =
     /// Get the types explicitly defined by this handler.
@@ -97,7 +91,7 @@ type BuiltinTypeHandler() =
                     member this.CoreType = PrimitiveType FloatType
                     member this.ValidateValue(value) = true
                 } |> NamedType).NotNullable()
-            , fun v -> v.GetFloat() |> convert |> box
+            , fun v -> v.GetNumber() |> convert |> box
             )
     static let builtinTypes =
         [
@@ -114,9 +108,27 @@ type BuiltinTypeHandler() =
             floating single "Float32"
             floating decimal "Decimal"
 
-            TypeMapping.String(id)
+            new TypeMapping
+                ( typeof<string>
+                ,
+                    ({ new ISchemaVariableType with
+                        member this.TypeName = "String"
+                        member this.CoreType = PrimitiveType StringType
+                        member this.ValidateValue(value) = true
+                    } |> NamedType).Nullable()
+                , fun v -> v.GetString() |> box
+                )
 
-            TypeMapping.Boolean(id)
+            new TypeMapping
+                ( typeof<bool>
+                ,
+                    ({ new ISchemaVariableType with
+                        member this.TypeName = "Boolean"
+                        member this.CoreType = PrimitiveType BooleanType
+                        member this.ValidateValue(value) = true
+                    } |> NamedType).NotNullable()
+                , fun v -> v.GetBoolean() |> box
+                )
         ] |> Seq.map (fun t -> t.CLRType, t) |> dictionary
     interface ITypeHandler with
         member this.DefinedTypes =
@@ -398,9 +410,12 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
         if initialized then () else
         initialized <- true
         for definedType in context.Value.DefinedTypes do
-            if typesByName.ContainsKey(definedType.TypeName) then
-                invalid <| sprintf "The type ``%s'' is defined more than once" definedType.TypeName
-            typesByName.Add(definedType.TypeName, definedType)
+            match definedType.TypeName with
+            | None -> ()
+            | Some name ->
+                if typesByName.ContainsKey(name) then
+                    invalid <| sprintf "The type ``%s'' is defined more than once" name
+                typesByName.Add(name, definedType)
             match definedType.BottomType with
             | EnumType enumType ->
                 for { ValueName = valueName } as typeValue in enumType.Values.Values do

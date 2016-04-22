@@ -57,12 +57,6 @@ and PrimitiveType =
     member this.AcceptsPrimitive(input : PrimitiveType) =
         this = input
         || this = FloatType && input = IntType
-    member this.TypeName =
-        match this with
-        | IntType -> "Int"
-        | FloatType -> "Float"
-        | StringType -> "String"
-        | BooleanType -> "Boolean"
 
 type EnumTypeValue =
     {
@@ -189,15 +183,14 @@ and Value =
     | ListValue of Value ListWithSource
     | ObjectValue of IReadOnlyDictionary<string, Value WithSource>
     member this.GetString() =
-        match this with | PrimitiveValue (StringPrimitive s) -> s | _ -> failwith "Value is not a string"
+        match this with
+        | NullValue -> null
+        | PrimitiveValue (StringPrimitive s) -> s
+        | _ -> failwith "Value is not a string"
     member this.GetInteger() =
         match this with
         | PrimitiveValue (IntPrimitive i) -> i
         | _ -> failwith "Value is not an integer"
-    member this.GetFloat() =
-        match this with
-        | PrimitiveValue (FloatPrimitive f) -> f
-        | _ -> failwith "Value is not a float"
     member this.GetNumber() =
         match this with
         | PrimitiveValue (FloatPrimitive f) -> f
@@ -298,18 +291,8 @@ and CoreVariableType =
     member this.NotNullable() = new VariableType(this, false)
     member this.TypeName =
         match this with
-        | PrimitiveType p -> p.TypeName
-        | EnumType e -> e.EnumName
-        | ListType element -> sprintf "[%s]" element.TypeName
-        /// Not possible to declare this type in a GraphQL document, but it exists nonetheless.
-        | ObjectType fields ->
-            let fieldNames =
-                seq {
-                    for KeyValue(name, ty) in fields do
-                        yield sprintf "%s: %s" name ty.TypeName
-                }
-            sprintf "{ %s }" (String.concat ", " fieldNames)
-        | NamedType schemaVariableType -> schemaVariableType.TypeName
+        | NamedType schemaVariableType -> Some schemaVariableType.TypeName
+        | _ -> None
     member this.AcceptsVariableType(vtype : CoreVariableType) =
         this = vtype ||
         match this, vtype with
@@ -363,8 +346,6 @@ and CoreVariableType =
             } |> Seq.forall id
         | _ -> false
 and VariableType(coreType: CoreVariableType, isNullable : bool) =
-    member this.TypeName =
-        coreType.TypeName + if isNullable then "" else "!"
     member this.Type = coreType
     member this.Nullable = isNullable
     member this.AcceptsVariableType(vtype : VariableType) =

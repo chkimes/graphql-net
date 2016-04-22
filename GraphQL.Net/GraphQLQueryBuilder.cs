@@ -13,7 +13,7 @@ namespace GraphQL.Net
         private GraphQLQueryBuilder(GraphQLQueryBase query)
         {
             _query = query;
-        } 
+        }
 
         internal static GraphQLQueryBuilder<TArgs> New<TContext, TEntity>(GraphQLQuery<TContext, TArgs, TEntity> query)
             => new GraphQLQueryBuilder<TArgs>(query);

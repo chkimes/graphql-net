@@ -106,26 +106,26 @@ namespace GraphQL.Net
 
         private void AddDefaultTypes()
         {
-            AddType<GraphQLSchema<TContext>>("__Schema")
-                .AddField("types", (db, s) => s.Types.Concat(VariableTypes.IntrospectionTypes).ToList())
-                .AddField("queryType", (db, s) => (GraphQLType) null) // TODO: queryType
-                .AddField("mutationType", (db, s) => (GraphQLType) null) // TODO: mutations + mutationType
-                .AddField("directives", (db, s) => new List<GraphQLType>()); // TODO: Directives
+            var schemaType = AddType<GraphQLSchema<TContext>>("__Schema");
+            schemaType.AddField("types", (db, s) => s.Types.Concat(VariableTypes.IntrospectionTypes).ToList());
+            schemaType.AddField("queryType", (db, s) => (GraphQLType) null); // TODO: queryType
+            schemaType.AddField("mutationType", (db, s) => (GraphQLType) null); // TODO: mutations + mutationType
+            schemaType.AddField("directives", (db, s) => new List<GraphQLType>()); // TODO: Directives
 
-            AddType<GraphQLType>("__Type")
-                .AddField("kind", (db, t) => GetTypeKind(t))
-                .AddField(t => t.Name)
-                .AddField(t => t.Description)
-                .AddField(t => t.Fields) // TODO: includeDeprecated
-                .AddField("interfaces", (db, t) => new List<GraphQLType>());
+            var typeType = AddType<GraphQLType>("__Type");
+            typeType.AddField("kind", (db, t) => GetTypeKind(t));
+            typeType.AddField(t => t.Name);
+            typeType.AddField(t => t.Description);
+            typeType.AddField(t => t.Fields); // TODO: includeDeprecated
+            typeType.AddField("interfaces", (db, t) => new List<GraphQLType>());
 
-            AddType<GraphQLField>("__Field")
-                .AddField(f => f.Name)
-                .AddField(f => f.Description)
-                //.AddField(f => f.Arguments) // TODO:
-                .AddField(f => f.Type)
-                .AddField("isDeprecated", (db, f) => false) // TODO: deprecation
-                .AddField("deprecationReason", (db, f) => "");
+            var fieldType = AddType<GraphQLField>("__Field");
+            fieldType.AddField(f => f.Name);
+            fieldType.AddField(f => f.Description);
+            //field.AddField(f => f.Arguments); // TODO:
+            fieldType.AddField(f => f.Type);
+            fieldType.AddField("isDeprecated", (db, f) => false); // TODO: deprecation
+            fieldType.AddField("deprecationReason", (db, f) => "");
 
             this.AddQuery("__schema", db => this);
             this.AddQuery("__type", new {name = ""}, (db, args) => _types.AsQueryable().Where(t => t.Name == args.name).First());

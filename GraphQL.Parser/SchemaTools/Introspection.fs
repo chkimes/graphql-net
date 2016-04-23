@@ -195,3 +195,15 @@ type IntroSchema =
         MutationType : IntroType option
         Directives : IntroDirective seq
     }
+    static member Of(schema : ISchema<'s>) =
+        {
+            Types =
+                [
+                    schema.VariableTypes.Values |> Seq.map IntroType.Of
+                    schema.QueryTypes.Values |> Seq.map IntroType.Of
+                ] |> Seq.concat
+            QueryType = IntroType.Of(schema.RootType)
+            MutationType = None // TODO: support mutation schema
+            Directives =
+                schema.Directives.Values |> Seq.map IntroDirective.Of
+        }

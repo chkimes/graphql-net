@@ -28,7 +28,7 @@ namespace GraphQL.Net
             ContextCreator = contextCreator;
         }
 
-        public void AddEnum<TEnum>(string name = null, string prefix = null)
+        public void AddEnum<TEnum>(string name = null, string prefix = null) where TEnum : struct // wish we could do where TEnum : Enum
             => VariableTypes.AddType(_ => TypeHandler.Enum<TEnum>(name ?? typeof(TEnum).Name, prefix ?? ""));
 
         public void AddScalar<TRepr, TOutput>(TRepr shape, Func<TRepr, bool> validate, Func<TRepr, TOutput> translate, string name = null)
@@ -84,9 +84,9 @@ namespace GraphQL.Net
             if (Completed)
                 throw new InvalidOperationException("Schema has already been completed.");
 
-            VariableTypes.Complete();
-
             AddDefaultTypes();
+
+            VariableTypes.Complete();
 
             foreach (var type in _types.Where(t => t.QueryType == null))
                 CompleteType(type);
@@ -115,29 +115,53 @@ namespace GraphQL.Net
 
         private void AddDefaultTypes()
         {
-            AddType<GraphQLSchema<TContext>>("__Schema")
-                .AddField("types", (db, s) => s.Types.ToList())
-                .AddField("queryType", (db, s) => (GraphQLType) null) // TODO: queryType
-                .AddField("mutationType", (db, s) => (GraphQLType) null) // TODO: mutations + mutationType
-                .AddField("directives", (db, s) => new List<GraphQLType>()); // TODO: Directives
+            AddEnum<TypeKind>("__TypeKind");
+            AddEnum<DirectiveLocation>("__DirectiveLocation");
+            AddType<IntroSchema>("__Schema")
+                .AddField("types", s => s.Types)
+                .AddField("queryType", s => s.QueryType)
+                .AddField("mutationType", s => s.MutationType.OrDefault())
+                .AddField("directives", s => s.Directives);
 
-            AddType<GraphQLType>("__Type")
-                .AddField("kind", (db, t) => GetTypeKind(t))
-                .AddField(t => t.Name)
-                .AddField(t => t.Description)
-                .AddField(t => t.Fields) // TODO: includeDeprecated
-                .AddField("interfaces", (db, t) => new List<GraphQLType>());
+            AddType<IntroType>("__Type")
+                .AddField("kind", t => t.Kind)
+                .AddField("name", t => t.Name.OrDefault())
+                .AddField("description", t => t.Description.OrDefault())
+                // TODO: support includeDeprecated filter argument
+                .AddField("fields", t => t.Fields.OrDefault())
+                .AddField("inputFields", t => t.InputFields.OrDefault())
+                .AddField("ofType", s => s.OfType.OrDefault())
+                .AddField("interfaces", _ => (IEnumerable<IntroType>)null)
+                .AddField("possibleTypes", _ => (IEnumerable<IntroType>)null)
+                ;
 
-            AddType<GraphQLField>("__Field")
-                .AddField(f => f.Name)
-                .AddField(f => f.Description)
-                //.AddField(f => f.Arguments) // TODO:
-                .AddField(f => f.Type)
-                .AddField("isDeprecated", (db, f) => false) // TODO: deprecation
-                .AddField("deprecationReason", (db, f) => "");
+            AddType<IntroField>("__Field")
+                .AddField("name", f => f.Name)
+                .AddField("description", f => f.Description.OrDefault())
+                .AddField("args", f => f.Args)
+                .AddField("type", f => f.Type)
+                .AddField("isDeprecated", f => f.IsDeprecated)
+                .AddField("deprecationReason", f => f.DeprecationReason.OrDefault())
+                ;
 
-            this.AddQuery("__schema", db => this);
-            this.AddQuery("__type", new {name = ""}, (db, args) => _types.AsQueryable().Where(t => t.Name == args.name).First());
+            AddType<IntroInputValue>("__InputValue")
+                .AddField("name", v => v.Name)
+                .AddField("description", v => v.Description.OrDefault())
+                .AddField("type", v => v.Type)
+                .AddField("defaultValue", v => v.DefaultValue.OrDefault())
+                ;
+
+            AddType<IntroEnumValue>("__EnumValue")
+                .AddField("name", e => e.Name)
+                .AddField("description", e => e.Description.OrDefault())
+                .AddField("isDeprecated", e => e.IsDeprecated)
+                .AddField("deprecationReason", e => e.DeprecationReason.OrDefault())
+                ;
+
+            this.AddQuery("__schema", _ => IntroSchema.Of(Adapter));
+            this.AddQuery("__type", new { name = "" },
+                (_, args) => IntroSchema.Of(Adapter).Types
+                    .FirstOrDefault(t => t.Name.OrDefault() == args.name));
 
             var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
             foreach (var type in _types.Where(t => !t.IsScalar))
@@ -145,14 +169,6 @@ namespace GraphQL.Net
                 var genMethod = method.MakeGenericMethod(type.CLRType);
                 genMethod.Invoke(this, new object[] {type});
             }
-        }
-
-        private static string GetTypeKind(GraphQLType type)
-        {
-            if (type.IsScalar)
-                return "SCALAR";
-            return "OBJECT";
-            // TODO: interface?, union? enum, input_object, list, non_null
         }
 
         private void AddTypeNameField<TEntity>(GraphQLType type)

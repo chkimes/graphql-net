@@ -17,7 +17,7 @@ namespace Tests
             var type = (IDictionary<string, object>)gql.ExecuteQuery("{ __type(name: \"User\") { name, description, kind } }")["__type"];
             Assert.AreEqual(type["name"], "User");
             Assert.AreEqual(type["description"], "");
-            Assert.AreEqual(type["kind"], "OBJECT");
+            Assert.AreEqual(type["kind"].ToString(), "OBJECT");
             Assert.AreEqual(type.Keys.Count, 3);
         }
 

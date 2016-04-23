@@ -1,0 +1,7 @@
+﻿The files in the "Schema" folder define the interfaces and types we use to represent schemas,
+schema-validated syntax trees, and the generic schema validation logic.
+
+We represents schemas with an interface ISchema<'s>, where 's can be any type the schema wants to
+extend the AST with. The same type is used to extend fields, arguments, directives, etc. so it is
+not completely type-safe; a schema using this extension capability will likely have to implicitly
+follow rules about which subtypes of 's it puts on each AST element.

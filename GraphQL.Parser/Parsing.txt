@@ -1,0 +1,4 @@
+﻿The files in the "Parsing" folder define the language grammar for GraphQL documents.
+
+The goal here is to get an abstract syntax tree representation of the language, without
+concern for whether it is valid in the context of a schema.

@@ -20,7 +20,7 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-module GraphQL.Parser.Introspection
+namespace GraphQL.Parser
 
 // This module implements the introspection schema described in
 // section 4.2 of the GraphQL spec.
@@ -46,8 +46,8 @@ type DirectiveLocation =
 type IntroType =
     {
         Kind: TypeKind
-        Name : string
-        Description : string
+        Name : string option
+        Description : string option
         // OBJECT and INTERFACE only
         Fields : IntroField seq option
         // ENUM only
@@ -57,37 +57,136 @@ type IntroType =
         // NON_NULL and LIST only
         OfType : IntroType option
     }
+    static member Default =
+        {
+            Kind = TypeKind.SCALAR
+            Name = None
+            Description = None
+            Fields = None
+            EnumValues = None
+            InputFields = None
+            OfType = None
+        }
+    static member Of(coreType : CoreVariableType) =
+        match coreType with
+        | PrimitiveType _ -> IntroType.Default
+        | NamedType namedType ->
+            { IntroType.Of(namedType.CoreType) with
+                Name = Some namedType.TypeName
+            }
+        | EnumType enumType ->
+            { IntroType.Default with
+                Kind = TypeKind.ENUM
+                Name = Some enumType.EnumName
+                EnumValues = enumType.Values.Values |> Seq.map IntroEnumValue.Of |> Some
+            }
+        | ListType elementType ->
+            { IntroType.Default with
+                Kind = TypeKind.LIST
+                OfType = IntroType.Of(elementType) |> Some
+            }
+        | ObjectType fieldTypes ->
+            { IntroType.Default with
+                Kind = TypeKind.INPUT_OBJECT
+                InputFields = fieldTypes |> Seq.map IntroInputValue.Of |> Some
+            }
+    static member Of(varType : VariableType) =
+        if not varType.Nullable then
+            { IntroType.Default with
+                Kind = TypeKind.NON_NULL
+                OfType = IntroType.Of(varType.Type) |> Some
+            }
+        else IntroType.Of(varType.Type)
+    static member Of(queryType : ISchemaQueryType<'s>) =
+        let fields = queryType.Fields.Values |> Seq.map IntroField.Of
+        { IntroType.Default with
+            Kind = TypeKind.OBJECT
+            Name = Some queryType.TypeName
+            Description = queryType.Description
+            Fields = fields |> Some
+        }
+    static member Of(fieldType : SchemaFieldType<'s>) =
+        match fieldType with
+        | QueryField qty -> IntroType.Of(qty)
+        | ValueField vty -> IntroType.Of(vty)
+        
 and IntroField =
     {
         Name : string
-        Description : string
+        Description : string option
         Args : IntroInputValue seq
         Type : IntroType
         IsDeprecated : bool
-        DeprecationReason : string
+        DeprecationReason : string option
     }
+    static member Of(field : ISchemaField<'s>) =
+        let args = field.Arguments.Values |> Seq.map IntroInputValue.Of
+        let ty = IntroType.Of(field.FieldType)
+        {
+            Name = field.FieldName
+            Description = field.Description
+            Args = args
+            Type = ty
+            IsDeprecated = false
+            DeprecationReason = None
+        }
 and IntroInputValue =
     {
         Name : string
-        Description : string
+        Description : string option
         Type : IntroType
-        DefaultValue : string // string? wat?
+        DefaultValue : string option // wat?
     }
+    static member Of(KeyValue(fieldName, fieldType)) =
+        {
+            Name = fieldName
+            Description = None
+            Type = IntroType.Of(fieldType)
+            DefaultValue = None
+        }
+    static member Of(arg : ISchemaArgument<'s>) =
+        {
+            Name = arg.ArgumentName
+            Description = arg.Description
+            Type = IntroType.Of(arg.ArgumentType)
+            DefaultValue = None
+        }
 and IntroEnumValue =
     {
         Name : string
-        Description: string
+        Description: string option
         IsDeprecated : bool
-        DeprecationReason : string
+        DeprecationReason : string option
     }
+    static member Of(enumValue : EnumTypeValue) =
+        {
+            Name = enumValue.ValueName
+            Description = None
+            IsDeprecated = false
+            DeprecationReason = None
+        }
+        
 
 type IntroDirective =
     {
         Name : string
-        Description : string
+        Description : string option
         Locations : DirectiveLocation seq
         Args : IntroInputValue seq
     }
+    static member Of(dir : ISchemaDirective<'s>) =
+        {
+            Name = dir.DirectiveName
+            Description = dir.Description
+            Locations = // TODO: let the schema directive say what locations it's valid in
+                [ DirectiveLocation.QUERY
+                  DirectiveLocation.MUTATION
+                  DirectiveLocation.FIELD
+                  DirectiveLocation.FRAGMENT_DEFINITION
+                  DirectiveLocation.FRAGMENT_SPREAD
+                  DirectiveLocation.INLINE_FRAGMENT ]
+            Args = dir.Arguments.Values |> Seq.map IntroInputValue.Of
+        }
 
 type IntroSchema =
     {

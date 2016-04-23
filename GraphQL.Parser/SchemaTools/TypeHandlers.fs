@@ -25,9 +25,11 @@ open System
 open System.Reflection
 open System.Collections.Generic
 
-type TypeMapping(clrType : Type, varType : VariableType, translate : Value -> obj) =
+type TypeMapping(clrType : Type, variableType : VariableType Lazy, translate : Value -> obj) =
+    new (clrType : Type, variableType : VariableType, translate : Value -> obj) =
+        TypeMapping(clrType, lazy variableType, translate)
     member this.CLRType = clrType
-    member this.VariableType = varType
+    member this.VariableType = variableType.Value
     member this.Translate = translate
 
 type ITypeHandler =
@@ -222,9 +224,47 @@ type CollectionTypeHandler(rootHandler : ITypeHandler) =
                     , translateCollection emptyCons icollection clrElementType
                     ) |> Some
 
+/// Handles IEnumerable<T>, IList<T>, ICollection<T>, IReadOnlyList<T>, IReadOnlyCollection<T>.
+/// Note that this is different from handling types that *implement* those interfaces -- this handler
+/// only works when `targetType' actually *is* one of those interfaces. It uses a List<T> as the
+/// translated value.
+type SequenceInterfaceTypeHandler(rootHandler : ITypeHandler) =
+    static let supportedTypeDefs =
+        [|
+            typedefof<IEnumerable<_>>
+            typedefof<ICollection<_>>
+            typedefof<IList<_>>
+            typedefof<IReadOnlyCollection<_>>
+            typedefof<IReadOnlyList<_>>
+        |]
+    let translateList (listType : Type) (listAdd : MethodInfo) (clrElementType : Type) (value : Value) =
+        match value with
+        | NullValue -> null
+        | ListValue vs ->
+            let list = Activator.CreateInstance(listType)
+            for { Value = v } in vs do
+                ignore <| listAdd.Invoke(list, [|rootHandler.TranslateValueTo(clrElementType, v)|])
+            list
+        | _ -> invalid "Value not suitable for list-like interface initialization"
+    interface ITypeHandler with
+        member this.DefinedTypes = upcast []
+        member this.GetMapping(targetType) =
+            if not targetType.IsInterface || not targetType.IsGenericType then None else
+            let genericDef = targetType.GetGenericTypeDefinition()
+            if supportedTypeDefs |> Array.contains(genericDef) |> not then None else
+            let clrElementType = targetType.GetGenericArguments().[0]
+            let listType = typedefof<List<_>>.MakeGenericType(clrElementType)
+            let listAdd = listType.GetMethod("Add", [|clrElementType|])
+            let elementType = rootHandler.VariableTypeOf(clrElementType)
+            new TypeMapping
+                ( targetType
+                , (ListType elementType).Nullable()
+                , translateList listType listAdd clrElementType
+                ) |> Some
+
 /// Handles types implementing IEnumerable<T> that have a constructor taking an IEnumerable<T>,
 /// where T is supported by `rootHandler`.
-type EnumerableTypeHandler(rootHandler : ITypeHandler) =
+type EnumerableConstructorTypeHandler(rootHandler : ITypeHandler) =
     let translateEnumerable
         (cons : ConstructorInfo) // constructor taking IEnumerable<clrElementType>
         (clrElementType : Type)
@@ -234,7 +274,7 @@ type EnumerableTypeHandler(rootHandler : ITypeHandler) =
         match value with
         | NullValue -> null
         | ListValue vs ->
-            let collection = System.Activator.CreateInstance(collectionType)
+            let collection = Activator.CreateInstance(collectionType)
             for { Value = v } in vs do
                 ignore <| collectionAdd.Invoke(collection, [|rootHandler.TranslateValueTo(clrElementType, v)|])
             cons.Invoke([|collection|])
@@ -272,14 +312,16 @@ type SingleConstructorTypeHandler(rootHandler : ITypeHandler) =
             let parameters = cons.GetParameters()
             if parameters.Length < 1 then None else
             let fields =
-                [
-                    for parameter in parameters do
-                        let varTy = rootHandler.VariableTypeOf(parameter.ParameterType)
-                        yield parameter.Name, varTy
-                ] |> dictionary
+                lazy (
+                    [
+                        for parameter in parameters do
+                            let varTy = rootHandler.VariableTypeOf(parameter.ParameterType)
+                            yield parameter.Name, varTy
+                    ] |> dictionary)
+            let varType = lazy (ObjectType fields.Value).Nullable(not targetType.IsValueType)
             new TypeMapping
                 ( targetType
-                , (ObjectType fields).Nullable(not targetType.IsValueType)
+                , varType
                 ,
                     function
                     | NullValue -> null
@@ -400,8 +442,9 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
             ??> new BuiltinTypeHandler()
             ??> new NullableTypeHandler(root)
             ??> new ArrayTypeHandler(root)
+            ??> new SequenceInterfaceTypeHandler(root)
             ??> new CollectionTypeHandler(root)
-            ??> new EnumerableTypeHandler(root)
+            ??> new EnumerableConstructorTypeHandler(root)
             ??> new SingleConstructorTypeHandler(root)
         )
     let enumValuesByName = new Dictionary<string, EnumValue>()

@@ -112,13 +112,12 @@ type FakeSchema() =
         [
             root
             new UserType() :> _
-        ]
+        ] |> Seq.map (fun t -> t.TypeName, t) |> dictionary
     interface ISchema<FakeData> with
-        member this.ResolveDirectiveByName(name) = None // no directives
+        member this.Directives = emptyDictionary
+        member this.VariableTypes = emptyDictionary
+        member this.QueryTypes = upcast types
         member this.ResolveEnumValueByName(name) = None // no enums
-        member this.ResolveVariableTypeByName(name) = None // no named types
-        member this.ResolveQueryTypeByName(name) =
-            types |> List.tryFind (fun ty -> ty.TypeName = name)
         member this.RootType = root
         
 

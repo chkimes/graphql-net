@@ -73,7 +73,7 @@ module private Extensions =
             let coreTy =
                 match ptype.Type with
                 | ParserAST.NamedType name ->
-                    match this.ResolveVariableTypeByName(name) with
+                    match this.VariableTypes.TryFind(name) with
                     | None -> failAt pos (sprintf "unknown value type ``%s''" name)
                     | Some valueTy -> valueTy
                 | ParserAST.ListType plty ->
@@ -92,7 +92,7 @@ module private Extensions =
                 | ParserAST.BooleanValue b ->
                     PrimitiveValue (BooleanPrimitive b)
                 | ParserAST.EnumValue enumName ->
-                    match this.ResolveEnumValueByName enumName with
+                    match this.ResolveEnumValueByName(enumName) with
                     | None -> failAt pos (sprintf "``%s'' is not a member of any known enum type" enumName)
                     | Some enumVal -> EnumValue enumVal
             | ParserAST.ListValueConst elementsWithSource ->
@@ -134,7 +134,7 @@ type Resolver<'s>
     member private this.ResolveDirectives(pdirs : ParserAST.Directive WithSource seq) =
         [|
             for { Source = pos; Value = pdir } in pdirs do
-                match opContext.Schema.ResolveDirectiveByName(pdir.DirectiveName) with
+                match opContext.Schema.Directives.TryFind(pdir.DirectiveName) with
                 | None -> failAt pos (sprintf "unknown directive ``%s''" pdir.DirectiveName)
                 | Some dir ->
                     let args = this.ResolveArguments(dir.Arguments, pdir.Arguments)
@@ -173,7 +173,7 @@ type Resolver<'s>
                 Selections = selections
             }
     member private __.ResolveTypeCondition(typeName : string, pos : SourceInfo) =
-        match opContext.Schema.ResolveQueryTypeByName(typeName) with
+        match opContext.Schema.QueryTypes.TryFind(typeName) with
         | None -> failAt pos (sprintf "unknown type ``%s'' in type condition" typeName)
         | Some ty -> ty
     member private __.ResolveFragment(pfrag : ParserAST.Fragment, pos : SourceInfo) =

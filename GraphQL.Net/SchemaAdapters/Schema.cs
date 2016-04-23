@@ -37,14 +37,11 @@ namespace GraphQL.Net.SchemaAdapters
                 .ToDictionary(t => t.TypeName, t => t as ISchemaQueryType<Info>);
         }
 
-        public override ISchemaQueryType<Info> ResolveQueryType(string name)
-        {
-            ISchemaQueryType<Info> result;
-            return _queryTypes.TryGetValue(name, out result) ? result : null;
-        }
+        public override IReadOnlyDictionary<string, ISchemaQueryType<Info>> QueryTypes
+            => _queryTypes;
 
-        public override CoreVariableType ResolveVariableType(string name)
-            => _schema.VariableTypes.ResolveVariableTypeByName(name);
+        public override IReadOnlyDictionary<string, CoreVariableType> VariableTypes
+            => _schema.VariableTypes.TypeDictionary;
 
         public override ISchemaQueryType<Info> RootType { get; }
     }

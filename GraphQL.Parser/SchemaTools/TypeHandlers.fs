@@ -442,9 +442,10 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
     member this.ResolveEnumValueByName(name) =
         initialize()
         enumValuesByName.TryFind(name)
-    member this.ResolveVariableTypeByName(name) =
+
+    member this.TypeDictionary =
         initialize()
-        typesByName.TryFind(name)
+        typesByName :> IReadOnlyDictionary<_, _>
         
     interface ITypeHandler with
         member this.DefinedTypes =

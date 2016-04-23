@@ -160,18 +160,10 @@ and ISchemaDirective<'s> =
     /// May be empty if the directive accepts no arguments.
     abstract member Arguments : IReadOnlyDictionary<string, ISchemaArgument<'s>>
 and ISchema<'s> =
-    /// Return the core type, if any, with the given name.
-    /// A core type is a type whose values can be expressed as a `Value` within
-    /// a GraphQL document. This encompasses the values that can be provided as
-    /// arguments to a field or directive or declared as variables for an operation.
-    abstract member ResolveVariableTypeByName : string -> CoreVariableType option
-    /// Return the type, if any, with the given name. These are types that
-    /// may appear in a query and 
-    abstract member ResolveQueryTypeByName : string -> ISchemaQueryType<'s> option
-    /// Return all types that contain the given enum value name.
+    abstract member VariableTypes : IReadOnlyDictionary<string, CoreVariableType>
+    abstract member QueryTypes : IReadOnlyDictionary<string, ISchemaQueryType<'s>>
+    abstract member Directives : IReadOnlyDictionary<string, ISchemaDirective<'s>>
     abstract member ResolveEnumValueByName : string -> EnumValue option
-    /// Return the directive, if any, with the given name.
-    abstract member ResolveDirectiveByName : string -> ISchemaDirective<'s> option
     /// The top-level type that queries select from.
     /// Most likely this will correspond to your DB context type.
     abstract member RootType : ISchemaQueryType<'s>

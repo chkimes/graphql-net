@@ -39,8 +39,7 @@ namespace GraphQL.Net
             _rootTypeHandler = new RootTypeHandler(new MetaTypeHandler(this));
         }
 
-        public CoreVariableType ResolveVariableTypeByName(string name)
-            => _rootTypeHandler.ResolveVariableTypeByName(name)?.Value;
+        public IReadOnlyDictionary<string, CoreVariableType> TypeDictionary => _rootTypeHandler.TypeDictionary;
 
         /// <summary>
         /// Return the schema variable type used to represent values of type <paramref name="clrType"/>.

@@ -30,23 +30,20 @@ open System.Runtime.CompilerServices
 
 [<AbstractClass>]
 type SchemaCS<'s>() =
-    abstract member ResolveVariableType : name : string -> CoreVariableType
-    default this.ResolveVariableType(_) = Unchecked.defaultof<_>
-    abstract member ResolveQueryType : name : string -> ISchemaQueryType<'s>
+    abstract member Directives : IReadOnlyDictionary<string, ISchemaDirective<'s>>
+    default this.Directives = emptyDictionary
+    abstract member QueryTypes : IReadOnlyDictionary<string, ISchemaQueryType<'s>>
+    default this.QueryTypes = emptyDictionary
+    abstract member VariableTypes : IReadOnlyDictionary<string, CoreVariableType>
+    default this.VariableTypes = emptyDictionary
     abstract member ResolveEnumValue : name : string -> EnumValue
     default this.ResolveEnumValue(_) = Unchecked.defaultof<_>
-    abstract member ResolveDirective : name : string -> ISchemaDirective<'s>
-    default this.ResolveDirective(_) = Unchecked.defaultof<_>
     abstract member RootType : ISchemaQueryType<'s>
     interface ISchema<'s> with
-        member this.ResolveDirectiveByName(name) =
-            this.ResolveDirective(name) |> obj2option
-        member this.ResolveVariableTypeByName(name) =
-            this.ResolveVariableType(name) |> obj2option
-        member this.ResolveQueryTypeByName(name) =
-            this.ResolveQueryType(name) |> obj2option
-        member this.ResolveEnumValueByName(name) =
-            this.ResolveEnumValue(name) |> obj2option
+        member this.Directives = this.Directives
+        member this.QueryTypes = this.QueryTypes
+        member this.VariableTypes = this.VariableTypes
+        member this.ResolveEnumValueByName(name) = this.ResolveEnumValue(name) |> obj2option
         member this.RootType = this.RootType
 
 [<AbstractClass>]

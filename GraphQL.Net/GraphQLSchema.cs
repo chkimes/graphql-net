@@ -131,8 +131,8 @@ namespace GraphQL.Net
                 .AddField("fields", t => t.Fields.OrDefault())
                 .AddField("inputFields", t => t.InputFields.OrDefault())
                 .AddField("ofType", s => s.OfType.OrDefault())
-                .AddField("interfaces", _ => (IEnumerable<IntroType>)null)
-                .AddField("possibleTypes", _ => (IEnumerable<IntroType>)null)
+                .AddField("interfaces", s => s.Interfaces.OrDefault())
+                .AddField("possibleTypes", s => s.PossibleTypes.OrDefault())
                 ;
 
             AddType<IntroField>("__Field")
@@ -156,6 +156,13 @@ namespace GraphQL.Net
                 .AddField("description", e => e.Description.OrDefault())
                 .AddField("isDeprecated", e => e.IsDeprecated)
                 .AddField("deprecationReason", e => e.DeprecationReason.OrDefault())
+                ;
+
+            AddType<IntroDirective>("__Directive")
+                .AddField("name", d => d.Name)
+                .AddField("description", d => d.Description.OrDefault())
+                .AddField("locations", d => d.Locations)
+                .AddField("args", d => d.Args)
                 ;
 
             this.AddQuery("__schema", _ => IntroSchema.Of(Adapter));

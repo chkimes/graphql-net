@@ -37,14 +37,16 @@ namespace Tests
         public void ChildFieldType()
         {
             var gql = MemContext.CreateDefaultContext();
-            var type = (IDictionary<string, object>) gql.ExecuteQuery("{ __type(name: \"User\") { fields { name, type { name, kind } } } }")["__type"];
+            var type = (IDictionary<string, object>) gql.ExecuteQuery("{ __type(name: \"User\") { fields { name, type { name, kind, ofType { name, kind } } } } }")["__type"];
             Assert.AreEqual(type.Keys.Count, 1);
             var fields = (List<IDictionary<string, object>>) type["fields"];
 
             var idField = fields.First(f => (string) f["name"] == "id");
             var idType = (IDictionary<string, object>) idField["type"];
-            Assert.AreEqual(idType["name"], "Int");
-            Assert.AreEqual(idType["kind"], "SCALAR");
+            var idOfType = (IDictionary<string, object>)idType["ofType"];
+            Assert.AreEqual(idType["kind"].ToString(), "NON_NULL");
+            Assert.AreEqual(idOfType["name"], "Int");
+            Assert.AreEqual(idOfType["kind"].ToString(), "SCALAR");
 
             var nameField = fields.First(f => (string) f["name"] == "name");
             var nameType = (IDictionary<string, object>) nameField["type"];
@@ -71,12 +73,12 @@ namespace Tests
 
             var intType = types.First(t => (string) t["name"] == "Int");
             Assert.AreEqual(intType["name"], "Int");
-            Assert.AreEqual(intType["kind"], "SCALAR");
-            Assert.AreEqual(((List<IDictionary<string, object>>)intType["interfaces"]).Count, 0);
+            Assert.AreEqual(intType["kind"].ToString(), "SCALAR");
+            Assert.IsNull(intType["interfaces"]);
 
             var userType = types.First(t => (string) t["name"] == "User");
             Assert.AreEqual(userType["name"], "User");
-            Assert.AreEqual(userType["kind"], "OBJECT");
+            Assert.AreEqual(userType["kind"].ToString(), "OBJECT");
             Assert.AreEqual(((List<IDictionary<string, object>>)userType["interfaces"]).Count, 0);
         }
     }

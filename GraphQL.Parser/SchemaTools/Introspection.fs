@@ -50,6 +50,10 @@ type IntroType =
         Description : string option
         // OBJECT and INTERFACE only
         Fields : IntroField seq option
+        // OBJECT only
+        Interfaces : IntroType seq option
+        // INTERFACE and UNION only
+        PossibleTypes : IntroType seq option
         // ENUM only
         EnumValues : IntroEnumValue seq option
         // INPUT_OBJECT only
@@ -63,6 +67,8 @@ type IntroType =
             Name = None
             Description = None
             Fields = None
+            Interfaces = None
+            PossibleTypes = None
             EnumValues = None
             InputFields = None
             OfType = None
@@ -104,6 +110,7 @@ type IntroType =
             Name = Some queryType.TypeName
             Description = queryType.Description
             Fields = fields |> Some
+            Interfaces = Some Seq.empty
         }
     static member Of(fieldType : SchemaFieldType<'s>) =
         match fieldType with

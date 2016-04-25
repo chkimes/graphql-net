@@ -84,8 +84,8 @@ namespace Tests
             account.AddField(a => a.Id);
             account.AddField(a => a.Name);
             account.AddField(a => a.Paid);
-            account.AddField(a => a.Users);
-            account.AddField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
+            account.AddListField(a => a.Users);
+            account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
 
             schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.FirstOrDefault(a => a.Id == args.id));
             schema.AddQuery

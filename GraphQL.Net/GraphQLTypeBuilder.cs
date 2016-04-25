@@ -21,12 +21,22 @@ namespace GraphQL.Net
         public GraphQLFieldBuilder AddField<TArgs, TField>(string name, TArgs shape, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
             => AddField(name, exprFunc);
 
+        public GraphQLFieldBuilder AddListField<TArgs, TField>(string name, TArgs shape, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc)
+            => AddListField(name, exprFunc);
+
         // See GraphQLSchema.AddQuery for an explanation of the type of exprFunc, since it follows similar reasons
         // TL:DR; Fields can have parameters passed in, so the Expression<Func> to be used is dependent on TArgs
         //        Fields can use TContext as well, so we have to return an Expression<Func<TContext, TEntity, TField>> and replace the TContext parameter when needed
         public GraphQLFieldBuilder AddField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
         {
             var field = GraphQLField.New(_schema, name, exprFunc, typeof (TField));
+            _type.Fields.Add(field);
+            return new GraphQLFieldBuilder(field);
+        }
+
+        public GraphQLFieldBuilder AddListField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc)
+        {
+            var field = GraphQLField.New(_schema, name, exprFunc, typeof (IEnumerable<TField>));
             _type.Fields.Add(field);
             return new GraphQLFieldBuilder(field);
         }
@@ -42,9 +52,22 @@ namespace GraphQL.Net
             return AddField(name.ToCamelCase(), lambda);
         }
 
+        public GraphQLFieldBuilder AddListField<TField>(Expression<Func<TEntity, IEnumerable<TField>>> expr)
+        {
+            var member = expr.Body as MemberExpression;
+            if (member == null)
+                throw new InvalidOperationException($"Unnamed query {nameof(expr)} must be a MemberExpression of form [p => p.Field].\n\nTry using the explicit AddField overload for a custom field.");
+            var name = member.Member.Name;
+            var lambda = Expression.Lambda<Func<TContext, TEntity, IEnumerable<TField>>>(member, GraphQLSchema<TContext>.DbParam, expr.Parameters[0]);
+            return AddListField(name.ToCamelCase(), lambda);
+        }
+
         // Overload provided for adding fields with no arguments, e.g.  AddField("totalCount", (db, u) => db.Users.Count());
         public GraphQLFieldBuilder AddField<TField>(string name, Expression<Func<TContext, TEntity, TField>> expr)
             => AddField(name, new object(), o => expr);
+
+        public GraphQLFieldBuilder AddListField<TField>(string name, Expression<Func<TContext, TEntity, IEnumerable<TField>>> expr)
+            => AddListField(name, new object(), o => expr);
 
         public void AddAllFields()
         {

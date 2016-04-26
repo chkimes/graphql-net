@@ -33,13 +33,13 @@ namespace GraphQL.Net
             return context.AddUnmodifiedFieldInternal(name, GetFinalQueryFunc<TContext, TArgs, TEntity>(info.OriginalQuery, queryableGetter.Parameters[1]));
         }
 
-        private static Func<TArgs, Expression<Func<TContext, BaseQuery, TResult>>> GetFinalQueryFunc<TContext, TArgs, TResult>(Expression<Func<TContext, TResult>> baseExpr, ParameterExpression param = null)
+        private static Func<TArgs, Expression<Func<TContext, TContext, TResult>>> GetFinalQueryFunc<TContext, TArgs, TResult>(Expression<Func<TContext, TResult>> baseExpr, ParameterExpression param = null)
         {
             // TODO: Replace db param here?
             param = param ?? Expression.Parameter(typeof (TArgs), "args");
-            var transformedExpr = Expression.Lambda(Expression.Convert(baseExpr.Body, typeof(TResult)), baseExpr.Parameters[0], Expression.Parameter(typeof (BaseQuery), "base"));
+            var transformedExpr = Expression.Lambda(Expression.Convert(baseExpr.Body, typeof(TResult)), baseExpr.Parameters[0], Expression.Parameter(typeof (TContext), "base"));
             var quoted = Expression.Quote(transformedExpr);
-            var final = Expression.Lambda<Func<TArgs, Expression<Func<TContext, BaseQuery, TResult>>>>(quoted, param);
+            var final = Expression.Lambda<Func<TArgs, Expression<Func<TContext, TContext, TResult>>>>(quoted, param);
             return final.Compile();
         }
 

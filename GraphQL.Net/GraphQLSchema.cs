@@ -25,7 +25,7 @@ namespace GraphQL.Net
         {
             ContextCreator = contextCreator;
             AddDefaultPrimitives();
-            AddType<BaseQuery>("queryType");
+            AddType<TContext>("queryType");
         }
 
         public void AddString<T>(Func<string, T> translate, string name = null)
@@ -168,25 +168,25 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        internal GraphQLFieldBuilder<TContext, TEntity> AddFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, BaseQuery, IEnumerable<TEntity>>>> exprGetter, ResolutionType type)
+        internal GraphQLFieldBuilder<TContext, TEntity> AddFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, IEnumerable<TEntity>>>> exprGetter, ResolutionType type)
         {
             if (FindField(name) != null)
                 throw new Exception($"Field named {name} has already been created.");
-            return GetType<BaseQuery>()
+            return GetType<TContext>()
                 .AddListField(name, exprGetter)
                 .WithResolutionType(type);
         }
 
-        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, BaseQuery, TEntity>>> exprGetter)
+        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, TEntity>>> exprGetter)
         {
             if (FindField(name) != null)
                 throw new Exception($"Field named {name} has already been created.");
-            return GetType<BaseQuery>()
+            return GetType<TContext>()
                 .AddField(name, exprGetter)
                 .WithResolutionType(ResolutionType.Unmodified);
         }
 
-        internal GraphQLField FindField(string name) => GetGQLType(typeof(BaseQuery)).Fields.FirstOrDefault(f => f.Name == name);
+        internal GraphQLField FindField(string name) => GetGQLType(typeof(TContext)).Fields.FirstOrDefault(f => f.Name == name);
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)

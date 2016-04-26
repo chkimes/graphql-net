@@ -49,7 +49,6 @@
     <Compile Include="GraphQL.cs" />
     <Compile Include="GraphQLField.cs" />
     <Compile Include="GraphQLFieldBuilder.cs" />
-    <Compile Include="BaseQuery.cs" />
     <Compile Include="GraphQLSchema.cs" />
     <Compile Include="GraphQLType.cs" />
     <Compile Include="GraphQLTypeBuilder.cs" />

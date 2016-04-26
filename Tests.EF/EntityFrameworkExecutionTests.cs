@@ -72,7 +72,7 @@ namespace Tests
             user.AddPostField("sub", () => new Sub { Id = 1 });
 
             schema.AddType<Sub>().AddField(s => s.Id);
-            schema.AddQuery("users", db => db.Users);
+            schema.AddListQuery("users", db => db.Users);
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));
         }
 

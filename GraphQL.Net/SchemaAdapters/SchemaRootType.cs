@@ -5,12 +5,12 @@ using GraphQL.Parser.CS;
 
 namespace GraphQL.Net.SchemaAdapters
 {
-    class SchemaRootType<TContext> : SchemaQueryTypeCS<Info>
+    class SchemaRootType : SchemaQueryTypeCS<Info>
     {
-        public SchemaRootType(Schema schema, IEnumerable<GraphQLQueryBase<TContext>> queries)
+        public SchemaRootType(Schema schema, GraphQLType baseQueryType)
         {
-            Fields = queries
-                .Select(f => new SchemaQueryField<TContext>(this, f, schema))
+            Fields = baseQueryType.Fields
+                .Select(f => new SchemaField(this, f, schema))
                 .ToDictionary(f => f.FieldName, f => f as ISchemaField<Info>);
         }
 

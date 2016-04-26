@@ -76,7 +76,7 @@ namespace Tests
             user.AddPostField("sub", () => new Sub { Id = 1 });
 
             schema.AddType<Sub>().AddField(s => s.Id);
-            schema.AddQuery("users", db => db.Users.AsQueryable());
+            schema.AddListQuery("users", db => db.Users.AsQueryable());
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Id == args.id));
         }
 

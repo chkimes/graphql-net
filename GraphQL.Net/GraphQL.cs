@@ -40,8 +40,8 @@ namespace GraphQL.Net
             var outputs = new Dictionary<string, object>();
             foreach (var execSelection in execSelections.Select(s => s.Value))
             {
-                var query = execSelection.SchemaField.Query();
-                outputs[execSelection.Name] = query.Execute(execSelection);
+                var field = execSelection.SchemaField.Field();
+                outputs[execSelection.Name] = Executor<TContext>.Execute(_schema, field, execSelection);
             }
             return outputs;
         }

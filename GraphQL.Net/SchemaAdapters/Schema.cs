@@ -29,7 +29,7 @@ namespace GraphQL.Net.SchemaAdapters
 
         public Schema(GraphQLSchema<TContext> schema) : base(schema)
         {
-            RootType = new SchemaRootType<TContext>(this, schema.Queries);
+            RootType = new SchemaRootType(this, schema.GetGQLType(typeof(BaseQuery)));
             _schema = schema;
             _queryTypes = schema.Types
                 .Where(t => !t.IsScalar)

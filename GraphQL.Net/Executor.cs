@@ -10,32 +10,35 @@ namespace GraphQL.Net
 {
     internal static class Executor<TContext>
     {
-        public static object Execute<TArgs, TEntity>
-            (GraphQLSchema<TContext> schema, GraphQLQuery<TContext, TArgs, TEntity> gqlQuery, ExecSelection<Info> query)
+        public static object Execute
+            (GraphQLSchema<TContext> schema, GraphQLField field, ExecSelection<Info> query)
         {
             var context = schema.ContextCreator();
-            var results = Execute(context, gqlQuery, query);
+            var results = Execute(context, field, query);
             (context as IDisposable)?.Dispose();
             return results;
         }
 
-        public static object Execute<TArgs, TEntity>
-            (TContext context, GraphQLQuery<TContext, TArgs, TEntity> gqlQuery, ExecSelection<Info> query)
+        public static object Execute
+            (TContext context, GraphQLField field, ExecSelection<Info> query)
         {
-            var args = TypeHelpers.GetArgs<TArgs>(gqlQuery.Schema.VariableTypes, query.Arguments.Values());
-            if (gqlQuery.ResolutionType != ResolutionType.Unmodified)
+            if (field.ResolutionType != ResolutionType.Unmodified)
             {
-                var queryableFuncExpr = gqlQuery.QueryableExprGetter(args);
-                var replaced = (Expression<Func<TContext, IQueryable<TEntity>>>)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
-                var selector = GetSelector(typeof(TEntity), gqlQuery.Type, query.Selections.Values());
+                var queryableFuncExpr = field.GetExpression(query.Arguments.Values());
+                var replaced = (LambdaExpression)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+                var selector = GetSelector(field.FieldCLRType, field.Type, query.Selections.Values());
 
                 var selectorExpr = Expression.Quote(selector);
-                var call = Expression.Call(typeof(Queryable), "Select", new[] { typeof(TEntity), gqlQuery.Type.QueryType }, replaced.Body, selectorExpr);
+                // TODO: This should be temporary - queryable and enumerable should both work 
+                var body = replaced.Body;
+                if (body.NodeType == ExpressionType.Convert)
+                    body = ((UnaryExpression) body).Operand;
+                var call = Expression.Call(typeof(Queryable), "Select", new[] { field.FieldCLRType, field.Type.QueryType }, body, selectorExpr);
                 var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
                 var transformed = (IQueryable<object>)expr.Compile().DynamicInvoke(context);
 
                 object results;
-                switch (gqlQuery.ResolutionType)
+                switch (field.ResolutionType)
                 {
                     case ResolutionType.Unmodified:
                         throw new Exception("Queries cannot have unmodified resolution. May change in the future.");
@@ -56,9 +59,9 @@ namespace GraphQL.Net
             }
             else
             {
-                var funcExpr = gqlQuery.ExprGetter(args);
-                var replaced = (Expression<Func<TContext, TEntity>>)ParameterReplacer.Replace(funcExpr, funcExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
-                var selector = GetSelector(typeof (TEntity), gqlQuery.Type, query.Selections.Values());
+                var funcExpr = field.GetExpression(query.Arguments.Values());
+                var replaced = (LambdaExpression)ParameterReplacer.Replace(funcExpr, funcExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+                var selector = GetSelector(field.FieldCLRType, field.Type, query.Selections.Values());
                 var invocation = Expression.Invoke(selector, replaced.Body);
                 var expr = Expression.Lambda(invocation, GraphQLSchema<TContext>.DbParam);
                 var result = expr.Compile().DynamicInvoke(context);

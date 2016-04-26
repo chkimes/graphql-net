@@ -17,9 +17,9 @@ namespace GraphQL.Net
         public bool IsPost { get; protected set; }
         public Func<object> PostFieldFunc { get; protected set; }
 
-        protected Type FieldCLRType { get; set; }
+        public Type FieldCLRType { get; set; }
         protected Type ArgsCLRType { get; set; }
-        protected GraphQLSchema Schema { get; set; }
+        internal GraphQLSchema Schema { get; set; }
 
         // ExprFunc should be of type Func<TArgs, Expression<Func<TContext, TEntity, TField>>>
         protected Delegate ExprFunc { get; set; }
@@ -35,6 +35,9 @@ namespace GraphQL.Net
             => (LambdaExpression) ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
 
         public Complexity Complexity { get; set; }
+
+        //TODO: Remove?
+        public ResolutionType ResolutionType { get; set; }
 
         public static GraphQLField Post<TField>(GraphQLSchema schema, string name, Func<TField> fieldFunc)
         {

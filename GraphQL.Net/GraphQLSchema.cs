@@ -17,7 +17,6 @@ namespace GraphQL.Net
     {
         internal readonly Func<TContext> ContextCreator;
         private readonly List<GraphQLType> _types = new List<GraphQLType>();
-        private readonly List<GraphQLQueryBase<TContext>> _queries = new List<GraphQLQueryBase<TContext>>();
         internal bool Completed;
 
         public static readonly ParameterExpression DbParam = Expression.Parameter(typeof (TContext), "db");
@@ -26,6 +25,7 @@ namespace GraphQL.Net
         {
             ContextCreator = contextCreator;
             AddDefaultPrimitives();
+            AddType<BaseQuery>("queryType");
         }
 
         public void AddString<T>(Func<string, T> translate, string name = null)
@@ -168,46 +168,31 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        internal GraphQLQueryBuilder AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
+        internal GraphQLFieldBuilder<TContext, TEntity> AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, BaseQuery, IEnumerable<TEntity>>>> exprGetter, ResolutionType type)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
-            var query = new GraphQLQuery<TContext, TArgs, TEntity>
-            {
-                Name = name,
-                Type = GetGQLType(typeof (TEntity)),
-                QueryableExprGetter = exprGetter,
-                Schema = this,
-                ResolutionType = type,
-            };
-            _queries.Add(query);
-            return new GraphQLQueryBuilder(query);
+            return GetType<BaseQuery>()
+                .AddListField(name, exprGetter)
+                .WithResolutionType(type);
         }
 
-        internal GraphQLQueryBuilder AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
+        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, BaseQuery, TEntity>>> exprGetter)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
-            var query = new GraphQLQuery<TContext, TArgs, TEntity>
-            {
-                Name = name,
-                Type = GetGQLType(typeof(TEntity)),
-                ExprGetter = exprGetter,
-                Schema = this,
-                ResolutionType = ResolutionType.Unmodified,
-            };
-            _queries.Add(query);
-            return new GraphQLQueryBuilder(query);
+            return GetType<BaseQuery>()
+                .AddField(name, exprGetter)
+                .WithResolutionType(ResolutionType.Unmodified);
         }
 
-        internal GraphQLQueryBase<TContext> FindQuery(string name) => _queries.FirstOrDefault(q => q.Name == name);
+        internal GraphQLField FindQuery(string name) => GetGQLType(typeof(BaseQuery)).Fields.FirstOrDefault(f => f.Name == name);
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)
                 ?? VariableTypes.IntrospectionTypes.FirstOrDefault(f => f.CLRType == type)
                 ?? new GraphQLType(type) { IsScalar = true };
 
-        internal IEnumerable<GraphQLQueryBase<TContext>> Queries => _queries;
         internal IEnumerable<GraphQLType> Types => _types;
     }
 }

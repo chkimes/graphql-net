@@ -23,5 +23,12 @@ namespace GraphQL.Net
             _field.Complexity = Complexity.NewRange(Tuple.Create(min, max));
             return this;
         }
+
+        // TODO: This should be removed once we figure out a better way to do it
+        internal GraphQLFieldBuilder<TContext, TField> WithResolutionType(ResolutionType type)
+        {
+            _field.ResolutionType = type;
+            return this;
+        }
     }
 }

@@ -26,14 +26,14 @@ namespace GraphQL.Net
             {
                 var queryableFuncExpr = field.GetExpression(query.Arguments.Values());
                 var replaced = (LambdaExpression)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
-                var selector = GetSelector(field.FieldCLRType, field.Type, query.Selections.Values());
+                var selector = GetSelector(field.Type, query.Selections.Values());
 
                 var selectorExpr = Expression.Quote(selector);
                 // TODO: This should be temporary - queryable and enumerable should both work 
                 var body = replaced.Body;
                 if (body.NodeType == ExpressionType.Convert)
                     body = ((UnaryExpression) body).Operand;
-                var call = Expression.Call(typeof(Queryable), "Select", new[] { field.FieldCLRType, field.Type.QueryType }, body, selectorExpr);
+                var call = Expression.Call(typeof(Queryable), "Select", new[] { field.Type.CLRType, field.Type.QueryType }, body, selectorExpr);
                 var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
                 var transformed = (IQueryable<object>)expr.Compile().DynamicInvoke(context);
 
@@ -61,7 +61,7 @@ namespace GraphQL.Net
             {
                 var funcExpr = field.GetExpression(query.Arguments.Values());
                 var replaced = (LambdaExpression)ParameterReplacer.Replace(funcExpr, funcExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
-                var selector = GetSelector(field.FieldCLRType, field.Type, query.Selections.Values());
+                var selector = GetSelector(field.Type, query.Selections.Values());
                 var invocation = Expression.Invoke(selector, replaced.Body);
                 var expr = Expression.Lambda(invocation, GraphQLSchema<TContext>.DbParam);
                 var result = expr.Compile().DynamicInvoke(context);
@@ -85,7 +85,7 @@ namespace GraphQL.Net
 
                 if (field.IsPost && map.Selections.Any())
                 {
-                    var selector = GetSelector(field.Type.CLRType, field.Type, map.Selections.Values());
+                    var selector = GetSelector(field.Type, map.Selections.Values());
                     obj = selector.Compile().DynamicInvoke(obj);
                 }
 
@@ -113,9 +113,9 @@ namespace GraphQL.Net
             return dict;
         }
 
-        private static LambdaExpression GetSelector(Type entityType, GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections)
+        private static LambdaExpression GetSelector(GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections)
         {
-            var parameter = Expression.Parameter(entityType, "p");
+            var parameter = Expression.Parameter(gqlType.CLRType, "p");
             var init = GetMemberInit(gqlType.QueryType, selections, parameter);
             return Expression.Lambda(init, parameter);
         }
@@ -124,19 +124,12 @@ namespace GraphQL.Net
         {
             var bindings = selections
                 .Where(m => !m.SchemaField.Field().IsPost)
-                .Select((map, i) => GetBinding(map, queryType, baseBindingExpr, i + 1)).ToList();
+                .Select(map => GetBinding(map, queryType, baseBindingExpr)).ToList();
 
-//            bindings.AddRange(Enumerable.Range(bindings.Count + 1, fieldCount - bindings.Count).Select(i => GetEmptyBinding(toType, i)));
             return Expression.MemberInit(Expression.New(queryType), bindings);
         }
 
-        // Stupid EF limitation
-        private static MemberBinding GetEmptyBinding(Type toType, int n)
-        {
-            return Expression.Bind(toType.GetMember($"Field{n}")[0], Expression.Constant(0));
-        }
-
-        private static MemberBinding GetBinding(ExecSelection<Info> map, Type toType, Expression baseBindingExpr, int n)
+        private static MemberBinding GetBinding(ExecSelection<Info> map, Type toType, Expression baseBindingExpr)
         {
             var field = map.SchemaField.Field();
             var toMember = toType.GetMember(map.SchemaField.FieldName)[0];

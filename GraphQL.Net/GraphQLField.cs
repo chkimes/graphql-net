@@ -17,7 +17,7 @@ namespace GraphQL.Net
         public bool IsPost { get; protected set; }
         public Func<object> PostFieldFunc { get; protected set; }
 
-        public Type FieldCLRType { get; set; }
+        protected Type FieldCLRType { get; set; }
         protected Type ArgsCLRType { get; set; }
         internal GraphQLSchema Schema { get; set; }
 

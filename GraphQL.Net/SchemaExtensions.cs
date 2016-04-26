@@ -26,26 +26,11 @@ namespace GraphQL.Net
         // Transform  (db, args) => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
         public static GraphQLFieldBuilder<TContext, TEntity> AddQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
         {
-            var queryables = typeof (TEntity).GetInterfaces().Concat(new [] {typeof(TEntity)}).Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof (IQueryable<>)).ToList();
-            if (queryables.Count > 1) throw new Exception("Types inheriting IQueryable<T> more than once are not supported.");
-            if (queryables.Count == 1)
-            {
-                throw new Exception("use the other one");
-                var entityType = queryables[0].GetGenericArguments()[0];
-                var method = typeof (SchemaExtensions).GetMethod("AddQueryToListArgs", BindingFlags.Static | BindingFlags.NonPublic);
-                var genMethod = method.MakeGenericMethod(typeof (TContext), typeof(TArgs), entityType);
-                var getter = Expression.Lambda(typeof (Func<,,>).MakeGenericType(typeof (TContext), typeof(TArgs), queryables[0]), queryableGetter.Body, queryableGetter.Parameters[0], queryableGetter.Parameters[1]);
-                return (GraphQLFieldBuilder<TContext, TEntity>)genMethod.Invoke(null, new object[] {context, name, getter});
-            }
-            else
-            {
-                var innerLambda = Expression.Lambda<Func<TContext, TEntity>>(queryableGetter.Body, queryableGetter.Parameters[0]);
-                var info = GetQueryInfo(innerLambda);
-                if (info.ResolutionType != ResolutionType.Unmodified)
-                    return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, TArgs, IEnumerable<TEntity>>(info.BaseQuery, queryableGetter.Parameters[1]), info.ResolutionType);
-                else
-                    return context.AddUnmodifiedQueryInternal(name, GetFinalQueryFunc<TContext, TArgs, TEntity>(info.OriginalQuery, queryableGetter.Parameters[1]));
-            }
+            var innerLambda = Expression.Lambda<Func<TContext, TEntity>>(queryableGetter.Body, queryableGetter.Parameters[0]);
+            var info = GetQueryInfo(innerLambda);
+            if (info.ResolutionType != ResolutionType.Unmodified)
+                return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, TArgs, IEnumerable<TEntity>>(info.BaseQuery, queryableGetter.Parameters[1]), info.ResolutionType);
+            return context.AddUnmodifiedQueryInternal(name, GetFinalQueryFunc<TContext, TArgs, TEntity>(info.OriginalQuery, queryableGetter.Parameters[1]));
         }
 
         private static Func<TArgs, Expression<Func<TContext, BaseQuery, TResult>>> GetFinalQueryFunc<TContext, TArgs, TResult>(Expression<Func<TContext, TResult>> baseExpr, ParameterExpression param = null)
@@ -67,27 +52,10 @@ namespace GraphQL.Net
         // Transform  db => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
         public static GraphQLFieldBuilder<TContext, TEntity> AddQuery<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TEntity>> queryableGetter)
         {
-            var enumerables = typeof (TEntity).GetInterfaces().Concat(new[] { typeof(TEntity) }).Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof (IEnumerable<>)).ToList();
-            if (enumerables.Count > 1) throw new Exception("Types inheriting IQueryable<T> more than once are not supported.");
-            if (enumerables.Count == 1)
-            {
-                throw new Exception("use the other one");
-                var entityType = enumerables[0].GetGenericArguments()[0];
-                var method = typeof (SchemaExtensions).GetMethod("AddQueryToListSimple", BindingFlags.Static | BindingFlags.NonPublic);
-                var genMethod = method.MakeGenericMethod(typeof (TContext), entityType);
-                var enumerableType = typeof (IEnumerable<>).MakeGenericType(entityType);
-                var getter = Expression.Lambda(typeof (Func<,>).MakeGenericType(typeof (TContext), enumerables[0]), Expression.Convert(queryableGetter.Body, enumerableType), queryableGetter.Parameters[0]);
-                var obj = genMethod.Invoke(null, new object[] {context, name, getter});
-                return (GraphQLFieldBuilder<TContext, TEntity>) obj;
-            }
-            else
-            {
-                var info = GetQueryInfo(queryableGetter);
-                if (info.ResolutionType != ResolutionType.Unmodified)
-                    return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, object, IEnumerable<TEntity>>(info.BaseQuery), info.ResolutionType);
-                else
-                    return context.AddUnmodifiedQueryInternal(name, GetFinalQueryFunc<TContext, object, TEntity>(info.OriginalQuery));
-            }
+            var info = GetQueryInfo(queryableGetter);
+            if (info.ResolutionType != ResolutionType.Unmodified)
+                return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, object, IEnumerable<TEntity>>(info.BaseQuery), info.ResolutionType);
+            return context.AddUnmodifiedQueryInternal(name, GetFinalQueryFunc<TContext, object, TEntity>(info.OriginalQuery));
         }
 
         private class QueryInfo<TContext, TEntity>

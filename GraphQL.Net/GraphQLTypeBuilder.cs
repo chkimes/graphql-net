@@ -24,7 +24,7 @@ namespace GraphQL.Net
         public GraphQLFieldBuilder<TContext, TField> AddListField<TArgs, TField>(string name, TArgs shape, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc)
             => AddListField(name, exprFunc);
 
-        // See GraphQLSchema.AddQuery for an explanation of the type of exprFunc, since it follows similar reasons
+        // See GraphQLSchema.AddField for an explanation of the type of exprFunc, since it follows similar reasons
         // TL:DR; Fields can have parameters passed in, so the Expression<Func> to be used is dependent on TArgs
         //        Fields can use TContext as well, so we have to return an Expression<Func<TContext, TEntity, TField>> and replace the TContext parameter when needed
         public GraphQLFieldBuilder<TContext, TField> AddField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)

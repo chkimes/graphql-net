@@ -9,28 +9,28 @@ namespace GraphQL.Net
     public static class SchemaExtensions
     {
         // This overload is provided to the user so they can shape TArgs with an anonymous type and rely on type inference for type parameters
-        // e.g.  AddQuery("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
-        public static GraphQLFieldBuilder<TContext, TEntity> AddQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
-            => AddQuery(context, name, queryableGetter);
+        // e.g.  AddField("user", new { id = 0 }, (db, args) => db.Users.Where(u => u.Id == args.id));
+        public static GraphQLFieldBuilder<TContext, TEntity> AddField<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
+            => AddField(context, name, queryableGetter);
 
-        public static GraphQLFieldBuilder<TContext, TEntity> AddListQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, IEnumerable<TEntity>>> queryableGetter)
-            => AddListQuery(context, name, queryableGetter);
+        public static GraphQLFieldBuilder<TContext, TEntity> AddListField<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, IEnumerable<TEntity>>> queryableGetter)
+            => AddListField(context, name, queryableGetter);
 
         // Transform  (db, args) => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        private static GraphQLFieldBuilder<TContext, TEntity> AddListQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, IEnumerable<TEntity>>> queryableGetter)
+        private static GraphQLFieldBuilder<TContext, TEntity> AddListField<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, IEnumerable<TEntity>>> queryableGetter)
         {
             var innerLambda = Expression.Lambda<Func<TContext, IEnumerable<TEntity>>>(queryableGetter.Body, queryableGetter.Parameters[0]);
-            return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, TArgs, IEnumerable<TEntity>>(innerLambda, queryableGetter.Parameters[1]), ResolutionType.ToList);
+            return context.AddFieldInternal(name, GetFinalQueryFunc<TContext, TArgs, IEnumerable<TEntity>>(innerLambda, queryableGetter.Parameters[1]), ResolutionType.ToList);
         }
 
         // Transform  (db, args) => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        public static GraphQLFieldBuilder<TContext, TEntity> AddQuery<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
+        public static GraphQLFieldBuilder<TContext, TEntity> AddField<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TArgs, TEntity>> queryableGetter)
         {
             var innerLambda = Expression.Lambda<Func<TContext, TEntity>>(queryableGetter.Body, queryableGetter.Parameters[0]);
             var info = GetQueryInfo(innerLambda);
             if (info.ResolutionType != ResolutionType.Unmodified)
-                return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, TArgs, IEnumerable<TEntity>>(info.BaseQuery, queryableGetter.Parameters[1]), info.ResolutionType);
-            return context.AddUnmodifiedQueryInternal(name, GetFinalQueryFunc<TContext, TArgs, TEntity>(info.OriginalQuery, queryableGetter.Parameters[1]));
+                return context.AddFieldInternal(name, GetFinalQueryFunc<TContext, TArgs, IEnumerable<TEntity>>(info.BaseQuery, queryableGetter.Parameters[1]), info.ResolutionType);
+            return context.AddUnmodifiedFieldInternal(name, GetFinalQueryFunc<TContext, TArgs, TEntity>(info.OriginalQuery, queryableGetter.Parameters[1]));
         }
 
         private static Func<TArgs, Expression<Func<TContext, BaseQuery, TResult>>> GetFinalQueryFunc<TContext, TArgs, TResult>(Expression<Func<TContext, TResult>> baseExpr, ParameterExpression param = null)
@@ -44,18 +44,18 @@ namespace GraphQL.Net
         }
 
         // Transform  db => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        public static GraphQLFieldBuilder<TContext, TEntity> AddListQuery<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, IEnumerable<TEntity>>> queryableGetter)
+        public static GraphQLFieldBuilder<TContext, TEntity> AddListField<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, IEnumerable<TEntity>>> queryableGetter)
         {
-            return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, object, IEnumerable<TEntity>>(queryableGetter), ResolutionType.ToList);
+            return context.AddFieldInternal(name, GetFinalQueryFunc<TContext, object, IEnumerable<TEntity>>(queryableGetter), ResolutionType.ToList);
         }
 
         // Transform  db => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        public static GraphQLFieldBuilder<TContext, TEntity> AddQuery<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TEntity>> queryableGetter)
+        public static GraphQLFieldBuilder<TContext, TEntity> AddField<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, TEntity>> queryableGetter)
         {
             var info = GetQueryInfo(queryableGetter);
             if (info.ResolutionType != ResolutionType.Unmodified)
-                return context.AddQueryInternal(name, GetFinalQueryFunc<TContext, object, IEnumerable<TEntity>>(info.BaseQuery), info.ResolutionType);
-            return context.AddUnmodifiedQueryInternal(name, GetFinalQueryFunc<TContext, object, TEntity>(info.OriginalQuery));
+                return context.AddFieldInternal(name, GetFinalQueryFunc<TContext, object, IEnumerable<TEntity>>(info.BaseQuery), info.ResolutionType);
+            return context.AddUnmodifiedFieldInternal(name, GetFinalQueryFunc<TContext, object, TEntity>(info.OriginalQuery));
         }
 
         private class QueryInfo<TContext, TEntity>

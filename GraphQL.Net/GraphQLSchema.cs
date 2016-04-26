@@ -127,8 +127,8 @@ namespace GraphQL.Net
             fieldType.AddField("isDeprecated", (db, f) => false); // TODO: deprecation
             fieldType.AddField("deprecationReason", (db, f) => "");
 
-            this.AddQuery("__schema", db => this);
-            this.AddQuery("__type", new {name = ""}, (db, args) => _types.AsQueryable().Where(t => t.Name == args.name).First());
+            this.AddField("__schema", db => this);
+            this.AddField("__type", new {name = ""}, (db, args) => _types.AsQueryable().First(t => t.Name == args.name));
 
             var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
             foreach (var type in _types.Where(t => !t.IsScalar))
@@ -168,25 +168,25 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        internal GraphQLFieldBuilder<TContext, TEntity> AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, BaseQuery, IEnumerable<TEntity>>>> exprGetter, ResolutionType type)
+        internal GraphQLFieldBuilder<TContext, TEntity> AddFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, BaseQuery, IEnumerable<TEntity>>>> exprGetter, ResolutionType type)
         {
-            if (FindQuery(name) != null)
-                throw new Exception($"Query named {name} has already been created.");
+            if (FindField(name) != null)
+                throw new Exception($"Field named {name} has already been created.");
             return GetType<BaseQuery>()
                 .AddListField(name, exprGetter)
                 .WithResolutionType(type);
         }
 
-        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, BaseQuery, TEntity>>> exprGetter)
+        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, BaseQuery, TEntity>>> exprGetter)
         {
-            if (FindQuery(name) != null)
-                throw new Exception($"Query named {name} has already been created.");
+            if (FindField(name) != null)
+                throw new Exception($"Field named {name} has already been created.");
             return GetType<BaseQuery>()
                 .AddField(name, exprGetter)
                 .WithResolutionType(ResolutionType.Unmodified);
         }
 
-        internal GraphQLField FindQuery(string name) => GetGQLType(typeof(BaseQuery)).Fields.FirstOrDefault(f => f.Name == name);
+        internal GraphQLField FindField(string name) => GetGQLType(typeof(BaseQuery)).Fields.FirstOrDefault(f => f.Name == name);
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)

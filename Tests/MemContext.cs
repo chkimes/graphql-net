@@ -76,8 +76,8 @@ namespace Tests
             user.AddPostField("sub", () => new Sub { Id = 1 });
 
             schema.AddType<Sub>().AddField(s => s.Id);
-            schema.AddListQuery("users", db => db.Users.AsQueryable());
-            schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Id == args.id));
+            schema.AddListField("users", db => db.Users.AsQueryable());
+            schema.AddField("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Id == args.id));
         }
 
         private static string GetAbcPostField() => "easy as 123"; // mimic an in-memory function
@@ -91,8 +91,8 @@ namespace Tests
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
 
-            schema.AddQuery("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.Id == args.id));
-            schema.AddQuery
+            schema.AddField("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddField
                 ("accountPaidBy", new { paid = default(DateTime) },
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
         }

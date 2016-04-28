@@ -42,16 +42,16 @@ namespace Tests
         public void ChildFieldType()
         {
             var gql = MemContext.CreateDefaultContext();
-            var results =  gql.ExecuteQuery("{ __type(name: \"User\") { fields { name, type { name, kind } } } }");
+            var results =  gql.ExecuteQuery("{ __type(name: \"User\") { fields { name, type { name, kind, ofType { name, kind } } } } }");
             Test.DeepEquals(results,
                 @"{
                       __type: {
                           fields: [
-                              { name: 'id', type: { name: 'Int', kind: 'SCALAR' } },
+                              { name: 'id', type: { name: null, kind: 'NON_NULL', ofType: { name: 'Int', kind: 'SCALAR' } } },
                               { name: 'name', type: { name: 'String', kind: 'SCALAR' } },
                               { name: 'account', type: { name: 'Account', kind: 'OBJECT' } },
-                              { name: 'total', type: { name: 'Int', kind: 'SCALAR' } },
-                              { name: 'accountPaid', type: { name: 'Boolean', kind: 'SCALAR' } },
+                              { name: 'total', type: { name: null, kind: 'NON_NULL', ofType: { name: 'Int', kind: 'SCALAR' } } },
+                              { name: 'accountPaid', { name: null, kind: 'NON_NULL', ofType: { name: 'Boolean', kind: 'SCALAR' } } },
                               { name: 'abc', type: { name: 'String', kind: 'SCALAR' } },
                               { name: 'sub', type: { name: 'Sub', kind: 'OBJECT' } },
                               { name: '__typename', type: { name: 'String', kind: 'SCALAR' } }

@@ -33,14 +33,6 @@ type IOperationContext<'s> =
     abstract member ResolveVariableByName : string -> VariableDefinition option
     abstract member ResolveFragmentDefinitionByName : string -> ParserAST.Fragment option
 
-let resolveBuiltinType name =
-    match name with
-    | "Int" -> PrimitiveType IntType |> Some
-    | "Boolean" -> PrimitiveType BooleanType |> Some
-    | "String" -> PrimitiveType StringType |> Some
-    | "Float" -> PrimitiveType FloatType |> Some
-    | _ -> None
-
 module private Extensions =
     type IOperationContext<'s> with
         member this.ResolveValueExpression(pvalue : ParserAST.Value, pos : SourceInfo) : ValueExpression =
@@ -81,12 +73,9 @@ module private Extensions =
             let coreTy =
                 match ptype.Type with
                 | ParserAST.NamedType name ->
-                    match resolveBuiltinType name with
-                    | Some builtin -> builtin
-                    | None ->
-                        match this.ResolveVariableTypeByName(name) with
-                        | None -> failAt pos (sprintf "unknown value type ``%s''" name)
-                        | Some valueTy -> NamedType valueTy
+                    match this.VariableTypes.TryFind(name) with
+                    | None -> failAt pos (sprintf "unknown value type ``%s''" name)
+                    | Some valueTy -> valueTy
                 | ParserAST.ListType plty ->
                     this.ResolveVariableType(plty, pos) |> ListType
             new VariableType(coreTy, ptype.Nullable)
@@ -103,7 +92,7 @@ module private Extensions =
                 | ParserAST.BooleanValue b ->
                     PrimitiveValue (BooleanPrimitive b)
                 | ParserAST.EnumValue enumName ->
-                    match this.ResolveEnumValueByName enumName with
+                    match this.ResolveEnumValueByName(enumName) with
                     | None -> failAt pos (sprintf "``%s'' is not a member of any known enum type" enumName)
                     | Some enumVal -> EnumValue enumVal
             | ParserAST.ListValueConst elementsWithSource ->
@@ -145,7 +134,7 @@ type Resolver<'s>
     member private this.ResolveDirectives(pdirs : ParserAST.Directive WithSource seq) =
         [|
             for { Source = pos; Value = pdir } in pdirs do
-                match opContext.Schema.ResolveDirectiveByName(pdir.DirectiveName) with
+                match opContext.Schema.Directives.TryFind(pdir.DirectiveName) with
                 | None -> failAt pos (sprintf "unknown directive ``%s''" pdir.DirectiveName)
                 | Some dir ->
                     let args = this.ResolveArguments(dir.Arguments, pdir.Arguments)
@@ -184,7 +173,7 @@ type Resolver<'s>
                 Selections = selections
             }
     member private __.ResolveTypeCondition(typeName : string, pos : SourceInfo) =
-        match opContext.Schema.ResolveQueryTypeByName(typeName) with
+        match opContext.Schema.QueryTypes.TryFind(typeName) with
         | None -> failAt pos (sprintf "unknown type ``%s'' in type condition" typeName)
         | Some ty -> ty
     member private __.ResolveFragment(pfrag : ParserAST.Fragment, pos : SourceInfo) =

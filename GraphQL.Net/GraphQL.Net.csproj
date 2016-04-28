@@ -43,7 +43,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CustomVariableType.cs" />
     <Compile Include="DynamicTypeBuilder.cs" />
     <Compile Include="Executor.cs" />
     <Compile Include="GraphQL.cs" />
@@ -54,6 +53,7 @@
     <Compile Include="GraphQLSchema.cs" />
     <Compile Include="GraphQLType.cs" />
     <Compile Include="GraphQLTypeBuilder.cs" />
+    <Compile Include="InteropHelpers.cs" />
     <Compile Include="ParameterReplacer.cs" />
     <Compile Include="VariableTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

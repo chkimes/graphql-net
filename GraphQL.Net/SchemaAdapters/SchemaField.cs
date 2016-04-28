@@ -19,7 +19,7 @@ namespace GraphQL.Net.SchemaAdapters
             if (_field.Type.IsScalar)
             {
                 var varType = _schema.GraphQLSchema.VariableTypes.VariableTypeOf(_field.Type.CLRType);
-                FieldType = SchemaFieldType<Info>.NewValueField(new VariableType(varType, true)); // TODO non-nullability
+                FieldType = SchemaFieldType<Info>.NewValueField(varType);
             }
             else
             {

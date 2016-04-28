@@ -54,6 +54,9 @@ and PrimitiveType =
     | FloatType
     | StringType
     | BooleanType
+    member this.AcceptsPrimitive(input : PrimitiveType) =
+        this = input
+        || this = FloatType && input = IntType
 
 type EnumTypeValue =
     {
@@ -147,7 +150,7 @@ and ISchemaField<'s> =
 and ISchemaArgument<'s> =
     inherit ISchemaInfo<'s>
     abstract member ArgumentName : string
-    abstract member ArgumentType : CoreVariableType
+    abstract member ArgumentType : VariableType
     abstract member Description : string option
 and ISchemaDirective<'s> =
     inherit ISchemaInfo<'s>
@@ -157,18 +160,10 @@ and ISchemaDirective<'s> =
     /// May be empty if the directive accepts no arguments.
     abstract member Arguments : IReadOnlyDictionary<string, ISchemaArgument<'s>>
 and ISchema<'s> =
-    /// Return the core type, if any, with the given name.
-    /// A core type is a type whose values can be expressed as a `Value` within
-    /// a GraphQL document. This encompasses the values that can be provided as
-    /// arguments to a field or directive or declared as variables for an operation.
-    abstract member ResolveVariableTypeByName : string -> ISchemaVariableType option
-    /// Return the type, if any, with the given name. These are types that
-    /// may appear in a query and 
-    abstract member ResolveQueryTypeByName : string -> ISchemaQueryType<'s> option
-    /// Return all types that contain the given enum value name.
+    abstract member VariableTypes : IReadOnlyDictionary<string, CoreVariableType>
+    abstract member QueryTypes : IReadOnlyDictionary<string, ISchemaQueryType<'s>>
+    abstract member Directives : IReadOnlyDictionary<string, ISchemaDirective<'s>>
     abstract member ResolveEnumValueByName : string -> EnumValue option
-    /// Return the directive, if any, with the given name.
-    abstract member ResolveDirectiveByName : string -> ISchemaDirective<'s> option
     /// The top-level type that queries select from.
     /// Most likely this will correspond to your DB context type.
     abstract member RootType : ISchemaQueryType<'s>
@@ -180,15 +175,14 @@ and Value =
     | ListValue of Value ListWithSource
     | ObjectValue of IReadOnlyDictionary<string, Value WithSource>
     member this.GetString() =
-        match this with | PrimitiveValue (StringPrimitive s) -> s | _ -> failwith "Value is not a string"
+        match this with
+        | NullValue -> null
+        | PrimitiveValue (StringPrimitive s) -> s
+        | _ -> failwith "Value is not a string"
     member this.GetInteger() =
         match this with
         | PrimitiveValue (IntPrimitive i) -> i
         | _ -> failwith "Value is not an integer"
-    member this.GetFloat() =
-        match this with
-        | PrimitiveValue (FloatPrimitive f) -> f
-        | _ -> failwith "Value is not a float"
     member this.GetNumber() =
         match this with
         | PrimitiveValue (FloatPrimitive f) -> f
@@ -198,13 +192,6 @@ and Value =
         match this with
         | PrimitiveValue (BooleanPrimitive b) -> b
         | _ -> failwith "Value is not a boolean"
-    member this.ToObject() =
-        match this with
-        | PrimitiveValue p -> p.ToObject()
-        | NullValue -> null
-        | EnumValue e -> box e.Value.ValueName // TODO can we do better than this?
-        | ListValue vs -> box <| new ResizeArray<_>(vs |> Seq.map (fun v -> v.Value))
-        | ObjectValue o -> failwith "Can't convert object literal to unknown object type" // TODO wtf should we do here?
     member this.ToExpression() =
         match this with
         | PrimitiveValue p -> PrimitiveExpression p
@@ -229,7 +216,33 @@ and ValueExpression =
     | EnumExpression of EnumValue
     | ListExpression of ValueExpression ListWithSource
     | ObjectExpression of IReadOnlyDictionary<string, ValueExpression WithSource>
-    member this.ToValue(resolveVariable) =
+    member this.TryGetValue(resolveVariable) =
+        match this with
+        | VariableExpression vdef -> resolveVariable vdef.VariableName
+        | PrimitiveExpression prim -> Some (PrimitiveValue prim)
+        | NullExpression -> Some NullValue
+        | EnumExpression en -> Some (EnumValue en)
+        | ListExpression lst ->
+            let mappedList =
+                lst
+                |> chooseWithSource (fun v -> v.TryGetValue(resolveVariable))
+                |> toReadOnlyList
+            if mappedList.Count < lst.Count
+            then None
+            else Some (ListValue mappedList)
+        | ObjectExpression fields ->
+            let mappedFields =
+                seq {
+                    for KeyValue(name, { Source = pos; Value = v }) in fields do
+                        match v.TryGetValue(resolveVariable) with
+                        | None -> ()
+                        | Some res ->
+                            yield name, { Source = pos; Value = res }
+                } |> dictionary :> IReadOnlyDictionary<_, _>
+            if mappedFields.Count < fields.Count
+            then None
+            else Some (ObjectValue mappedFields)
+    member this.ToValue(resolveVariable) : Value =
         match this with
         | VariableExpression vdef ->
             let attempt = resolveVariable vdef.VariableName
@@ -261,9 +274,21 @@ and CoreVariableType =
     /// Not possible to declare this type in a GraphQL document, but it exists nonetheless.
     | ObjectType of IReadOnlyDictionary<string, VariableType>
     | NamedType of ISchemaVariableType
+    member internal this.BottomType =
+        match this with
+        | NamedType n -> n.CoreType
+        | _ -> this
+    member this.Nullable(yes) = new VariableType(this, yes)
+    member this.Nullable() = new VariableType(this, true)
+    member this.NotNullable() = new VariableType(this, false)
+    member this.TypeName =
+        match this with
+        | NamedType schemaVariableType -> Some schemaVariableType.TypeName
+        | _ -> None
     member this.AcceptsVariableType(vtype : CoreVariableType) =
         this = vtype ||
         match this, vtype with
+        | PrimitiveType pTy, PrimitiveType inputTy -> pTy.AcceptsPrimitive(inputTy)
         | NamedType schemaType, vt ->
             schemaType.CoreType.AcceptsVariableType(vt)
         | ListType vt1, ListType vt2 ->
@@ -282,7 +307,7 @@ and CoreVariableType =
     member this.AcceptsValue(value : Value) =
         match this, value with
         | NamedType schemaType, value -> schemaType.CoreType.AcceptsValue(value) && schemaType.ValidateValue(value)
-        | PrimitiveType pTy, PrimitiveValue pv -> pTy = pv.Type
+        | PrimitiveType pTy, PrimitiveValue pv -> pTy.AcceptsPrimitive(pv.Type)
         | EnumType eType, EnumValue eVal -> eType.EnumName = eVal.Type.EnumName
         | ListType lTy, ListValue vals -> vals |> Seq.forall (fun v -> lTy.AcceptsValue(v.Value))
         | ObjectType oTy, ObjectValue o ->
@@ -295,9 +320,12 @@ and CoreVariableType =
             } |> Seq.forall id
         | _ -> false
     member this.AcceptsValueExpression(vexpr : ValueExpression) =
+        match vexpr.TryGetValue(fun _ -> None) with
+        | Some value -> this.AcceptsValue(value)
+        | None ->
         match this, vexpr with
         | NamedType schemaType, vexpr -> schemaType.CoreType.AcceptsValueExpression(vexpr)
-        | PrimitiveType pTy, PrimitiveExpression pexpr -> pTy = pexpr.Type
+        | PrimitiveType pTy, PrimitiveExpression pexpr -> pTy.AcceptsPrimitive(pexpr.Type)
         | EnumType eType, EnumExpression eVal -> eType.EnumName = eVal.Type.EnumName
         | ListType lTy, ListExpression vals -> vals |> Seq.forall (fun v -> lTy.AcceptsValueExpression(v.Value))
         | ObjectType oTy, ObjectExpression o ->
@@ -310,36 +338,6 @@ and CoreVariableType =
             } |> Seq.forall id
         | _ -> false
 and VariableType(coreType: CoreVariableType, isNullable : bool) =
-    static let primitiveTypeLookup =
-        [
-            typeof<int8>, IntType
-            typeof<int16>, IntType
-            typeof<int32>, IntType
-            typeof<int64>, IntType
-            typeof<uint8>, IntType
-            typeof<uint16>, IntType
-            typeof<uint32>, IntType
-            typeof<uint64>, IntType
-
-            typeof<single>, FloatType
-            typeof<double>, FloatType
-            typeof<decimal>, FloatType
-
-            typeof<string>, StringType
-
-            typeof<bool>, BooleanType
-        ] |> dictionary
-    static let coreTypeOfCLRType (ty : System.Type) =
-        match primitiveTypeLookup.TryFind(ty) with
-        | Some p -> PrimitiveType p
-        | None ->
-            let interfaces = ty.GetInterfaces()
-            let ienumerable = interfaces |> Array.tryFind(fun i -> i.IsGenericType && i.GetGenericTypeDefinition() = typedefof<_ seq>)
-            match ienumerable with
-            | None -> failwith (sprintf "Can't guess core type for CLR type ``%O''" ty)
-            | Some ienumerable ->
-                let elementTy = ienumerable.GetGenericArguments().[0]
-                ListType (VariableType.GuessFromCLRType(elementTy))   
     member this.Type = coreType
     member this.Nullable = isNullable
     member this.AcceptsVariableType(vtype : VariableType) =
@@ -352,12 +350,6 @@ and VariableType(coreType: CoreVariableType, isNullable : bool) =
         match value with
         | NullValue -> this.Nullable
         | notNull -> this.Type.AcceptsValue(notNull)
-    static member GuessFromCLRType(ty : System.Type) =
-        if ty.IsValueType && ty.IsGenericType && ty.GetGenericTypeDefinition() = typedefof<System.Nullable<_>> then
-            let wrapped = ty.GetGenericArguments().[0]
-            new VariableType(coreTypeOfCLRType ty, true)
-        else
-            new VariableType(coreTypeOfCLRType ty, not ty.IsValueType)
 and VariableDefinition =
     {
         VariableName : string

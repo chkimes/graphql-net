@@ -117,53 +117,51 @@ namespace GraphQL.Net
         {
             AddEnum<TypeKind>("__TypeKind");
             AddEnum<DirectiveLocation>("__DirectiveLocation");
-            AddType<IntroSchema>("__Schema")
-                .AddField("types", s => s.Types)
-                .AddField("queryType", s => s.QueryType)
-                .AddField("mutationType", s => s.MutationType.OrDefault())
-                .AddField("directives", s => s.Directives);
+            var ischema = AddType<IntroSchema>("__Schema");
+            ischema.AddField("types", s => s.Types);
+            ischema.AddField("queryType", s => s.QueryType);
+            ischema.AddField("mutationType", s => s.MutationType.OrDefault());
+            ischema.AddField("directives", s => s.Directives);
 
-            AddType<IntroType>("__Type")
-                .AddField("kind", t => t.Kind)
-                .AddField("name", t => t.Name.OrDefault())
-                .AddField("description", t => t.Description.OrDefault())
-                // TODO: support includeDeprecated filter argument
-                .AddField("fields", t => t.Fields.OrDefault())
-                .AddField("inputFields", t => t.InputFields.OrDefault())
-                .AddField("ofType", s => s.OfType.OrDefault())
-                .AddField("interfaces", s => s.Interfaces.OrDefault())
-                .AddField("possibleTypes", s => s.PossibleTypes.OrDefault())
-                ;
+            var itype = AddType<IntroType>("__Type");
+            itype.AddField("kind", t => t.Kind);
+            itype.AddField("name", t => t.Name.OrDefault());
+            itype.AddField("description", t => t.Description.OrDefault());
+            // TODO: support includeDeprecated filter argument
+            itype.AddField("fields", t => t.Fields.OrDefault());
+            itype.AddField("inputFields", t => t.InputFields.OrDefault());
+            itype.AddField ("ofType", s => s.OfType.OrDefault());
+            itype.AddField("interfaces", s => s.Interfaces.OrDefault());
+            itype.AddField("possibleTypes", s => s.PossibleTypes.OrDefault());
 
-            AddType<IntroField>("__Field")
-                .AddField("name", f => f.Name)
-                .AddField("description", f => f.Description.OrDefault())
-                .AddField("args", f => f.Args)
-                .AddField("type", f => f.Type)
-                .AddField("isDeprecated", f => f.IsDeprecated)
-                .AddField("deprecationReason", f => f.DeprecationReason.OrDefault())
-                ;
+            var ifield = AddType<IntroField>("__Field");
 
-            AddType<IntroInputValue>("__InputValue")
-                .AddField("name", v => v.Name)
-                .AddField("description", v => v.Description.OrDefault())
-                .AddField("type", v => v.Type)
-                .AddField("defaultValue", v => v.DefaultValue.OrDefault())
-                ;
+            ifield.AddField("name", f => f.Name);
+            ifield.AddField("description", f => f.Description.OrDefault());
+            ifield.AddField("args", f => f.Args);
+            ifield.AddField("type", f => f.Type);
+            ifield.AddField("isDeprecated", f => f.IsDeprecated);
+            ifield.AddField("deprecationReason", f => f.DeprecationReason.OrDefault());
 
-            AddType<IntroEnumValue>("__EnumValue")
-                .AddField("name", e => e.Name)
-                .AddField("description", e => e.Description.OrDefault())
-                .AddField("isDeprecated", e => e.IsDeprecated)
-                .AddField("deprecationReason", e => e.DeprecationReason.OrDefault())
-                ;
+            var ivalue = AddType<IntroInputValue>("__InputValue");
+            ivalue.AddField("name", v => v.Name);
+            ivalue.AddField("description", v => v.Description.OrDefault());
+            ivalue.AddField("type", v => v.Type);
+            ivalue.AddField("defaultValue", v => v.DefaultValue.OrDefault());
+                
+            var ienumValue = AddType<IntroEnumValue>("__EnumValue");
 
-            AddType<IntroDirective>("__Directive")
-                .AddField("name", d => d.Name)
-                .AddField("description", d => d.Description.OrDefault())
-                .AddField("locations", d => d.Locations)
-                .AddField("args", d => d.Args)
-                ;
+            ienumValue.AddField("name", e => e.Name);
+            ienumValue.AddField("description", e => e.Description.OrDefault());
+            ienumValue.AddField("isDeprecated", e => e.IsDeprecated);
+            ienumValue.AddField("deprecationReason", e => e.DeprecationReason.OrDefault());
+
+            var idirective = AddType<IntroDirective>("__Directive");
+
+            idirective.AddField("name", d => d.Name);
+            idirective.AddField("description", d => d.Description.OrDefault());
+            idirective.AddField("locations", d => d.Locations);
+            idirective.AddField("args", d => d.Args);
 
             this.AddQuery("__schema", _ => IntroSchema.Of(Adapter));
             this.AddQuery("__type", new { name = "" },
@@ -200,32 +198,36 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        internal void AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
+        internal GraphQLQueryBuilder AddQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, IQueryable<TEntity>>>> exprGetter, ResolutionType type)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
-            _queries.Add(new GraphQLQuery<TContext, TArgs, TEntity>
+            var query = new GraphQLQuery<TContext, TArgs, TEntity>
             {
                 Name = name,
-                Type = GetGQLType(typeof(TEntity)),
+                Type = GetGQLType(typeof (TEntity)),
                 QueryableExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = type,
-            });
+            };
+            _queries.Add(query);
+            return new GraphQLQueryBuilder(query);
         }
 
-        internal void AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
+        internal GraphQLQueryBuilder AddUnmodifiedQueryInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TEntity>>> exprGetter)
         {
             if (FindQuery(name) != null)
                 throw new Exception($"Query named {name} has already been created.");
-            _queries.Add(new GraphQLQuery<TContext, TArgs, TEntity>
+            var query = new GraphQLQuery<TContext, TArgs, TEntity>
             {
                 Name = name,
                 Type = GetGQLType(typeof(TEntity)),
                 ExprGetter = exprGetter,
                 Schema = this,
                 ResolutionType = ResolutionType.Unmodified,
-            });
+            };
+            _queries.Add(query);
+            return new GraphQLQueryBuilder(query);
         }
 
         internal GraphQLQueryBase<TContext> FindQuery(string name) => _queries.FirstOrDefault(q => q.Name == name);

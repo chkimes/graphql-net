@@ -32,11 +32,10 @@ namespace Tests
             schema.AddType<Account>().AddAllFields();
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Id == args.id));
             schema.Complete();
+
             var gql = new GraphQL<MemContext>(schema);
-            var user = gql.ExecuteQuery("{ user(id:1) { id, name } }")["user"] as IDictionary<string, object>;
-            Assert.AreEqual(user["id"], 1);
-            Assert.AreEqual(user["name"], "Joe User");
-            Assert.AreEqual(user.Keys.Count, 2);
+            var results = gql.ExecuteQuery("{ user(id:1) { id, name } }");
+            Test.DeepEquals(results, "{ user: { id: 1, name: 'Joe User' } }");
         }
     }
 }

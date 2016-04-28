@@ -62,14 +62,15 @@ namespace Tests
 
         private static void InitializeUserSchema(GraphQLSchema<EfContext> schema)
         {
-            schema.AddType<User>()
-                .AddField(u => u.Id)
-                .AddField(u => u.Name)
-                .AddField(u => u.Account)
-                .AddField("total", (db, u) => db.Users.Count())
-                .AddField("accountPaid", (db, u) => u.Account.Paid)
-                .AddPostField("abc", () => GetAbcPostField())
-                .AddPostField("sub", () => new Sub { Id = 1 });
+            var user = schema.AddType<User>();
+            user.AddField(u => u.Id);
+            user.AddField(u => u.Name);
+            user.AddField(u => u.Account);
+            user.AddField("total", (db, u) => db.Users.Count());
+            user.AddField("accountPaid", (db, u) => u.Account.Paid);
+            user.AddPostField("abc", () => GetAbcPostField());
+            user.AddPostField("sub", () => new Sub { Id = 1 });
+
             schema.AddType<Sub>().AddField(s => s.Id);
             schema.AddQuery("users", db => db.Users);
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));
@@ -79,12 +80,13 @@ namespace Tests
 
         private static void InitializeAccountSchema(GraphQLSchema<EfContext> schema)
         {
-            schema.AddType<Account>()
-                .AddField(a => a.Id)
-                .AddField(a => a.Name)
-                .AddField(a => a.Paid)
-                .AddField(a => a.Users)
-                .AddField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
+            var account = schema.AddType<Account>();
+            account.AddField(a => a.Id);
+            account.AddField(a => a.Name);
+            account.AddField(a => a.Paid);
+            account.AddListField(a => a.Users);
+            account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
+
             schema.AddQuery("account", new {id = 0}, (db, args) => db.Accounts.FirstOrDefault(a => a.Id == args.id));
             schema.AddQuery
                 ("accountPaidBy", new { paid = default(DateTime) },
@@ -114,11 +116,10 @@ namespace Tests
             schema.AddType<Account>().AddAllFields();
             schema.AddQuery("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));
             schema.Complete();
+
             var gql = new GraphQL<EfContext>(schema);
-            var user = (IDictionary<string, object>)gql.ExecuteQuery("{ user(id:1) { id, name } }")["user"];
-            Assert.AreEqual(user["id"], 1);
-            Assert.AreEqual(user["name"], "Joe User");
-            Assert.AreEqual(user.Keys.Count, 2);
+            var results = gql.ExecuteQuery("{ user(id:1) { id, name } }");
+            Test.DeepEquals(results, "{ user: { id: 1, name: 'Joe User' } }");
         }
 
         class Sub

@@ -30,11 +30,11 @@ namespace GraphQL.Net.SchemaAdapters
         public override Info Info => new Info(_query);
         public override IReadOnlyDictionary<string, ISchemaArgument<Info>> Arguments { get; }
         public override Complexity EstimateComplexity(IEnumerable<ISchemaArgument<Info>> args)
-            => args.Any(a => a.ArgumentName.Equals("id", StringComparison.OrdinalIgnoreCase))
+            => _query.Complexity ?? (args.Any(a => a.ArgumentName.Equals("id", StringComparison.OrdinalIgnoreCase))
             ? Complexity.One
             // We probably have a bunch of entities in any given table.
             // Can we give the schema definition the ability to tell us about arguments other than
             // id that introduce good filtering?
-            : Complexity.Of(1000, 10000);
+            : Complexity.Of(1000, 10000));
     }
 }

@@ -54,15 +54,21 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="SourceTypes.fs" />
     <Compile Include="Utilities.fs" />
-    <Compile Include="ParserAST.fs" />
-    <Compile Include="Parser.fs" />
-    <Compile Include="SchemaAST.fs" />
-    <Compile Include="SchemaResolver.fs" />
-    <Compile Include="ExecSelection.fs" />
-    <Compile Include="GraphQLDocument.fs" />
-    <Compile Include="CS.fs" />
+    <Content Include="Parsing.txt" />
+    <Compile Include="Parsing\ParserAST.fs" />
+    <Compile Include="Parsing\Parser.fs" />
+    <Content Include="Schema.txt" />
+    <Compile Include="Schema\SchemaAST.fs" />
+    <Compile Include="Schema\SchemaResolver.fs" />
+    <Content Include="Integration.txt" />
+    <Compile Include="Integration\GraphQLDocument.fs" />
+    <Compile Include="Integration\CS.fs" />
     <Content Include="app.config" />
     <Content Include="packages.config" />
+    <Content Include="SchemaTools.txt" />
+    <Compile Include="SchemaTools\ExecSelection.fs" />
+    <Compile Include="SchemaTools\TypeHandlers.fs" />
+    <Compile Include="SchemaTools\Introspection.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FParsec">

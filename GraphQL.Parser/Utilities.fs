@@ -42,8 +42,20 @@ type IReadOnlyDictionary<'k, 'v> with
         if this.TryGetValue(key, &output) then Some output
         else None
 
+let invalid msg =
+    raise (new ValidationException(msg))
+
 let failAt pos msg =
     raise (new SourceException(msg, pos))
+
+let chooseWithSource transform inputs =
+    seq {
+        for { Source = pos; Value = v } in inputs do
+            match transform v with
+            | None -> ()
+            | Some tr ->
+                yield { Source = pos; Value = tr }
+    }
 
 let mapWithSource transform inputs =
     seq {

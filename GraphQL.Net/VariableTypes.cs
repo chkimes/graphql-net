@@ -7,32 +7,47 @@ namespace GraphQL.Net
 {
     public class VariableTypes
     {
-        private readonly Dictionary<Type, CustomVariableType> _customByCLRType
-            = new Dictionary<Type, CustomVariableType>();
+        private readonly List<Func<ITypeHandler, ITypeHandler>> _customHandlers =
+            new List<Func<ITypeHandler, ITypeHandler>>();
+        private RootTypeHandler _rootTypeHandler;
 
-        private readonly Dictionary<string, CustomVariableType> _customByName
-            = new Dictionary<string, CustomVariableType>();
+        private ITypeHandler TypeHandler => _rootTypeHandler;
 
-        public ISchemaVariableType ResolveVariableTypeByName(string name)
+        public void AddType(Func<ITypeHandler, ITypeHandler> customHandler)
         {
-            CustomVariableType custom;
-            return _customByName.TryGetValue(name, out custom) ? custom : null;
+            if (_rootTypeHandler != null) throw new Exception("Can't add types after completing.");
+            _customHandlers.Add(customHandler);
         }
+
+        private class MetaTypeHandler : IMetaTypeHandler
+        {
+            private readonly VariableTypes _variableTypes;
+
+            public MetaTypeHandler(VariableTypes variableTypes)
+            {
+                _variableTypes = variableTypes;
+            }
+
+
+            public IEnumerable<ITypeHandler> Handlers(ITypeHandler rootHandler)
+                => _variableTypes._customHandlers.Select(h => h(rootHandler));
+        }
+
+        public void Complete()
+        {
+            if (_rootTypeHandler != null) throw new Exception("Variable types already complete.");
+            _rootTypeHandler = new RootTypeHandler(new MetaTypeHandler(this));
+        }
+
+        public IReadOnlyDictionary<string, CoreVariableType> TypeDictionary => _rootTypeHandler.TypeDictionary;
 
         /// <summary>
         /// Return the schema variable type used to represent values of type <paramref name="clrType"/>.
         /// </summary>
         /// <param name="clrType"></param>
         /// <returns></returns>
-        public CoreVariableType VariableTypeOf(Type clrType)
-        {
-            CustomVariableType custom;
-            if (_customByCLRType.TryGetValue(clrType, out custom))
-            {
-                return CoreVariableType.NewNamedType(custom);
-            }
-            return VariableType.GuessFromCLRType(clrType).Type;
-        }
+        public VariableType VariableTypeOf(Type clrType)
+            => TypeHandler.GetMapping(clrType)?.Value.VariableType;
 
         /// <summary>
         /// Get a CLR object of type <paramref name="desiredCLRType"/> from the value <paramref name="graphQLValue"/>.
@@ -41,31 +56,6 @@ namespace GraphQL.Net
         /// <param name="desiredCLRType"></param>
         /// <returns></returns>
         public object TranslateValue(Value graphQLValue, Type desiredCLRType)
-        {
-            CustomVariableType custom;
-            if (_customByCLRType.TryGetValue(desiredCLRType, out custom))
-            {
-                return custom.Translate(graphQLValue);
-            }
-            return Convert.ChangeType(graphQLValue.ToObject(), desiredCLRType);
-        }
-
-        public void AddType(CustomVariableType custom)
-        {
-            if (_customByName.ContainsKey(custom.TypeName))
-            {
-                throw new Exception("A custom variable type with the same name has already been added.");
-            }
-            if (_customByCLRType.ContainsKey(custom.CLRType))
-            {
-                throw new Exception("A custom variable type for the same CLR type has already been added.");
-            }
-            _customByName.Add(custom.TypeName, custom);
-            _customByCLRType.Add(custom.CLRType, custom);
-        }
-
-        internal IEnumerable<GraphQLType> IntrospectionTypes =>
-            _customByCLRType.Values.Select
-                (v => new GraphQLType(v.CLRType) { IsScalar = true, Name = v.TypeName });
+            => TypeHandler.GetMapping(desiredCLRType)?.Value.Translate.Invoke(graphQLValue);
     }
 }

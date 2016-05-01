@@ -39,3 +39,6 @@ type WithSource<'a> =
 type SourceException(msg : string, pos : SourceInfo) =
     inherit Exception(msg)
     member this.SourceInfo = pos
+
+type ValidationException(msg : string) =
+    inherit Exception(msg)

@@ -27,7 +27,7 @@ namespace GraphQL.Net
 
         class SchemaArgument : ISchemaArgument<Info>
         {
-            public SchemaArgument(string argumentName, CoreVariableType argumentType)
+            public SchemaArgument(string argumentName, VariableType argumentType)
             {
                 ArgumentName = argumentName;
                 ArgumentType = argumentType;
@@ -35,7 +35,7 @@ namespace GraphQL.Net
 
             public Info Info => null;
             public string ArgumentName { get; }
-            public CoreVariableType ArgumentType { get; }
+            public VariableType ArgumentType { get; }
             public FSharpOption<string> Description => null;
         }
 

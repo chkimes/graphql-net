@@ -32,14 +32,14 @@ type FakeData = string
 type NameArgument() =
     interface ISchemaArgument<FakeData> with
         member this.ArgumentName = "name"
-        member this.ArgumentType = PrimitiveType StringType
+        member this.ArgumentType = (PrimitiveType StringType).Nullable()
         member this.Description = Some "argument for filtering by name"
         member this.Info = "Fake name arg info"
 
 type IdArgument() =
     interface ISchemaArgument<FakeData> with
         member this.ArgumentName = "id"
-        member this.ArgumentType = PrimitiveType IntType
+        member this.ArgumentType = (PrimitiveType IntType).NotNullable()
         member this.Description = Some "argument for filtering by id"
         member this.Info = "Fake id arg info"
 
@@ -69,8 +69,8 @@ type UserType() =
         member this.Info = "Fake user type info"
         member this.Fields =
             [|
-                "id", this.Field("id", ValueField (VariableType.GuessFromCLRType(typeof<int>)), [||])
-                "name", this.Field("name", ValueField (VariableType.GuessFromCLRType(typeof<string>)), [||])
+                "id", this.Field("id", ValueField (RootTypeHandler.Default.VariableTypeOf(typeof<int>)), [||])
+                "name", this.Field("name", ValueField (RootTypeHandler.Default.VariableTypeOf(typeof<string>)), [||])
                 "friend", this.Field("friend", QueryField (this :> ISchemaQueryType<_>),
                     [|
                         "name", new NameArgument() :> _
@@ -112,13 +112,12 @@ type FakeSchema() =
         [
             root
             new UserType() :> _
-        ]
+        ] |> Seq.map (fun t -> t.TypeName, t) |> dictionary
     interface ISchema<FakeData> with
-        member this.ResolveDirectiveByName(name) = None // no directives
+        member this.Directives = emptyDictionary
+        member this.VariableTypes = emptyDictionary
+        member this.QueryTypes = upcast types
         member this.ResolveEnumValueByName(name) = None // no enums
-        member this.ResolveVariableTypeByName(name) = None // no named types
-        member this.ResolveQueryTypeByName(name) =
-            types |> List.tryFind (fun ty -> ty.TypeName = name)
         member this.RootType = root
         
 

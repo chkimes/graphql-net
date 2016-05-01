@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using GraphQL.Net.SchemaAdapters;
+using GraphQL.Parser;
 
 namespace GraphQL.Net
 {
@@ -24,28 +25,34 @@ namespace GraphQL.Net
         public GraphQLSchema(Func<TContext> contextCreator)
         {
             ContextCreator = contextCreator;
-            AddDefaultPrimitives();
             AddType<TContext>("queryType");
         }
 
-        public void AddString<T>(Func<string, T> translate, string name = null)
-            => VariableTypes.AddType(CustomVariableType.String(translate, name));
+        public void AddEnum<TEnum>(string name = null, string prefix = null) where TEnum : struct // wish we could do where TEnum : Enum
+            => VariableTypes.AddType(_ => TypeHandler.Enum<TEnum>(name ?? typeof(TEnum).Name, prefix ?? ""));
 
-        public void AddInteger<T>(Func<long, T> translate, string name = null)
-            => VariableTypes.AddType(CustomVariableType.Integer(translate, name));
+        public void AddScalar<TRepr, TOutput>(TRepr shape, Func<TRepr, bool> validate, Func<TRepr, TOutput> translate, string name = null)
+            => VariableTypes.AddType(t => TypeHandler.Translate
+                (t
+                , name ?? typeof(TOutput).Name
+                , validate
+                , translate
+                ));
 
-        public void AddFloat<T>(Func<double, T> translate, string name = null)
-            => VariableTypes.AddType(CustomVariableType.Float(translate, name));
-
-        public void AddBoolean<T>(Func<bool, T> translate, string name = null)
-            => VariableTypes.AddType(CustomVariableType.Boolean(translate, name));
-
-        private void AddDefaultPrimitives()
-        {
-            AddString(Guid.Parse);
-            AddFloat(d => (float)d, "Float32");
-            AddInteger(i => (int)i, "Int");
-        }
+        public void AddScalar<TRepr, TOutput>(TRepr shape, Func<TRepr, TOutput> translate, string name = null)
+            => AddScalar
+                (shape, r =>
+                {
+                    try
+                    {
+                        translate(r);
+                        return true;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }, translate, name);
 
         public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string name = null, string description = null)
         {
@@ -79,6 +86,8 @@ namespace GraphQL.Net
 
             AddDefaultTypes();
 
+            VariableTypes.Complete();
+
             foreach (var type in _types.Where(t => t.QueryType == null))
                 CompleteType(type);
 
@@ -106,29 +115,58 @@ namespace GraphQL.Net
 
         private void AddDefaultTypes()
         {
-            var schemaType = AddType<GraphQLSchema<TContext>>("__Schema");
-            schemaType.AddField("types", (db, s) => s.Types.Concat(VariableTypes.IntrospectionTypes).ToList());
-            schemaType.AddField("queryType", (db, s) => (GraphQLType) null); // TODO: queryType
-            schemaType.AddField("mutationType", (db, s) => (GraphQLType) null); // TODO: mutations + mutationType
-            schemaType.AddField("directives", (db, s) => new List<GraphQLType>()); // TODO: Directives
+            AddEnum<TypeKind>("__TypeKind");
+            AddEnum<DirectiveLocation>("__DirectiveLocation");
+            var ischema = AddType<IntroSchema>("__Schema");
+            ischema.AddField("types", s => s.Types);
+            ischema.AddField("queryType", s => s.QueryType);
+            ischema.AddField("mutationType", s => s.MutationType.OrDefault());
+            ischema.AddField("directives", s => s.Directives);
 
-            var typeType = AddType<GraphQLType>("__Type");
-            typeType.AddField("kind", (db, t) => GetTypeKind(t));
-            typeType.AddField(t => t.Name);
-            typeType.AddField(t => t.Description);
-            typeType.AddField(t => t.Fields); // TODO: includeDeprecated
-            typeType.AddField("interfaces", (db, t) => new List<GraphQLType>());
+            var itype = AddType<IntroType>("__Type");
+            itype.AddField("kind", t => t.Kind);
+            itype.AddField("name", t => t.Name.OrDefault());
+            itype.AddField("description", t => t.Description.OrDefault());
+            // TODO: support includeDeprecated filter argument
+            itype.AddField("fields", t => t.Fields.OrDefault());
+            itype.AddField("inputFields", t => t.InputFields.OrDefault());
+            itype.AddField ("ofType", s => s.OfType.OrDefault());
+            itype.AddField("interfaces", s => s.Interfaces.OrDefault());
+            itype.AddField("possibleTypes", s => s.PossibleTypes.OrDefault());
 
-            var fieldType = AddType<GraphQLField>("__Field");
-            fieldType.AddField(f => f.Name);
-            fieldType.AddField(f => f.Description);
-            //field.AddField(f => f.Arguments); // TODO:
-            fieldType.AddField(f => f.Type);
-            fieldType.AddField("isDeprecated", (db, f) => false); // TODO: deprecation
-            fieldType.AddField("deprecationReason", (db, f) => "");
+            var ifield = AddType<IntroField>("__Field");
 
-            this.AddField("__schema", db => this);
-            this.AddField("__type", new {name = ""}, (db, args) => _types.AsQueryable().First(t => t.Name == args.name));
+            ifield.AddField("name", f => f.Name);
+            ifield.AddField("description", f => f.Description.OrDefault());
+            ifield.AddField("args", f => f.Args);
+            ifield.AddField("type", f => f.Type);
+            ifield.AddField("isDeprecated", f => f.IsDeprecated);
+            ifield.AddField("deprecationReason", f => f.DeprecationReason.OrDefault());
+
+            var ivalue = AddType<IntroInputValue>("__InputValue");
+            ivalue.AddField("name", v => v.Name);
+            ivalue.AddField("description", v => v.Description.OrDefault());
+            ivalue.AddField("type", v => v.Type);
+            ivalue.AddField("defaultValue", v => v.DefaultValue.OrDefault());
+                
+            var ienumValue = AddType<IntroEnumValue>("__EnumValue");
+
+            ienumValue.AddField("name", e => e.Name);
+            ienumValue.AddField("description", e => e.Description.OrDefault());
+            ienumValue.AddField("isDeprecated", e => e.IsDeprecated);
+            ienumValue.AddField("deprecationReason", e => e.DeprecationReason.OrDefault());
+
+            var idirective = AddType<IntroDirective>("__Directive");
+
+            idirective.AddField("name", d => d.Name);
+            idirective.AddField("description", d => d.Description.OrDefault());
+            idirective.AddField("locations", d => d.Locations);
+            idirective.AddField("args", d => d.Args);
+
+            this.AddField("__schema", _ => IntroSchema.Of(Adapter));
+            this.AddField("__type", new { name = "" },
+                (_, args) => IntroSchema.Of(Adapter).Types
+                    .FirstOrDefault(t => t.Name.OrDefault() == args.name));
 
             var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
             foreach (var type in _types.Where(t => !t.IsScalar))
@@ -136,14 +174,6 @@ namespace GraphQL.Net
                 var genMethod = method.MakeGenericMethod(type.CLRType);
                 genMethod.Invoke(this, new object[] {type});
             }
-        }
-
-        private static string GetTypeKind(GraphQLType type)
-        {
-            if (type.IsScalar)
-                return "SCALAR";
-            return "OBJECT";
-            // TODO: interface?, union? enum, input_object, list, non_null
         }
 
         private void AddTypeNameField<TEntity>(GraphQLType type)
@@ -190,7 +220,6 @@ namespace GraphQL.Net
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)
-                ?? VariableTypes.IntrospectionTypes.FirstOrDefault(f => f.CLRType == type)
                 ?? new GraphQLType(type) { IsScalar = true };
 
         internal IEnumerable<GraphQLType> Types => _types;

@@ -1,0 +1,3 @@
+﻿The files in the "SchemaTools" folder define code that, while technically not necessary for implementing a schema,
+is expected to be useful. This includes things like mapping CLR types to GraphQL scalar types or converting an AST to
+a uniform tree of selections.

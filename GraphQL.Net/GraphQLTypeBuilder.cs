@@ -28,15 +28,23 @@ namespace GraphQL.Net
         // TL:DR; Fields can have parameters passed in, so the Expression<Func> to be used is dependent on TArgs
         //        Fields can use TContext as well, so we have to return an Expression<Func<TContext, TEntity, TField>> and replace the TContext parameter when needed
         public GraphQLFieldBuilder<TContext, TField> AddField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
+            => AddFieldInternal(name, exprFunc, null);
+
+        public GraphQLFieldBuilder<TContext, TField> AddListField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc)
+            => AddListFieldInternal(name, exprFunc, null);
+
+        // Mutation should be null UNLESS adding a mutation at the schema level
+        internal GraphQLFieldBuilder<TContext, TField> AddFieldInternal<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc, Action<TContext, TArgs> mutation)
         {
-            var field = GraphQLField.New(_schema, name, exprFunc, typeof (TField));
+            var field = GraphQLField.New(_schema, name, exprFunc, typeof (TField), mutation);
             _type.Fields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
 
-        public GraphQLFieldBuilder<TContext, TField> AddListField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc)
+        // Mutation should be null UNLESS adding a mutation at the schema level
+        internal GraphQLFieldBuilder<TContext, TField> AddListFieldInternal<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc, Action<TContext, TArgs> mutation)
         {
-            var field = GraphQLField.New(_schema, name, exprFunc, typeof (IEnumerable<TField>));
+            var field = GraphQLField.New(_schema, name, exprFunc, typeof (IEnumerable<TField>), mutation);
             _type.Fields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }

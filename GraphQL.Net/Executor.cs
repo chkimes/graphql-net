@@ -22,6 +22,8 @@ namespace GraphQL.Net
         public static object Execute
             (TContext context, GraphQLField field, ExecSelection<Info> query)
         {
+            field.RunMutation(context, query.Arguments.Values());
+
             if (field.ResolutionType != ResolutionType.Unmodified)
             {
                 var queryableFuncExpr = field.GetExpression(query.Arguments.Values());

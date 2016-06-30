@@ -198,21 +198,21 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        internal GraphQLFieldBuilder<TContext, TEntity> AddFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, IEnumerable<TEntity>>>> exprGetter, ResolutionType type)
+        internal GraphQLFieldBuilder<TContext, TEntity> AddFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, IEnumerable<TEntity>>>> exprGetter, ResolutionType type, Action<TContext, TArgs> mutation)
         {
             if (FindField(name) != null)
                 throw new Exception($"Field named {name} has already been created.");
             return GetType<TContext>()
-                .AddListField(name, exprGetter)
+                .AddListFieldInternal(name, exprGetter, mutation)
                 .WithResolutionType(type);
         }
 
-        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, TEntity>>> exprGetter)
+        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, TEntity>>> exprGetter, Action<TContext, TArgs> mutation)
         {
             if (FindField(name) != null)
                 throw new Exception($"Field named {name} has already been created.");
             return GetType<TContext>()
-                .AddField(name, exprGetter)
+                .AddFieldInternal(name, exprGetter, mutation)
                 .WithResolutionType(ResolutionType.Unmodified);
         }
 

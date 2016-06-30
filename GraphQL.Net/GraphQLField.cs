@@ -24,6 +24,9 @@ namespace GraphQL.Net
         // ExprFunc should be of type Func<TArgs, Expression<Func<TContext, TEntity, TField>>>
         protected Delegate ExprFunc { get; set; }
 
+        // MutationFunc should be of type Action<TContext, TArgs>
+        protected Delegate MutationFunc { get; set; }
+
         // lazily initialize type, fields may be defined before all types are loaded
         private GraphQLType _type;
         public GraphQLType Type => _type ?? (_type = Schema.GetGQLType(FieldCLRType));
@@ -33,6 +36,9 @@ namespace GraphQL.Net
 
         public virtual LambdaExpression GetExpression(IEnumerable<ExecArgument<Info>> inputs)
             => (LambdaExpression) ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
+
+        public virtual void RunMutation<TContext>(TContext context, IEnumerable<ExecArgument<Info>> inputs)
+            => MutationFunc?.DynamicInvoke(context, TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
 
         public Complexity Complexity { get; set; }
 
@@ -53,6 +59,12 @@ namespace GraphQL.Net
         }
 
         public static GraphQLField New<TArgs>(GraphQLSchema schema, string name, Func<TArgs, LambdaExpression> exprFunc, Type fieldCLRType)
+            => NewInternal(schema, name, exprFunc, fieldCLRType, null);
+
+        public static GraphQLField New<TContext, TArgs>(GraphQLSchema schema, string name, Func<TArgs, LambdaExpression> exprFunc, Type fieldCLRType, Action<TContext, TArgs> mutationFunc)
+            => NewInternal(schema, name, exprFunc, fieldCLRType, mutationFunc);
+
+        private static GraphQLField NewInternal<TArgs>(GraphQLSchema schema, string name, Func<TArgs, LambdaExpression> exprFunc, Type fieldCLRType, Delegate mutationFunc)
         {
             var isList = false;
             if (TypeHelpers.IsAssignableToGenericType(fieldCLRType, typeof (IEnumerable<>)) && fieldCLRType != typeof(string))
@@ -69,6 +81,7 @@ namespace GraphQL.Net
                 ArgsCLRType = typeof (TArgs),
                 IsList = isList,
                 ExprFunc = exprFunc,
+                MutationFunc = mutationFunc,
             };
         }
     }

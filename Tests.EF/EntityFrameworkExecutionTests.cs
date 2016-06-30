@@ -45,6 +45,7 @@ namespace Tests.EF
                     Account = account2
                 };
                 db.Users.Add(user2);
+                db.MutateMes.Add(new MutateMe());
                 db.SaveChanges();
             }
         }
@@ -55,6 +56,7 @@ namespace Tests.EF
             schema.AddScalar(new { year = 0, month = 0, day = 0 }, ymd => new DateTime(ymd.year, ymd.month, ymd.day));
             InitializeUserSchema(schema);
             InitializeAccountSchema(schema);
+            InitializeMutationSchema(schema);
             schema.Complete();
             return new GraphQL<EfContext>(schema);
         }
@@ -92,6 +94,23 @@ namespace Tests.EF
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
         }
 
+        private static void InitializeMutationSchema(GraphQLSchema<EfContext> schema)
+        {
+            var mutate = schema.AddType<MutateMe>();
+            mutate.AddAllFields();
+
+            schema.AddField("mutateMes", new {id = 0}, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddMutation("mutate",
+                new {id = 0, newVal = 0},
+                (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id),
+                (db, args) =>
+                {
+                    var mutateMe = db.MutateMes.First(m => m.Id == args.id);
+                    mutateMe.Value = args.newVal;
+                    db.SaveChanges();
+                });
+        }
+
         [Test] public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
         [Test] public void AliasOneField() => GenericTests.AliasOneField(CreateDefaultContext());
         [Test] public void NestedEntity() => GenericTests.NestedEntity(CreateDefaultContext());
@@ -106,6 +125,7 @@ namespace Tests.EF
         [Test] public void TypeName() => GenericTests.TypeName(CreateDefaultContext());
         [Test] public void DateTimeFilter() => GenericTests.DateTimeFilter(CreateDefaultContext());
         [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(CreateDefaultContext());
+        [Test] public void SimpleMutation() => GenericTests.SimpleMutation(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -138,6 +158,7 @@ namespace Tests.EF
 
             public IDbSet<User> Users { get; set; }
             public IDbSet<Account> Accounts { get; set; }
+            public IDbSet<MutateMe> MutateMes { get; set; }
         }
 
         class User
@@ -158,6 +179,12 @@ namespace Tests.EF
             public DateTime? PaidUtc { get; set; }
 
             public List<User> Users { get; set; }
+        }
+
+        class MutateMe
+        {
+            public int Id { get; set; }
+            public int Value { get; set; }
         }
     }
 }

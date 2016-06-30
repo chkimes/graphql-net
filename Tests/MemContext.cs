@@ -42,11 +42,17 @@ namespace Tests
                 Account = account2
             };
             Users.Add(user2);
+            MutateMes.Add(new MutateMe
+            {
+                Id = 1,
+                Value = 0,
+            });
             account2.Users = new List<User> { user2 };
         }
 
         public List<User> Users { get; set; } = new List<User>();
         public List<Account> Accounts { get; set; } = new List<Account>();
+        public List<MutateMe> MutateMes { get; set; } = new List<MutateMe>();
 
         public static GraphQL<MemContext> CreateDefaultContext()
         {
@@ -61,6 +67,7 @@ namespace Tests
             schema.AddScalar(new { year = 0, month = 0, day = 0 }, ymd => new DateTime(ymd.year, ymd.month, ymd.day));
             InitializeUserSchema(schema);
             InitializeAccountSchema(schema);
+            InitializeMutationSchema(schema);
             return schema;
         }
 
@@ -96,6 +103,22 @@ namespace Tests
                 ("accountPaidBy", new { paid = default(DateTime) },
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
         }
+
+        private static void InitializeMutationSchema(GraphQLSchema<MemContext> schema)
+        {
+            var mutate = schema.AddType<MutateMe>();
+            mutate.AddAllFields();
+
+            schema.AddField("mutateMes", new {id = 0}, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddMutation("mutate",
+                new {id = 0, newVal = 0},
+                (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id),
+                (db, args) =>
+                {
+                    var mutateMe = db.MutateMes.First(m => m.Id == args.id);
+                    mutateMe.Value = args.newVal;
+                });
+        }
     }
 
     public class User
@@ -121,5 +144,11 @@ namespace Tests
     public class Sub
     {
         public int Id { get; set; }
+    }
+
+    public class MutateMe
+    {
+        public int Id { get; set; }
+        public int Value { get; set; }
     }
 }

@@ -49,11 +49,16 @@ namespace GraphQL.Net
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
 
-        public GraphQLFieldBuilder<TContext, TField> AddField< TField>
-            (string name, Expression<Func<TEntity, TField>> expr)
+        public GraphQLFieldBuilder<TContext, TField> AddField<TField>(string name, Expression<Func<TEntity, TField>> expr)
         {
             var lambda = Expression.Lambda<Func<TContext, TEntity, TField>>(expr.Body, GraphQLSchema<TContext>.DbParam, expr.Parameters[0]);
             return AddField(name.ToCamelCase(), lambda);
+        }
+
+        public GraphQLFieldBuilder<TContext, TField> AddListField<TField>(string name, Expression<Func<TEntity, IEnumerable<TField>>> expr)
+        {
+            var lambda = Expression.Lambda<Func<TContext, TEntity, IEnumerable<TField>>>(expr.Body, GraphQLSchema<TContext>.DbParam, expr.Parameters[0]);
+            return AddListField(name.ToCamelCase(), lambda);
         }
 
         // Overload provided for easily adding properties, e.g.  AddField(u => u.Name);

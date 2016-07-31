@@ -118,27 +118,27 @@ namespace GraphQL.Net
             AddEnum<TypeKind>("__TypeKind");
             AddEnum<DirectiveLocation>("__DirectiveLocation");
             var ischema = AddType<IntroSchema>("__Schema");
-            ischema.AddField("types", s => s.Types);
+            ischema.AddListField("types", s => s.Types);
             ischema.AddField("queryType", s => s.QueryType);
             ischema.AddField("mutationType", s => s.MutationType.OrDefault());
-            ischema.AddField("directives", s => s.Directives);
+            ischema.AddListField("directives", s => s.Directives);
 
             var itype = AddType<IntroType>("__Type");
             itype.AddField("kind", t => t.Kind);
             itype.AddField("name", t => t.Name.OrDefault());
             itype.AddField("description", t => t.Description.OrDefault());
             // TODO: support includeDeprecated filter argument
-            itype.AddField("fields", t => t.Fields.OrDefault());
-            itype.AddField("inputFields", t => t.InputFields.OrDefault());
+            itype.AddListField("fields", t => t.Fields.OrDefault());
+            itype.AddListField("inputFields", t => t.InputFields.OrDefault());
             itype.AddField ("ofType", s => s.OfType.OrDefault());
-            itype.AddField("interfaces", s => s.Interfaces.OrDefault());
-            itype.AddField("possibleTypes", s => s.PossibleTypes.OrDefault());
+            itype.AddListField("interfaces", s => s.Interfaces.OrDefault());
+            itype.AddListField("possibleTypes", s => s.PossibleTypes.OrDefault());
 
             var ifield = AddType<IntroField>("__Field");
 
             ifield.AddField("name", f => f.Name);
             ifield.AddField("description", f => f.Description.OrDefault());
-            ifield.AddField("args", f => f.Args);
+            ifield.AddListField("args", f => f.Args);
             ifield.AddField("type", f => f.Type);
             ifield.AddField("isDeprecated", f => f.IsDeprecated);
             ifield.AddField("deprecationReason", f => f.DeprecationReason.OrDefault());
@@ -160,8 +160,8 @@ namespace GraphQL.Net
 
             idirective.AddField("name", d => d.Name);
             idirective.AddField("description", d => d.Description.OrDefault());
-            idirective.AddField("locations", d => d.Locations);
-            idirective.AddField("args", d => d.Args);
+            idirective.AddListField("locations", d => d.Locations);
+            idirective.AddListField("args", d => d.Args);
 
             this.AddField("__schema", _ => IntroSchema.Of(Adapter));
             this.AddField("__type", new { name = "" },

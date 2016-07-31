@@ -57,6 +57,7 @@ namespace Tests.EF
             InitializeUserSchema(schema);
             InitializeAccountSchema(schema);
             InitializeMutationSchema(schema);
+            InitializeNullRefSchema(schema);
             schema.Complete();
             return new GraphQL<EfContext>(schema);
         }
@@ -67,6 +68,7 @@ namespace Tests.EF
             user.AddField(u => u.Id);
             user.AddField(u => u.Name);
             user.AddField(u => u.Account);
+            user.AddField(u => u.NullRef);
             user.AddField("total", (db, u) => db.Users.Count());
             user.AddField("accountPaid", (db, u) => u.Account.Paid);
             user.AddPostField("abc", () => GetAbcPostField());
@@ -111,6 +113,12 @@ namespace Tests.EF
                 });
         }
 
+        private static void InitializeNullRefSchema(GraphQLSchema<EfContext> schema)
+        {
+            var nullRef = schema.AddType<NullRef>();
+            nullRef.AddField(n => n.Id);
+        }
+
         [Test] public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
         [Test] public void AliasOneField() => GenericTests.AliasOneField(CreateDefaultContext());
         [Test] public void NestedEntity() => GenericTests.NestedEntity(CreateDefaultContext());
@@ -126,6 +134,7 @@ namespace Tests.EF
         [Test] public void DateTimeFilter() => GenericTests.DateTimeFilter(CreateDefaultContext());
         [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(CreateDefaultContext());
         [Test] public void SimpleMutation() => GenericTests.SimpleMutation(CreateDefaultContext());
+        [Test] public void NullPropagation() => GenericTests.NullPropagation(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -159,6 +168,7 @@ namespace Tests.EF
             public IDbSet<User> Users { get; set; }
             public IDbSet<Account> Accounts { get; set; }
             public IDbSet<MutateMe> MutateMes { get; set; }
+            public IDbSet<NullRef> NullRefs { get; set; }
         }
 
         class User
@@ -169,6 +179,9 @@ namespace Tests.EF
 
             public int AccountId { get; set; }
             public Account Account { get; set; }
+
+            public int? NullRefId { get; set; }
+            public NullRef NullRef { get; set; }
         }
 
         class Account
@@ -185,6 +198,11 @@ namespace Tests.EF
         {
             public int Id { get; set; }
             public int Value { get; set; }
+        }
+
+        class NullRef
+        {
+            public int Id { get; set; }
         }
     }
 }

@@ -101,5 +101,11 @@ namespace Tests
             var results2 = gql.ExecuteQuery("mutation { mutate(id:1,newVal:123) { id, value } }");
             Test.DeepEquals(results2, "{ mutate: { id: 1, value: 123 } }");
         }
+
+        public static void NullPropagation<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery("{ user(id:1) { id, nullRef { id } } }");
+            Test.DeepEquals(results, "{ user: { id: 1, nullRef: null } }");
+        }
     }
 }

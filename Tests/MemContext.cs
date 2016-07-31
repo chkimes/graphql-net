@@ -53,6 +53,7 @@ namespace Tests
         public List<User> Users { get; set; } = new List<User>();
         public List<Account> Accounts { get; set; } = new List<Account>();
         public List<MutateMe> MutateMes { get; set; } = new List<MutateMe>();
+        public List<NullRef> NullRefs { get; set; } = new List<NullRef>();
 
         public static GraphQL<MemContext> CreateDefaultContext()
         {
@@ -68,6 +69,7 @@ namespace Tests
             InitializeUserSchema(schema);
             InitializeAccountSchema(schema);
             InitializeMutationSchema(schema);
+            InitializeNullRefSchema(schema);
             return schema;
         }
 
@@ -77,6 +79,7 @@ namespace Tests
             user.AddField(u => u.Id);
             user.AddField(u => u.Name);
             user.AddField(u => u.Account);
+            user.AddField(u => u.NullRef);
             user.AddField("total", (db, u) => db.Users.Count);
             user.AddField("accountPaid", (db, u) => u.Account.Paid);
             user.AddPostField("abc", () => GetAbcPostField());
@@ -119,6 +122,12 @@ namespace Tests
                     mutateMe.Value = args.newVal;
                 });
         }
+
+        private static void InitializeNullRefSchema(GraphQLSchema<MemContext> schema)
+        {
+            var nullRef = schema.AddType<NullRef>();
+            nullRef.AddField(n => n.Id);
+        }
     }
 
     public class User
@@ -129,6 +138,9 @@ namespace Tests
 
         public int AccountId { get; set; }
         public Account Account { get; set; }
+
+        public int? NullRefId { get; set; }
+        public NullRef NullRef { get; set; }
     }
 
     public class Account
@@ -150,5 +162,10 @@ namespace Tests
     {
         public int Id { get; set; }
         public int Value { get; set; }
+    }
+
+    public class NullRef
+    {
+        public int Id { get; set; }
     }
 }

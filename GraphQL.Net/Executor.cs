@@ -24,17 +24,23 @@ namespace GraphQL.Net
         {
             field.RunMutation(context, query.Arguments.Values());
 
+            var queryableFuncExpr = field.GetExpression(query.Arguments.Values());
+            var replaced = (LambdaExpression)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+
+            // sniff queryable provider to determine how selector should be built
+            var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
+            var castAssignment = dummyQuery.GetType().Name.StartsWith("EnumerableQuery");
+            var selector = GetSelector(field.Type, query.Selections.Values(), castAssignment);
+
             if (field.ResolutionType != ResolutionType.Unmodified)
             {
-                var queryableFuncExpr = field.GetExpression(query.Arguments.Values());
-                var replaced = (LambdaExpression)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
-                var selector = GetSelector(field.Type, query.Selections.Values());
-
                 var selectorExpr = Expression.Quote(selector);
+
                 // TODO: This should be temporary - queryable and enumerable should both work 
                 var body = replaced.Body;
                 if (body.NodeType == ExpressionType.Convert)
                     body = ((UnaryExpression) body).Operand;
+
                 var call = Expression.Call(typeof(Queryable), "Select", new[] { field.Type.CLRType, field.Type.QueryType }, body, selectorExpr);
                 var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
                 var transformed = (IQueryable<object>)expr.Compile().DynamicInvoke(context);
@@ -61,9 +67,6 @@ namespace GraphQL.Net
             }
             else
             {
-                var funcExpr = field.GetExpression(query.Arguments.Values());
-                var replaced = (LambdaExpression)ParameterReplacer.Replace(funcExpr, funcExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
-                var selector = GetSelector(field.Type, query.Selections.Values());
                 var invocation = Expression.Invoke(selector, replaced.Body);
                 var expr = Expression.Lambda(invocation, GraphQLSchema<TContext>.DbParam);
                 var result = expr.Compile().DynamicInvoke(context);
@@ -93,7 +96,7 @@ namespace GraphQL.Net
 
                 if (field.IsPost && map.Selections.Any())
                 {
-                    var selector = GetSelector(field.Type, map.Selections.Values());
+                    var selector = GetSelector(field.Type, map.Selections.Values(), castAssignment: true);
                     obj = selector.Compile().DynamicInvoke(obj);
                 }
 
@@ -121,26 +124,28 @@ namespace GraphQL.Net
             return dict;
         }
 
-        private static LambdaExpression GetSelector(GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections)
+        private static LambdaExpression GetSelector(GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, bool castAssignment)
         {
             var parameter = Expression.Parameter(gqlType.CLRType, "p");
-            var init = GetMemberInit(gqlType.QueryType, selections, parameter);
+            var init = GetMemberInit(gqlType.QueryType, selections, parameter, castAssignment);
             return Expression.Lambda(init, parameter);
         }
 
-        private static MemberInitExpression GetMemberInit(Type queryType, IEnumerable<ExecSelection<Info>> selections, Expression baseBindingExpr)
+        private static ConditionalExpression GetMemberInit(Type queryType, IEnumerable<ExecSelection<Info>> selections, Expression baseBindingExpr, bool castAssignment)
         {
             var bindings = selections
                 .Where(m => !m.SchemaField.Field().IsPost)
-                .Select(map => GetBinding(map, queryType, baseBindingExpr)).ToList();
+                .Select(map => GetBinding(map, queryType, baseBindingExpr, castAssignment)).ToList();
 
-            return Expression.MemberInit(Expression.New(queryType), bindings);
+            var memberInit = Expression.MemberInit(Expression.New(queryType), bindings);
+            var equals = Expression.Equal(baseBindingExpr, Expression.Constant(null));
+            return Expression.Condition(equals, Expression.Constant(null, queryType), memberInit);
         }
 
-        private static MemberBinding GetBinding(ExecSelection<Info> map, Type toType, Expression baseBindingExpr)
+        private static MemberBinding GetBinding(ExecSelection<Info> map, Type toType, Expression baseBindingExpr, bool castAssignment)
         {
             var field = map.SchemaField.Field();
-            var toMember = toType.GetMember(map.SchemaField.FieldName)[0];
+            var toMember = toType.GetProperty(map.SchemaField.FieldName);
             // expr is form of: (context, entity) => entity.Field
             var expr = field.GetExpression(map.Arguments.Values());
 
@@ -153,7 +158,11 @@ namespace GraphQL.Net
 
             // If there aren't any children, then we can assume that this is a scalar entity and we don't have to map child fields
             if (!map.Selections.Any())
+            {
+                if (castAssignment && expr.Body.Type != toMember.PropertyType)
+                    replacedContext = Expression.Convert(replacedContext, toMember.PropertyType);
                 return Expression.Bind(toMember, replacedContext);
+            }
 
             // If binding a single entity, just use the already built selector expression (replaced context)
             // Otherwise, if binding to a list, introduce a new parameter that will be used in a call to .Select
@@ -162,7 +171,7 @@ namespace GraphQL.Net
             var bindChildrenTo = map.SchemaField.Field().IsList ? listParameter : replacedContext;
 
             // Now that we have our new binding parameter, build the tree for the rest of the children
-            var memberInit = GetMemberInit(field.Type.QueryType, map.Selections.Values(), bindChildrenTo);
+            var memberInit = GetMemberInit(field.Type.QueryType, map.Selections.Values(), bindChildrenTo, castAssignment);
 
             // For single entities, we're done and we can just bind to the memberInit expression
             if (!field.IsList)

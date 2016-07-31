@@ -109,5 +109,11 @@ namespace GraphQL.Net
         {
             return type.IsValueType ? Activator.CreateInstance(type) : null;
         }
+
+        public static bool AssignableToNull(Type type)
+            => type.IsClass || IsAssignableToGenericType(type, typeof (Nullable<>));
+
+        public static Type MakeNullable(Type type)
+            => AssignableToNull(type) ? type : typeof (Nullable<>).MakeGenericType(type);
     }
 }

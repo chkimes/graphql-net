@@ -140,8 +140,13 @@ namespace GraphQL.Net
                 .Select(map => GetBinding(map, queryType, baseBindingExpr, castAssignment)).ToList();
 
             var memberInit = Expression.MemberInit(Expression.New(queryType), bindings);
-            var equals = Expression.Equal(baseBindingExpr, Expression.Constant(null));
-            return Expression.Condition(equals, Expression.Constant(null, queryType), memberInit);
+            return NullPropagate(baseBindingExpr, memberInit);
+        }
+
+        private static ConditionalExpression NullPropagate(Expression baseExpr, Expression returnExpr)
+        {
+            var equals = Expression.Equal(baseExpr, Expression.Constant(null));
+            return Expression.Condition(equals, Expression.Constant(null, returnExpr.Type), returnExpr);
         }
 
         private static MemberBinding GetBinding(ExecSelection<Info> map, Type toType, Expression baseBindingExpr, bool castAssignment)
@@ -179,11 +184,11 @@ namespace GraphQL.Net
             if (!field.IsList)
                 return Expression.Bind(toMember, memberInit);
 
-            // However for lists, we need to call .Select() and .ToList() first
+            // However for lists, we need to check for null and call .Select() and .ToList() first
             var selectLambda = Expression.Lambda(memberInit, listParameter);
             var call = Expression.Call(typeof (Enumerable), "Select", new[] { field.Type.CLRType, field.Type.QueryType}, replacedContext, selectLambda);
             var toList = Expression.Call(typeof (Enumerable), "ToList", new[] { field.Type.QueryType}, call);
-            return Expression.Bind(toMember, toList);
+            return Expression.Bind(toMember, NullPropagate(replacedContext, toList));
         }
     }
 }

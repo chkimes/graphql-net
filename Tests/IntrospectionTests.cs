@@ -63,7 +63,6 @@ namespace Tests
         }
 
         [Test]
-        [Ignore("This test depends on issue #30 (null checks for in-memory queries)")]
         public void SchemaTypes()
         {
             // TODO: Use Test.DeepEquals once we get all the primitive type noise sorted out

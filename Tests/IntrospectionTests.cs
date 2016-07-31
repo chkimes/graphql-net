@@ -28,6 +28,7 @@ namespace Tests
                               { name: 'id' },
                               { name: 'name' },
                               { name: 'account' },
+                              { name: 'nullRef' },
                               { name: 'total' },
                               { name: 'accountPaid' },
                               { name: 'abc' },

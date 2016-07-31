@@ -30,9 +30,7 @@ namespace GraphQL.Net
             // sniff queryable provider to determine how selector should be built
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
             var queryType = dummyQuery.GetType();
-            var castAssignment = queryType.Name.StartsWith("EnumerableQuery") // execute in-memory against IEnumerable
-                || queryType.FullName.StartsWith("GraphQL.Parser"); // execute in-memory against introspection types
-            var selector = GetSelector(field.Type, query.Selections.Values(), castAssignment);
+            var selector = GetSelector(field.Type, query.Selections.Values(), new ExpressionOptions(queryType));
 
             if (field.ResolutionType != ResolutionType.Unmodified)
             {
@@ -98,7 +96,7 @@ namespace GraphQL.Net
 
                 if (field.IsPost && map.Selections.Any())
                 {
-                    var selector = GetSelector(field.Type, map.Selections.Values(), castAssignment: true);
+                    var selector = GetSelector(field.Type, map.Selections.Values(), new ExpressionOptions(castAssignment: true));
                     obj = selector.Compile().DynamicInvoke(obj);
                 }
 
@@ -126,18 +124,18 @@ namespace GraphQL.Net
             return dict;
         }
 
-        private static LambdaExpression GetSelector(GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, bool castAssignment)
+        private static LambdaExpression GetSelector(GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, ExpressionOptions options)
         {
             var parameter = Expression.Parameter(gqlType.CLRType, "p");
-            var init = GetMemberInit(gqlType.QueryType, selections, parameter, castAssignment);
+            var init = GetMemberInit(gqlType.QueryType, selections, parameter, options);
             return Expression.Lambda(init, parameter);
         }
 
-        private static ConditionalExpression GetMemberInit(Type queryType, IEnumerable<ExecSelection<Info>> selections, Expression baseBindingExpr, bool castAssignment)
+        private static ConditionalExpression GetMemberInit(Type queryType, IEnumerable<ExecSelection<Info>> selections, Expression baseBindingExpr, ExpressionOptions options)
         {
             var bindings = selections
                 .Where(m => !m.SchemaField.Field().IsPost)
-                .Select(map => GetBinding(map, queryType, baseBindingExpr, castAssignment)).ToList();
+                .Select(map => GetBinding(map, queryType, baseBindingExpr, options)).ToList();
 
             var memberInit = Expression.MemberInit(Expression.New(queryType), bindings);
             return NullPropagate(baseBindingExpr, memberInit);
@@ -149,7 +147,7 @@ namespace GraphQL.Net
             return Expression.Condition(equals, Expression.Constant(null, returnExpr.Type), returnExpr);
         }
 
-        private static MemberBinding GetBinding(ExecSelection<Info> map, Type toType, Expression baseBindingExpr, bool castAssignment)
+        private static MemberBinding GetBinding(ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
         {
             var field = map.SchemaField.Field();
             var toMember = toType.GetProperty(map.SchemaField.FieldName);
@@ -166,7 +164,7 @@ namespace GraphQL.Net
             // If there aren't any children, then we can assume that this is a scalar entity and we don't have to map child fields
             if (!map.Selections.Any())
             {
-                if (castAssignment && expr.Body.Type != toMember.PropertyType)
+                if (options.CastAssignment && expr.Body.Type != toMember.PropertyType)
                     replacedContext = Expression.Convert(replacedContext, toMember.PropertyType);
                 return Expression.Bind(toMember, replacedContext);
             }
@@ -178,7 +176,7 @@ namespace GraphQL.Net
             var bindChildrenTo = map.SchemaField.Field().IsList ? listParameter : replacedContext;
 
             // Now that we have our new binding parameter, build the tree for the rest of the children
-            var memberInit = GetMemberInit(field.Type.QueryType, map.Selections.Values(), bindChildrenTo, castAssignment);
+            var memberInit = GetMemberInit(field.Type.QueryType, map.Selections.Values(), bindChildrenTo, options);
 
             // For single entities, we're done and we can just bind to the memberInit expression
             if (!field.IsList)
@@ -188,7 +186,30 @@ namespace GraphQL.Net
             var selectLambda = Expression.Lambda(memberInit, listParameter);
             var call = Expression.Call(typeof (Enumerable), "Select", new[] { field.Type.CLRType, field.Type.QueryType}, replacedContext, selectLambda);
             var toList = Expression.Call(typeof (Enumerable), "ToList", new[] { field.Type.QueryType}, call);
-            return Expression.Bind(toMember, NullPropagate(replacedContext, toList));
+            return Expression.Bind(toMember, options.NullCheckLists ? (Expression)NullPropagate(replacedContext, toList) : toList);
+        }
+
+        private class ExpressionOptions
+        {
+            public ExpressionOptions(bool castAssignment = false, bool nullCheckLists = false)
+            {
+                CastAssignment = castAssignment;
+                NullCheckLists = nullCheckLists;
+            }
+
+            public ExpressionOptions(Type queryType)
+            {
+                var inMemory = queryType.Name.StartsWith("EnumerableQuery") // execute in-memory against IEnumerable
+                    || queryType.FullName.StartsWith("GraphQL.Parser");     // execute in-memory against introspection types
+
+                var entityFramework = queryType.Name.StartsWith("DbQuery");
+
+                CastAssignment = inMemory;
+                NullCheckLists = !entityFramework;
+            }
+
+            public bool CastAssignment { get; }
+            public bool NullCheckLists { get; }
         }
     }
 }

@@ -40,7 +40,6 @@ namespace Tests
         }
 
         [Test]
-        [Ignore("This test depends on issue #30 (null checks for in-memory queries)")]
         public void ChildFieldType()
         {
             var gql = MemContext.CreateDefaultContext();
@@ -50,13 +49,14 @@ namespace Tests
                       __type: {
                           fields: [
                               { name: 'id', type: { name: null, kind: 'NON_NULL', ofType: { name: 'Int', kind: 'SCALAR' } } },
-                              { name: 'name', type: { name: 'String', kind: 'SCALAR' } },
-                              { name: 'account', type: { name: 'Account', kind: 'OBJECT' } },
+                              { name: 'name', type: { name: 'String', kind: 'SCALAR', ofType: null } },
+                              { name: 'account', type: { name: 'Account', kind: 'OBJECT', ofType: null } },
+                              { name: 'nullRef', type: { name: 'NullRef', kind: 'OBJECT', ofType: null } },
                               { name: 'total', type: { name: null, kind: 'NON_NULL', ofType: { name: 'Int', kind: 'SCALAR' } } },
-                              { name: 'accountPaid', { name: null, kind: 'NON_NULL', ofType: { name: 'Boolean', kind: 'SCALAR' } } },
-                              { name: 'abc', type: { name: 'String', kind: 'SCALAR' } },
-                              { name: 'sub', type: { name: 'Sub', kind: 'OBJECT' } },
-                              { name: '__typename', type: { name: 'String', kind: 'SCALAR' } }
+                              { name: 'accountPaid', type: { name: null, kind: 'NON_NULL', ofType: { name: 'Boolean', kind: 'SCALAR' } } },
+                              { name: 'abc', type: { name: 'String', kind: 'SCALAR', ofType: null } },
+                              { name: 'sub', type: { name: 'Sub', kind: 'OBJECT', ofType: null } },
+                              { name: '__typename', type: { name: 'String', kind: 'SCALAR', ofType: null } }
                           ]
                       }
                   }");

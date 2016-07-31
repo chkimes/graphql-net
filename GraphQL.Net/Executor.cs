@@ -29,7 +29,9 @@ namespace GraphQL.Net
 
             // sniff queryable provider to determine how selector should be built
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
-            var castAssignment = dummyQuery.GetType().Name.StartsWith("EnumerableQuery");
+            var queryType = dummyQuery.GetType();
+            var castAssignment = queryType.Name.StartsWith("EnumerableQuery") // execute in-memory against IEnumerable
+                || queryType.FullName.StartsWith("GraphQL.Parser"); // execute in-memory against introspection types
             var selector = GetSelector(field.Type, query.Selections.Values(), castAssignment);
 
             if (field.ResolutionType != ResolutionType.Unmodified)

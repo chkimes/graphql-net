@@ -85,6 +85,12 @@ namespace GraphQL.Net
                     ? field.PostFieldFunc()
                     : type.GetProperty(field.Name).GetGetMethod().Invoke(queryObject, new object[] {});
 
+                if (obj == null)
+                {
+                    dict.Add(key, null);
+                    continue;
+                }
+
                 if (field.IsPost && map.Selections.Any())
                 {
                     var selector = GetSelector(field.Type, map.Selections.Values());

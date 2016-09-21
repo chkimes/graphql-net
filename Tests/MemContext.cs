@@ -106,6 +106,8 @@ namespace Tests
             schema.AddField
                 ("accountPaidBy", new { paid = default(DateTime) },
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
+            schema.AddListField("accountsByGuid", new {guid = Guid.Empty},
+                    (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
         }
 
         private static void InitializeMutationSchema(GraphQLSchema<MemContext> schema)

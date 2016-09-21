@@ -113,5 +113,16 @@ namespace Tests
             var results = gql.ExecuteQuery("{ account(id:1) { id, someGuid } }");
             Test.DeepEquals(results, "{ account: { id: 1, someGuid: '00000000-0000-0000-0000-000000000000' } }");
         }
+
+        public static void GuidParameter<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery("{ accountsByGuid(guid:\"00000000-0000-0000-0000-000000000000\") { id, someGuid } }");
+            Test.DeepEquals(results, @"{
+                                           accountsByGuid: [
+                                               { id: 1, someGuid: '00000000-0000-0000-0000-000000000000' },
+                                               { id: 2, someGuid: '00000000-0000-0000-0000-000000000000' },
+                                           ]
+                                       }");
+        }
     }
 }

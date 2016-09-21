@@ -36,7 +36,7 @@ namespace Tests.EF
                 var account2 = new Account
                 {
                     Name = "Another Test Account",
-                    Paid = false
+                    Paid = false,
                 };
                 db.Accounts.Add(account2);
                 var user2 = new User
@@ -95,6 +95,8 @@ namespace Tests.EF
             schema.AddField
                 ("accountPaidBy", new { paid = default(DateTime) },
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
+            schema.AddListField("accountsByGuid", new {guid = Guid.Empty},
+                    (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
         }
 
         private static void InitializeMutationSchema(GraphQLSchema<EfContext> schema)
@@ -137,6 +139,7 @@ namespace Tests.EF
         [Test] public void SimpleMutation() => GenericTests.SimpleMutation(CreateDefaultContext());
         [Test] public void NullPropagation() => GenericTests.NullPropagation(CreateDefaultContext());
         [Test] public void GuidField() => GenericTests.GuidField(CreateDefaultContext());
+        [Test] public void GuidParameter() => GenericTests.GuidParameter(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -159,6 +162,12 @@ namespace Tests.EF
 
         class EfContext : DbContext
         {
+            static EfContext()
+            {
+                // This is necessary to make the SQLite provider work with Guids
+                Environment.SetEnvironmentVariable("AppendManifestToken_SQLiteProviderManifest", ";BinaryGUID=True;");
+            }
+
             public EfContext() : base("DefaultConnection") { }
 
             protected override void OnModelCreating(DbModelBuilder modelBuilder)

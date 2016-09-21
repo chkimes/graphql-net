@@ -131,6 +131,17 @@ type BuiltinTypeHandler() =
                     } |> NamedType).NotNullable()
                 , fun v -> v.GetBoolean() |> box
                 )
+
+            new TypeMapping
+                ( typeof<Guid>
+                ,
+                    ({ new ISchemaVariableType with
+                        member this.TypeName = "Guid"
+                        member this.CoreType = PrimitiveType StringType
+                        member this.ValidateValue(value) = true
+                    } |> NamedType).NotNullable()
+                , fun v -> v.GetString() |> Guid.Parse |> box
+                )
         ] |> Seq.map (fun t -> t.CLRType, t) |> dictionary
     interface ITypeHandler with
         member this.DefinedTypes =

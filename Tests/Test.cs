@@ -16,7 +16,7 @@ namespace Tests
         {
             var expected = JObject.Parse(json);
             var actual = JObject.FromObject(results, Serializer);
-            if (JToken.DeepEquals(actual, expected))
+            if (expected.ToString() == actual.ToString())
                 return;
 
             throw new Exception($"Results do not match expectation:\n\nExpected:\n{expected}\n\nActual:\n{actual}");

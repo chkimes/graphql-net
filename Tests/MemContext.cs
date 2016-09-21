@@ -98,6 +98,7 @@ namespace Tests
             account.AddField(a => a.Id);
             account.AddField(a => a.Name);
             account.AddField(a => a.Paid);
+            account.AddField(a => a.SomeGuid);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
 
@@ -105,6 +106,8 @@ namespace Tests
             schema.AddField
                 ("accountPaidBy", new { paid = default(DateTime) },
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
+            schema.AddListField("accountsByGuid", new {guid = Guid.Empty},
+                    (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
         }
 
         private static void InitializeMutationSchema(GraphQLSchema<MemContext> schema)
@@ -149,6 +152,7 @@ namespace Tests
         public string Name { get; set; }
         public bool Paid { get; set; }
         public DateTime? PaidUtc { get; set; }
+        public Guid SomeGuid { get; set; }
 
         public List<User> Users { get; set; }
     }

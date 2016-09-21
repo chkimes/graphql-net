@@ -15,6 +15,7 @@ build/
 bld/
 [Bb]in/
 [Oo]bj/
+*.nupkg
 
 # Roslyn cache directories
 *.ide/

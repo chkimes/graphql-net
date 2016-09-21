@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity;
 using System.Linq;
@@ -72,6 +73,7 @@ namespace Tests.EF
             user.AddField(u => u.Name);
             user.AddField(u => u.Account);
             user.AddField(u => u.NullRef);
+            user.AddField(u => u.ServerTimestamp);
             user.AddField("total", (db, u) => db.Users.Count());
             user.AddField("accountPaid", (db, u) => u.Account.Paid);
             user.AddPostField("abc", () => GetAbcPostField());
@@ -198,13 +200,16 @@ namespace Tests.EF
             [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
             public Guid? Id { get; set; }
             public string Name { get; set; }
-            public bool Active { get; set; }
+            public bool Active { get; set; } 
 
             public int AccountId { get; set; }
             public Account Account { get; set; }
 
             public int? NullRefId { get; set; }
             public NullRef NullRef { get; set; }
+
+            [Timestamp]
+            public byte[] ServerTimestamp { get; set; }
         }
 
         public class Account

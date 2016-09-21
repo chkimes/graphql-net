@@ -27,6 +27,7 @@ namespace Tests
         [Test] public void NullPropagation() => GenericTests.NullPropagation(MemContext.CreateDefaultContext());
         [Test] public void GuidField() => GenericTests.GuidField(MemContext.CreateDefaultContext());
         [Test] public void GuidParameter() => GenericTests.GuidParameter(MemContext.CreateDefaultContext());
+        [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

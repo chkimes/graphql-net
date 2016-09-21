@@ -88,6 +88,7 @@ namespace Tests.EF
             account.AddField(a => a.Name);
             account.AddField(a => a.Paid);
             account.AddField(a => a.SomeGuid);
+            account.AddField(a => a.ByteArray);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
 
@@ -140,6 +141,7 @@ namespace Tests.EF
         [Test] public void NullPropagation() => GenericTests.NullPropagation(CreateDefaultContext());
         [Test] public void GuidField() => GenericTests.GuidField(CreateDefaultContext());
         [Test] public void GuidParameter() => GenericTests.GuidParameter(CreateDefaultContext());
+        [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -202,6 +204,7 @@ namespace Tests.EF
             public bool Paid { get; set; }
             public DateTime? PaidUtc { get; set; }
             public Guid SomeGuid { get; set; }
+            public byte[] ByteArray { get; set; } = {1, 2, 3, 4};
 
             public List<User> Users { get; set; }
         }

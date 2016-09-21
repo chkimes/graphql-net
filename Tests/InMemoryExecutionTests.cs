@@ -25,6 +25,7 @@ namespace Tests
         [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(MemContext.CreateDefaultContext());
         [Test] public void SimpleMutation() => GenericTests.SimpleMutation(MemContext.CreateDefaultContext());
         [Test] public void NullPropagation() => GenericTests.NullPropagation(MemContext.CreateDefaultContext());
+        [Test] public void GuidField() => GenericTests.GuidField(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

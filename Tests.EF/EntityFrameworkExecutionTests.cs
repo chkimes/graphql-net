@@ -87,6 +87,7 @@ namespace Tests.EF
             account.AddField(a => a.Id);
             account.AddField(a => a.Name);
             account.AddField(a => a.Paid);
+            account.AddField(a => a.SomeGuid);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
 
@@ -135,6 +136,7 @@ namespace Tests.EF
         [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(CreateDefaultContext());
         [Test] public void SimpleMutation() => GenericTests.SimpleMutation(CreateDefaultContext());
         [Test] public void NullPropagation() => GenericTests.NullPropagation(CreateDefaultContext());
+        [Test] public void GuidField() => GenericTests.GuidField(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -190,6 +192,7 @@ namespace Tests.EF
             public string Name { get; set; }
             public bool Paid { get; set; }
             public DateTime? PaidUtc { get; set; }
+            public Guid SomeGuid { get; set; }
 
             public List<User> Users { get; set; }
         }

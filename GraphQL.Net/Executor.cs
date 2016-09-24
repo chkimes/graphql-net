@@ -199,13 +199,13 @@ namespace GraphQL.Net
 
             public ExpressionOptions(Type queryType)
             {
-                var inMemory = queryType.Name.StartsWith("EnumerableQuery") // execute in-memory against IEnumerable
-                    || queryType.FullName.StartsWith("GraphQL.Parser");     // execute in-memory against introspection types
+                var inMemory = queryType.FullName.StartsWith("System.Linq.EnumerableQuery") // execute in-memory against IEnumerable
+                            || queryType.FullName.StartsWith("GraphQL.Parser");             // execute in-memory against introspection types
 
-                var entityFramework = queryType.Name.StartsWith("DbQuery");
+                var entityFramework = queryType.FullName.StartsWith("System.Data.Entity.Infrastructure.DbQuery");
 
-                CastAssignment = inMemory;
-                NullCheckLists = !entityFramework;
+                CastAssignment = !entityFramework;
+                NullCheckLists = inMemory;
             }
 
             public bool CastAssignment { get; }

@@ -99,6 +99,7 @@ namespace Tests
             account.AddField(a => a.Name);
             account.AddField(a => a.Paid);
             account.AddField(a => a.SomeGuid);
+            account.AddField(a => a.ByteArray);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
 
@@ -153,6 +154,7 @@ namespace Tests
         public bool Paid { get; set; }
         public DateTime? PaidUtc { get; set; }
         public Guid SomeGuid { get; set; }
+        public byte[] ByteArray { get; set; } = {1, 2, 3, 4};
 
         public List<User> Users { get; set; }
     }

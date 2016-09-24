@@ -124,5 +124,11 @@ namespace Tests
                                            ]
                                        }");
         }
+
+        public static void ByteArrayParameter<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery("{ account(id:1) { id, byteArray } }");
+            Test.DeepEquals(results, "{ account: { id: 1, byteArray: 'AQIDBA==' } }"); // [1, 2, 3, 4] serialized to base64 by Json.NET
+        }
     }
 }

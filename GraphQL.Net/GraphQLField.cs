@@ -67,7 +67,7 @@ namespace GraphQL.Net
         private static GraphQLField NewInternal<TArgs>(GraphQLSchema schema, string name, Func<TArgs, LambdaExpression> exprFunc, Type fieldCLRType, Delegate mutationFunc)
         {
             var isList = false;
-            if (TypeHelpers.IsAssignableToGenericType(fieldCLRType, typeof (IEnumerable<>)) && fieldCLRType != typeof(string))
+            if (fieldCLRType.IsGenericType && TypeHelpers.IsAssignableToGenericType(fieldCLRType, typeof (IEnumerable<>)))
             {
                 fieldCLRType = fieldCLRType.GetGenericArguments()[0];
                 isList = true;

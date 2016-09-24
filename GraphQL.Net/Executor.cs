@@ -43,7 +43,7 @@ namespace GraphQL.Net
 
                 var call = Expression.Call(typeof(Queryable), "Select", new[] { field.Type.CLRType, field.Type.QueryType }, body, selectorExpr);
                 var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
-                var transformed = (IQueryable<object>)expr.Compile().DynamicInvoke(context);
+                var transformed = expr.Compile().DynamicInvoke(context);
 
                 object results;
                 switch (field.ResolutionType)
@@ -51,13 +51,16 @@ namespace GraphQL.Net
                     case ResolutionType.Unmodified:
                         throw new Exception("Queries cannot have unmodified resolution. May change in the future.");
                     case ResolutionType.ToList:
-                        results = transformed.ToList().Select(o => MapResults(o, query.Selections.Values())).ToList();
+                        var list = GenericQueryableCall<IEnumerable<object>>(transformed, q => q.ToList());
+                        results = list.Select(o => MapResults(o, query.Selections.Values())).ToList();
                         break;
                     case ResolutionType.FirstOrDefault:
-                        results = MapResults(transformed.FirstOrDefault(), query.Selections.Values());
+                        var fod = GenericQueryableCall(transformed, q => q.FirstOrDefault());
+                        results = MapResults(fod, query.Selections.Values());
                         break;
                     case ResolutionType.First:
-                        results = MapResults(transformed.First(), query.Selections.Values());
+                        var first = GenericQueryableCall(transformed, q => q.FirstOrDefault());
+                        results = MapResults(first, query.Selections.Values());
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -72,6 +75,21 @@ namespace GraphQL.Net
                 var result = expr.Compile().DynamicInvoke(context);
                 return MapResults(result, query.Selections.Values());
             }
+        }
+
+        private static TReturn GenericQueryableCall<TReturn>(object queryable, Expression<Func<IQueryable<object>, TReturn>> call)
+        {
+            var entityType = queryable.GetType().GetGenericArguments()[0];
+            var mce = call.Body as MethodCallExpression;
+            var genericMethod = mce.Method.GetGenericMethodDefinition();
+
+            var newMethod = genericMethod.MakeGenericMethod(entityType);
+            var newParameter = Expression.Parameter(typeof (IQueryable<>).MakeGenericType(entityType));
+            var newArguments = mce.Arguments.Select(a => ParameterReplacer.Replace(a, call.Parameters[0], newParameter));
+            var newCall = Expression.Call(newMethod, newArguments);
+            var newLambda = Expression.Lambda(newCall, newParameter);
+
+            return (TReturn)newLambda.Compile().DynamicInvoke(queryable);
         }
 
         private static IDictionary<string, object> MapResults(object queryObject, IEnumerable<ExecSelection<Info>> selections)

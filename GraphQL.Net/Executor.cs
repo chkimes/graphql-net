@@ -77,6 +77,16 @@ namespace GraphQL.Net
             }
         }
 
+        // This takes a Queryable<T> as an object, and executes a T-typed method call against it
+        // That is, you define a `call` in terms of Queryable<object> and it will be converted to Queryable<T>
+        //
+        // ex:  GenericQueryableCall(queryableAsObj, q => q.FirstOrDefault());
+        //
+        // In this case, the generic method is represented at compiled time as FirstOrDefault<object>.
+        // However, the generic type is replaced at runtime to FirstOrDefault<T> then dynamically invoked on `queryable`
+        //
+        // This is necessary for NHibernate, which inspects the generic type of the method executing the queryable.
+        // So, if the queryable is of compile-time type IQueryable<object> instead of IQueryable<TEntity>, NHibernate will fail on execution
         private static TReturn GenericQueryableCall<TReturn>(object queryable, Expression<Func<IQueryable<object>, TReturn>> call)
         {
             var entityType = queryable.GetType().GetGenericArguments()[0];

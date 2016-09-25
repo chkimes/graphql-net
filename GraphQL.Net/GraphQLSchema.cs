@@ -18,6 +18,7 @@ namespace GraphQL.Net
     {
         internal readonly Func<TContext> ContextCreator;
         private readonly List<GraphQLType> _types = new List<GraphQLType>();
+        private readonly List<ExpressionOptions> _expressionOptions = new List<ExpressionOptions>();
         internal bool Completed;
 
         public static readonly ParameterExpression DbParam = Expression.Parameter(typeof (TContext), "db");
@@ -26,6 +27,7 @@ namespace GraphQL.Net
         {
             ContextCreator = contextCreator;
             AddType<TContext>("queryType");
+            AddDefaultExpressionOptions();
         }
 
         public void AddEnum<TEnum>(string name = null, string prefix = null) where TEnum : struct // wish we could do where TEnum : Enum
@@ -75,6 +77,30 @@ namespace GraphQL.Net
                 throw new KeyNotFoundException($"Type {typeof(TEntity).FullName} could not be found.");
 
             return new GraphQLTypeBuilder<TContext, TEntity>(this, type);
+        }
+
+        public GraphQLSchema<TContext> WithExpressionOptions(Func<Type, bool> validForQueryType, bool castAssignment = true, bool nullCheckLists = false)
+        {
+            _expressionOptions.Insert(0, new ExpressionOptions(validForQueryType, castAssignment, nullCheckLists));
+            return this;
+        }
+
+        internal ExpressionOptions GetOptionsForQueryable(Type queryType)
+            => _expressionOptions.FirstOrDefault(o => o.ValidForQueryType(queryType));
+
+        private void AddDefaultExpressionOptions()
+        {
+            // these will execute in reverse order
+
+            // Default
+            WithExpressionOptions(t => true, castAssignment: true, nullCheckLists: false);
+
+            // In-memory against IEnumerable or Schema (introspection)
+            WithExpressionOptions(t => t.FullName.StartsWith("System.Linq.EnumerableQuery")
+                                    || t.FullName.StartsWith("GraphQL.Parser"), castAssignment: true, nullCheckLists: true);
+
+            // Entity Framework
+            WithExpressionOptions(t => t.FullName.StartsWith("System.Data.Entity.Infrastructure.DbQuery"), castAssignment: false, nullCheckLists: false);
         }
 
         internal Schema<TContext> Adapter { get; private set; }

@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="DynamicTypeBuilder.cs" />
     <Compile Include="Executor.cs" />
+    <Compile Include="ExpressionOptions.cs" />
     <Compile Include="GraphQL.cs" />
     <Compile Include="GraphQLField.cs" />
     <Compile Include="GraphQLFieldBuilder.cs" />

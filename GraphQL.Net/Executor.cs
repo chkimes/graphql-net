@@ -14,13 +14,13 @@ namespace GraphQL.Net
             (GraphQLSchema<TContext> schema, GraphQLField field, ExecSelection<Info> query)
         {
             var context = schema.ContextCreator();
-            var results = Execute(context, field, query);
+            var results = Execute(schema, context, field, query);
             (context as IDisposable)?.Dispose();
             return results;
         }
 
         public static object Execute
-            (TContext context, GraphQLField field, ExecSelection<Info> query)
+            (GraphQLSchema<TContext> schema, TContext context, GraphQLField field, ExecSelection<Info> query)
         {
             field.RunMutation(context, query.Arguments.Values());
 
@@ -30,7 +30,7 @@ namespace GraphQL.Net
             // sniff queryable provider to determine how selector should be built
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
             var queryType = dummyQuery.GetType();
-            var selector = GetSelector(field.Type, query.Selections.Values(), new ExpressionOptions(queryType));
+            var selector = GetSelector(field.Type, query.Selections.Values(), schema.GetOptionsForQueryable(queryType));
 
             if (field.ResolutionType != ResolutionType.Unmodified)
             {
@@ -114,7 +114,7 @@ namespace GraphQL.Net
 
                 if (field.IsPost && map.Selections.Any())
                 {
-                    var selector = GetSelector(field.Type, map.Selections.Values(), new ExpressionOptions(castAssignment: true));
+                    var selector = GetSelector(field.Type, map.Selections.Values(), new ExpressionOptions(null, castAssignment: true));
                     obj = selector.Compile().DynamicInvoke(obj);
                 }
 
@@ -205,29 +205,6 @@ namespace GraphQL.Net
             var call = Expression.Call(typeof (Enumerable), "Select", new[] { field.Type.CLRType, field.Type.QueryType}, replacedContext, selectLambda);
             var toList = Expression.Call(typeof (Enumerable), "ToList", new[] { field.Type.QueryType}, call);
             return Expression.Bind(toMember, options.NullCheckLists ? (Expression)NullPropagate(replacedContext, toList) : toList);
-        }
-
-        private class ExpressionOptions
-        {
-            public ExpressionOptions(bool castAssignment = false, bool nullCheckLists = false)
-            {
-                CastAssignment = castAssignment;
-                NullCheckLists = nullCheckLists;
-            }
-
-            public ExpressionOptions(Type queryType)
-            {
-                var inMemory = queryType.FullName.StartsWith("System.Linq.EnumerableQuery") // execute in-memory against IEnumerable
-                            || queryType.FullName.StartsWith("GraphQL.Parser");             // execute in-memory against introspection types
-
-                var entityFramework = queryType.FullName.StartsWith("System.Data.Entity.Infrastructure.DbQuery");
-
-                CastAssignment = !entityFramework;
-                NullCheckLists = inMemory;
-            }
-
-            public bool CastAssignment { get; }
-            public bool NullCheckLists { get; }
         }
     }
 }

@@ -1,1 +1,0 @@
-﻿The files in the "Integration" folder are intended to make it easier to use this library from C# programs.

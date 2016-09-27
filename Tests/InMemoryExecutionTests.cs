@@ -28,6 +28,8 @@ namespace Tests
         [Test] public void GuidField() => GenericTests.GuidField(MemContext.CreateDefaultContext());
         [Test] public void GuidParameter() => GenericTests.GuidParameter(MemContext.CreateDefaultContext());
         [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(MemContext.CreateDefaultContext());
+        [Test] public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
+        [Test] public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

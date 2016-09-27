@@ -18,11 +18,28 @@ namespace GraphQL.Net
 
         // This overload is provided to the user so they can shape TArgs with an anonymous type and rely on type inference for type parameters
         // e.g.  AddField("profilePic", new { size = 0 }, (db, user) => db.ProfilePics.Where(p => p.UserId == u.Id && p.Size == args.size));
+        [Obsolete]
         public GraphQLFieldBuilder<TContext, TField> AddField<TArgs, TField>(string name, TArgs shape, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
             => AddField(name, exprFunc);
 
+        [Obsolete]
         public GraphQLFieldBuilder<TContext, TField> AddListField<TArgs, TField>(string name, TArgs shape, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc)
             => AddListField(name, exprFunc);
+
+        public GraphQLFieldBuilder<TContext, TField> AddField<TArgs, TField>(string name, TArgs shape, Expression<Func<TContext, TArgs, TEntity, TField>> exprFunc)
+            => AddFieldInternal(name, AdjustExprFunc(exprFunc), null);
+
+        public GraphQLFieldBuilder<TContext, TField> AddListField<TArgs, TField>(string name, TArgs shape, Expression<Func<TContext, TArgs, TEntity, IEnumerable<TField>>> exprFunc)
+            => AddListFieldInternal(name, AdjustExprFunc(exprFunc), null);
+
+        public Func<TArgs, Expression<Func<TContext, TEntity, TReturn>>> AdjustExprFunc<TArgs, TReturn>(Expression<Func<TContext, TArgs, TEntity, TReturn>> exprFunc)
+        {
+            var param = exprFunc.Parameters[1];
+            var transformedExpr = Expression.Lambda(Expression.Convert(exprFunc.Body, typeof(TReturn)), exprFunc.Parameters[0], exprFunc.Parameters[2]);
+            var quoted = Expression.Quote(transformedExpr);
+            var final = Expression.Lambda<Func<TArgs, Expression<Func<TContext, TEntity, TReturn>>>>(quoted, param);
+            return final.Compile();
+        }
 
         // See GraphQLSchema.AddField for an explanation of the type of exprFunc, since it follows similar reasons
         // TL:DR; Fields can have parameters passed in, so the Expression<Func> to be used is dependent on TArgs
@@ -84,10 +101,10 @@ namespace GraphQL.Net
 
         // Overload provided for adding fields with no arguments, e.g.  AddField("totalCount", (db, u) => db.Users.Count());
         public GraphQLFieldBuilder<TContext, TField> AddField<TField>(string name, Expression<Func<TContext, TEntity, TField>> expr)
-            => AddField(name, new object(), o => expr);
+            => AddField<object, TField>(name, o => expr);
 
         public GraphQLFieldBuilder<TContext, TField> AddListField<TField>(string name, Expression<Func<TContext, TEntity, IEnumerable<TField>>> expr)
-            => AddListField(name, new object(), o => expr);
+            => AddListField<object, TField>(name, o => expr);
 
         public void AddAllFields()
         {

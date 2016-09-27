@@ -130,5 +130,23 @@ namespace Tests
             var results = gql.ExecuteQuery("{ account(id:1) { id, byteArray } }");
             Test.DeepEquals(results, "{ account: { id: 1, byteArray: 'AQIDBA==' } }"); // [1, 2, 3, 4] serialized to base64 by Json.NET
         }
+
+        public static void ChildListFieldWithParameters<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery("{ account(id:1) { id, name, usersWithActive(active:true) { id, name } } }");
+            Test.DeepEquals(results, "{ account: { id: 1, name: 'My Test Account', usersWithActive: [{ id: 1, name: 'Joe User' }] } }");
+
+            results = gql.ExecuteQuery("{ account(id:1) { id, name, usersWithActive(active:false) { id, name } } }");
+            Test.DeepEquals(results, "{ account: { id: 1, name: 'My Test Account', usersWithActive: [] } }");
+        }
+
+        public static void ChildFieldWithParameters<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery("{ account(id:1) { id, name, firstUserWithActive(active:true) { id, name } } }");
+            Test.DeepEquals(results, "{ account: { id: 1, name: 'My Test Account', firstUserWithActive: { id: 1, name: 'Joe User' } } }");
+
+            results = gql.ExecuteQuery("{ account(id:1) { id, name, firstUserWithActive(active:false) { id, name } } }");
+            Test.DeepEquals(results, "{ account: { id: 1, name: 'My Test Account', firstUserWithActive: null } }");
+        }
     }
 }

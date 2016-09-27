@@ -91,6 +91,8 @@ namespace Tests.EF
             account.AddField(a => a.ByteArray);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
+            account.AddListField("usersWithActive", new {active = false}, (db, args, a) => a.Users.Where(u => u.Active == args.active));
+            account.AddField("firstUserWithActive", new {active = false}, (db, args, a) => a.Users.FirstOrDefault(u => u.Active == args.active));
 
             schema.AddField("account", new {id = 0}, (db, args) => db.Accounts.FirstOrDefault(a => a.Id == args.id));
             schema.AddField
@@ -142,6 +144,8 @@ namespace Tests.EF
         [Test] public void GuidField() => GenericTests.GuidField(CreateDefaultContext());
         [Test] public void GuidParameter() => GenericTests.GuidParameter(CreateDefaultContext());
         [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(CreateDefaultContext());
+        [Test] public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
+        [Test] public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

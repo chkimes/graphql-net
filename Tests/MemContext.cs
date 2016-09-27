@@ -102,6 +102,8 @@ namespace Tests
             account.AddField(a => a.ByteArray);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
+            account.AddListField("usersWithActive", new {active = false}, (db, args, a) => a.Users.Where(u => u.Active == args.active));
+            account.AddField("firstUserWithActive", new {active = false}, (db, args, a) => a.Users.FirstOrDefault(u => u.Active == args.active));
 
             schema.AddField("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.Id == args.id));
             schema.AddField

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphQL.Net", "GraphQL.Net\GraphQL.Net.csproj", "{530742A1-10D8-4255-837D-43D57B00EE50}"
 EndProject
@@ -14,6 +14,8 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GraphQL.Parser.Test", "GraphQL.Parser.Test\GraphQL.Parser.Test.fsproj", "{75CDF08F-DBCF-4C68-B713-377776337BBF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests.EF", "Tests.EF\Tests.EF.csproj", "{C7F0C31C-202E-4185-9083-4D0485CEA861}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests.NH", "Tests.NH\Tests.NH.csproj", "{DC9479D5-BF7F-4342-A090-3035AE2A6564}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,6 +43,10 @@ Global
 		{C7F0C31C-202E-4185-9083-4D0485CEA861}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C7F0C31C-202E-4185-9083-4D0485CEA861}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C7F0C31C-202E-4185-9083-4D0485CEA861}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC9479D5-BF7F-4342-A090-3035AE2A6564}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC9479D5-BF7F-4342-A090-3035AE2A6564}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC9479D5-BF7F-4342-A090-3035AE2A6564}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC9479D5-BF7F-4342-A090-3035AE2A6564}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

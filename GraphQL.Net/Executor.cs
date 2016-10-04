@@ -55,7 +55,9 @@ namespace GraphQL.Net
                         results = list.Select(o => MapResults(o, query.Selections.Values())).ToList();
                         break;
                     case ResolutionType.FirstOrDefault:
-                        var fod = GenericQueryableCall(transformed, q => q.FirstOrDefault());
+                        var fod = queryType.FullName.StartsWith("NHibernate.Linq.NhQueryable")
+                            ? ((IQueryable<object>) transformed).Take(1).ToList().FirstOrDefault() // workaround for NHibernate, see https://nhibernate.jira.com/browse/NH-3665
+                            : GenericQueryableCall(transformed, q => q.FirstOrDefault());
                         results = MapResults(fod, query.Selections.Values());
                         break;
                     case ResolutionType.First:

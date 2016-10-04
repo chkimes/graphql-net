@@ -150,7 +150,7 @@ namespace Tests.NH
 
 		private static void InitializeMutationSchema(GraphQLSchema<TestNhService> schema)
 		{
-			var mutate = schema.AddType<MutateMe>();
+			var mutate = schema.AddType<Entities.MutateMe>();
 			mutate.AddAllFields();
 
 			schema.AddField("mutateMes", new { id = 0 }, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));

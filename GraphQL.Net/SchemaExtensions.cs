@@ -16,6 +16,14 @@ namespace GraphQL.Net
         public static GraphQLFieldBuilder<TContext, TEntity> AddListField<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, IEnumerable<TEntity>>> queryableGetter)
             => AddListField(context, name, queryableGetter);
 
+        [Obsolete]
+        public static GraphQLFieldBuilder<TContext, TEntity> AddMutation<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, TEntity>> queryableGetter, Action<TContext, TArgs> mutation)
+            => AddMutation(context, name, argObj, mutation, queryableGetter);
+
+        [Obsolete]
+        public static GraphQLFieldBuilder<TContext, TEntity> AddListMutation<TContext, TArgs, TEntity>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Expression<Func<TContext, TArgs, IEnumerable<TEntity>>> queryableGetter, Action<TContext, TArgs> mutation)
+            => AddListMutation(context, name, argObj, mutation, queryableGetter);
+
         public static GraphQLFieldBuilder<TContext, TEntity> AddMutation<TContext, TArgs, TEntity, TMutReturn>(this GraphQLSchema<TContext> context, string name, TArgs argObj, Func<TContext, TArgs, TMutReturn> mutation, Expression<Func<TContext, TArgs, TMutReturn, TEntity>> queryableGetter)
             => AddMutation(context, name, queryableGetter, mutation);
 

@@ -22,9 +22,9 @@ namespace GraphQL.Net
         public static object Execute
             (GraphQLSchema<TContext> schema, TContext context, GraphQLField field, ExecSelection<Info> query)
         {
-            field.RunMutation(context, query.Arguments.Values());
+            var mutReturn = field.RunMutation(context, query.Arguments.Values());
 
-            var queryableFuncExpr = field.GetExpression(query.Arguments.Values());
+            var queryableFuncExpr = field.GetExpression(query.Arguments.Values(), mutReturn);
             var replaced = (LambdaExpression)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
 
             // sniff queryable provider to determine how selector should be built

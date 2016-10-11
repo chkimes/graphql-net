@@ -110,13 +110,23 @@ namespace Tests.EF
             schema.AddField("mutateMes", new {id = 0}, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
             schema.AddMutation("mutate",
                 new {id = 0, newVal = 0},
-                (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id),
                 (db, args) =>
                 {
                     var mutateMe = db.MutateMes.First(m => m.Id == args.id);
                     mutateMe.Value = args.newVal;
                     db.SaveChanges();
-                });
+                },
+                (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddMutation("addMutate",
+                new {newVal = 0},
+                (db, args) =>
+                {
+                    var newMutate = new MutateMe {Value = args.newVal};
+                    db.MutateMes.Add(newMutate);
+                    db.SaveChanges();
+                    return newMutate.Id;
+                },
+                (db, args, id) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == id));
         }
 
         private static void InitializeNullRefSchema(GraphQLSchema<EfContext> schema)
@@ -140,6 +150,7 @@ namespace Tests.EF
         [Test] public void DateTimeFilter() => GenericTests.DateTimeFilter(CreateDefaultContext());
         [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(CreateDefaultContext());
         [Test] public void SimpleMutation() => GenericTests.SimpleMutation(CreateDefaultContext());
+        [Test] public void MutationWithReturn() => GenericTests.MutationWithReturn(CreateDefaultContext());
         [Test] public void NullPropagation() => GenericTests.NullPropagation(CreateDefaultContext());
         [Test] public void GuidField() => GenericTests.GuidField(CreateDefaultContext());
         [Test] public void GuidParameter() => GenericTests.GuidParameter(CreateDefaultContext());

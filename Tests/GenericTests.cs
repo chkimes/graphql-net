@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using GraphQL.Net;
 using NUnit.Framework;
 
@@ -100,6 +101,12 @@ namespace Tests
 
             var results2 = gql.ExecuteQuery("mutation { mutate(id:1,newVal:123) { id, value } }");
             Test.DeepEquals(results2, "{ mutate: { id: 1, value: 123 } }");
+        }
+
+        public static void MutationWithReturn<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery("mutation { addMutate(newVal: 7) { value } }");
+            Test.DeepEquals(results, "{ addMutate: { value: 7 } }");
         }
 
         public static void NullPropagation<TContext>(GraphQL<TContext> gql)

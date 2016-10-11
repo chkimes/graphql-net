@@ -121,12 +121,23 @@ namespace Tests
             schema.AddField("mutateMes", new {id = 0}, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
             schema.AddMutation("mutate",
                 new {id = 0, newVal = 0},
-                (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id),
                 (db, args) =>
                 {
                     var mutateMe = db.MutateMes.First(m => m.Id == args.id);
                     mutateMe.Value = args.newVal;
-                });
+                },
+                (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddMutation("addMutate",
+                new {newVal = 0},
+                (db, args) =>
+                {
+                    var newMutate = new MutateMe {Value = args.newVal};
+                    db.MutateMes.Add(newMutate);
+                    // simulate Id being set by database
+                    newMutate.Id = db.MutateMes.Max(m => m.Id) + 1;
+                    return newMutate.Id;
+                },
+                (db, args, id) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == id));
         }
 
         private static void InitializeNullRefSchema(GraphQLSchema<MemContext> schema)

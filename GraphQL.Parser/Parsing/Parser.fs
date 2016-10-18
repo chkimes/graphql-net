@@ -389,7 +389,7 @@ Or, with directives:
 
 let fragmentSpread =
     %% "..."
-    -..- +.name
+    -..- +.(name >>= fun n -> if n = "on" then fail "keyword" else preturn n)
     ?- ignored -- +.optionalMany directives
     -%> fun name dirs ->
         { FragmentName = name; Directives = dirs } : FragmentSpread

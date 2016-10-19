@@ -278,7 +278,7 @@ namespace Tests.EF
                 Database.SetInitializer(new SqliteDropCreateDatabaseWhenModelChanges<EfContext>(modelBuilder));
                 base.OnModelCreating(modelBuilder);
             }
-
+            
             public IDbSet<User> Users { get; set; }
             public IDbSet<Account> Accounts { get; set; }
             public IDbSet<MutateMe> MutateMes { get; set; }

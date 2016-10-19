@@ -190,8 +190,8 @@ type Resolver<'s>
             failAt pos (sprintf "fragment ``%s'' is recursive" pfrag.FragmentName)
         let sub = new Resolver<'s>(schemaType, opContext, recursionDepth, pfrag.FragmentName :: fragmentContext)
         let directives = sub.ResolveDirectives(pfrag.Directives)
-        let selections = sub.ResolveSelections(pfrag.Selections)
         let typeCondition = sub.ResolveTypeCondition(pfrag.TypeCondition, pos)
+        let selections = sub.ResolveSelections(pfrag.Selections, typeCondition)
         {
             FragmentName = pfrag.FragmentName
             TypeCondition = typeCondition

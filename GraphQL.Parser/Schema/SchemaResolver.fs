@@ -143,35 +143,44 @@ type Resolver<'s>
                         Source = pos
                     }
         |] :> IReadOnlyList<_>
-    member private this.ResolveFieldSelection(pfield : ParserAST.Field, pos : SourceInfo) =
+
+
+    member private this.ResolveFieldSelection(pfield: ParserAST.Field, pos : SourceInfo, fieldInfo : ISchemaField<'s>) =
+        let directives = this.ResolveDirectives(pfield.Directives)
+        let arguments = this.ResolveArguments(fieldInfo.Arguments, pfield.Arguments)
+        let selections =
+            if pfield.Selections.Count <= 0 then
+                [||] :> IReadOnlyList<_>
+            else
+                match fieldInfo.FieldType with
+                | QueryField queryType ->
+                    if recursionDepth >= maxRecursionDepth then
+                        failAt
+                            pfield.Selections.[0].Source
+                            (sprintf "exceeded maximum recursion depth of %d" maxRecursionDepth)
+                    let child = new Resolver<'s>(queryType, opContext, recursionDepth + 1, fragmentContext)
+                    child.ResolveSelections(pfield.Selections)
+                | ValueField _ ->
+                    fieldInfo.FieldName
+                    |> sprintf "field ``%s'' is a value type and cannot be selected from"
+                    |> failAt pos
+        {
+            SchemaField = fieldInfo
+            Alias = pfield.Alias
+            Directives = directives
+            Arguments = arguments
+            Selections = selections
+        }
+
+    member private this.ResolveFieldSelection(pfield : ParserAST.Field, pos : SourceInfo, ?typeCondtionType: ISchemaQueryType<'s>) =
         match schemaType.Fields.TryFind(pfield.FieldName) with
-        | None -> failAt pos (sprintf "``%s'' is not a field of type ``%s''" pfield.FieldName schemaType.TypeName)
-        | Some fieldInfo ->
-            let directives = this.ResolveDirectives(pfield.Directives)
-            let arguments = this.ResolveArguments(fieldInfo.Arguments, pfield.Arguments)
-            let selections =
-                if pfield.Selections.Count <= 0 then
-                    [||] :> IReadOnlyList<_>
-                else
-                    match fieldInfo.FieldType with
-                    | QueryField queryType ->
-                        if recursionDepth >= maxRecursionDepth then
-                            failAt
-                                pfield.Selections.[0].Source
-                                (sprintf "exceeded maximum recursion depth of %d" maxRecursionDepth)
-                        let child = new Resolver<'s>(queryType, opContext, recursionDepth + 1, fragmentContext)
-                        child.ResolveSelections(pfield.Selections)
-                    | ValueField _ ->
-                        fieldInfo.FieldName
-                        |> sprintf "field ``%s'' is a value type and cannot be selected from"
-                        |> failAt pos
-            {
-                SchemaField = fieldInfo
-                Alias = pfield.Alias
-                Directives = directives
-                Arguments = arguments
-                Selections = selections
-            }
+        | None -> match typeCondtionType with
+                  | None -> failAt pos (sprintf "``%s'' is not a field of type ``%s''" pfield.FieldName schemaType.TypeName)
+                  | Some condType ->  match condType.Fields.TryFind(pfield.FieldName) with
+                                      | None -> failAt pos (sprintf "``%s'' is not a field of included type ``%s''" pfield.FieldName condType.TypeName)
+                                      | Some fieldInfo  -> this.ResolveFieldSelection(pfield, pos, fieldInfo)
+        | Some fieldInfo -> this.ResolveFieldSelection(pfield, pos, fieldInfo)
+           
     member private __.ResolveTypeCondition(typeName : string, pos : SourceInfo) =
         match opContext.Schema.QueryTypes.TryFind(typeName) with
         | None -> failAt pos (sprintf "unknown type ``%s'' in type condition" typeName)
@@ -202,20 +211,20 @@ type Resolver<'s>
     member private this.ResolveInlineFragment
         (pinline : ParserAST.InlineFragment, pos : SourceInfo) =
         let directives = this.ResolveDirectives(pinline.Directives)
-        let selections = this.ResolveSelections(pinline.Selections)
         let typeCondition =
             match pinline.TypeCondition with
             | None -> None
             | Some typeName -> Some <| this.ResolveTypeCondition(typeName, pos)
+        let selections = this.ResolveSelections(pinline.Selections, ?typeCondtionType = typeCondition)
         {
             TypeCondition = typeCondition
             Directives = directives
             Selections = selections
         }
-    member private this.ResolveSelection(pselection : ParserAST.Selection, pos : SourceInfo) =
+    member private this.ResolveSelection(pselection : ParserAST.Selection, pos : SourceInfo, ?typeCondtionType: ISchemaQueryType<'s>) =
         match pselection with
         | ParserAST.FieldSelection pfield ->
-            this.ResolveFieldSelection(pfield, pos)
+            this.ResolveFieldSelection(pfield, pos, ?typeCondtionType = typeCondtionType)
             |> FieldSelection
         | ParserAST.FragmentSpreadSelection pfragmentSpread ->
             this.ResolveFragmentSpreadSelection(pfragmentSpread, pos)
@@ -223,10 +232,10 @@ type Resolver<'s>
         | ParserAST.InlineFragmentSelection pinlineFragment ->
             this.ResolveInlineFragment(pinlineFragment, pos)
             |> InlineFragmentSelection
-    member this.ResolveSelections(pselections : ParserAST.Selection WithSource seq) =
+    member this.ResolveSelections(pselections : ParserAST.Selection WithSource seq, ?typeCondtionType: ISchemaQueryType<'s>) =
         [|
             for { Source = pos; Value = pselection } in pselections do
-                yield { Source = pos; Value = this.ResolveSelection(pselection, pos) }
+                yield { Source = pos; Value = this.ResolveSelection(pselection, pos, ?typeCondtionType = typeCondtionType) }
         |] :> IReadOnlyList<_>
     member this.ResolveOperation(poperation : ParserAST.Operation, pos : SourceInfo) =
         match poperation with

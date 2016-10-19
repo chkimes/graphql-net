@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -149,6 +150,22 @@ namespace GraphQL.Net
             var field = GraphQLField.Post(_schema, name, fieldFunc);
             _type.Fields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
+        }
+        
+        // TODO: This could return another GraphQLTypeBuilder with less functionality, maybe nested includes should not be allowed.
+        public GraphQLTypeBuilder<TContext, TEntity> IncludeType<TEntity>(string name = null, string description = null)
+        {
+            var type = typeof(TEntity);
+            if (_type.IncludedTypes.Any(t => t.CLRType == type))
+                throw new ArgumentException("Type has already been included");
+
+            var gqlType = new GraphQLType(type) { IsScalar = type.IsPrimitive, Description = description ?? "" };
+            if (!string.IsNullOrEmpty(name))
+                gqlType.Name = name;
+
+            _type.IncludedTypes.Add(gqlType);
+
+            return new GraphQLTypeBuilder<TContext, TEntity>(_schema, gqlType);
         }
     }
 }

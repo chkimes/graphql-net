@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using GraphQL.Parser;
 using GraphQL.Parser.CS;
 
@@ -31,10 +33,23 @@ namespace GraphQL.Net.SchemaAdapters
         {
             RootType = new SchemaRootType(this, schema.GetGQLType(typeof(TContext)));
             _schema = schema;
-            _queryTypes = schema.Types
+            var rootTypes = schema.Types
                 .Where(t => !t.IsScalar)
                 .Select(OfType)
                 .ToDictionary(t => t.TypeName, t => t as ISchemaQueryType<Info>);
+
+            // Add the included types
+            var includedTypes = schema.Types.SelectMany(t => t.IncludedTypes)
+                .Select(OfType)
+                .ToDictionary(t => t.TypeName, t => t as ISchemaQueryType<Info>);
+
+            _queryTypes = new [] {rootTypes, includedTypes}.SelectMany(dict => dict)
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+            foreach (var k in _queryTypes.Keys)
+            {
+                Console.WriteLine(k);
+            }
         }
 
         public override IReadOnlyDictionary<string, ISchemaQueryType<Info>> QueryTypes

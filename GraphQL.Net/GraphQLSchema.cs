@@ -21,7 +21,7 @@ namespace GraphQL.Net
         private readonly List<ExpressionOptions> _expressionOptions = new List<ExpressionOptions>();
         internal bool Completed;
 
-        public static readonly ParameterExpression DbParam = Expression.Parameter(typeof (TContext), "db");
+        public static readonly ParameterExpression DbParam = Expression.Parameter(typeof(TContext), "db");
 
         public GraphQLSchema(Func<TContext> contextCreator)
         {
@@ -58,11 +58,11 @@ namespace GraphQL.Net
 
         public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string name = null, string description = null)
         {
-            var type = typeof (TEntity);
+            var type = typeof(TEntity);
             if (_types.Any(t => t.CLRType == type))
                 throw new ArgumentException("Type has already been added");
 
-            var gqlType = new GraphQLType(type) {IsScalar = type.IsPrimitive, Description = description ?? ""};
+            var gqlType = new GraphQLType(type) { IsScalar = type.IsPrimitive, Description = description ?? "" };
             if (!string.IsNullOrEmpty(name))
                 gqlType.Name = name;
             _types.Add(gqlType);
@@ -72,7 +72,7 @@ namespace GraphQL.Net
 
         public GraphQLTypeBuilder<TContext, TEntity> GetType<TEntity>()
         {
-            var type = _types.FirstOrDefault(t => t.CLRType == typeof (TEntity));
+            var type = _types.FirstOrDefault(t => t.CLRType == typeof(TEntity));
             if (type == null)
                 throw new KeyNotFoundException($"Type {typeof(TEntity).FullName} could not be found.");
 
@@ -135,7 +135,9 @@ namespace GraphQL.Net
                 return;
             }
 
-            var fieldDict = type.Fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.IsScalar ? TypeHelpers.MakeNullable(f.Type.CLRType) : typeof (object));
+            // Find the field of the type and all included types
+            var fields = type.Fields.Concat(type.IncludedTypes.SelectMany(t => t.Fields));
+            var fieldDict = fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.IsScalar ? TypeHelpers.MakeNullable(f.Type.CLRType) : typeof(object));
             type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), fieldDict);
         }
 
@@ -156,7 +158,7 @@ namespace GraphQL.Net
             // TODO: support includeDeprecated filter argument
             itype.AddListField("fields", t => t.Fields.OrDefault());
             itype.AddListField("inputFields", t => t.InputFields.OrDefault());
-            itype.AddField ("ofType", s => s.OfType.OrDefault());
+            itype.AddField("ofType", s => s.OfType.OrDefault());
             itype.AddListField("interfaces", s => s.Interfaces.OrDefault());
             itype.AddListField("possibleTypes", s => s.PossibleTypes.OrDefault());
 
@@ -174,7 +176,7 @@ namespace GraphQL.Net
             ivalue.AddField("description", v => v.Description.OrDefault());
             ivalue.AddField("type", v => v.Type);
             ivalue.AddField("defaultValue", v => v.DefaultValue.OrDefault());
-                
+
             var ienumValue = AddType<IntroEnumValue>("__EnumValue");
 
             ienumValue.AddField("name", e => e.Name);
@@ -198,14 +200,39 @@ namespace GraphQL.Net
             foreach (var type in _types.Where(t => !t.IsScalar))
             {
                 var genMethod = method.MakeGenericMethod(type.CLRType);
-                genMethod.Invoke(this, new object[] {type});
+                genMethod.Invoke(this, new object[] { type });
             }
         }
 
         private void AddTypeNameField<TEntity>(GraphQLType type)
         {
             var builder = new GraphQLTypeBuilder<TContext, TEntity>(this, type);
-            builder.AddPostField("__typename", () => type.Name);
+            if (!type.IncludedTypes.Any())
+            {
+                // No included types, type name is constant.
+                builder.AddPostField("__typename", () => type.Name);
+            }
+            else
+            {
+                var param = Expression.Parameter(typeof(TEntity));
+
+                // Generate a nested if-else-expression with all included types.
+                // Add the base type name as the last else-expression
+                Expression elseExpr = Expression.Constant(type.CLRType.Name);
+
+                // Add type checks for all included types#
+                foreach (var includedType in type.IncludedTypes)
+                {
+                    var testExpr = Expression.TypeIs(param, includedType.CLRType);
+                    var expr = Expression.Constant(includedType.CLRType.Name);
+                    elseExpr = Expression.Condition(testExpr, expr, elseExpr);
+                }
+                
+                //var lambda = Expression.Lambda<Func<TEntity, string>>(Expression.Block(exprs), param);
+                var lambda = Expression.Lambda<Func<TEntity, string>>(elseExpr, param);
+
+                builder.AddField<string>("__typename", lambda);
+            }
         }
 
         // This signature is pretty complicated, but necessarily so.

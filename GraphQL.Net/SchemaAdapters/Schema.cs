@@ -45,11 +45,6 @@ namespace GraphQL.Net.SchemaAdapters
 
             _queryTypes = new [] {rootTypes, includedTypes}.SelectMany(dict => dict)
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
-
-            foreach (var k in _queryTypes.Keys)
-            {
-                Console.WriteLine(k);
-            }
         }
 
         public override IReadOnlyDictionary<string, ISchemaQueryType<Info>> QueryTypes

@@ -115,10 +115,16 @@ namespace GraphQL.Net
                 var obj = field.IsPost
                     ? field.PostFieldFunc()
                     : type.GetProperty(field.Name).GetGetMethod().Invoke(queryObject, new object[] {});
-
+                
                 if (obj == null)
                 {
-                    dict.Add(key, null);
+                    // Filter fields for selections with type conditions
+                    // TODO: Check whether this field is part of the type in type conditions or not.
+                    if (map.TypeCondition == null)
+                    {
+                        dict.Add(key, null);
+                    }
+                    
                     continue;
                 }
 

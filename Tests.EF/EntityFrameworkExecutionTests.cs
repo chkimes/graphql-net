@@ -295,7 +295,7 @@ namespace Tests.EF
         }
 
         [Test]
-        public void QueryFragementWithoutTypenameField()
+        public void QueryInlineFragementWithoutTypenameField()
         {
             var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
             InitializeCharacterSchema(schema);
@@ -303,6 +303,24 @@ namespace Tests.EF
 
             var gql = new GraphQL<EfContext>(schema);
             var results = gql.ExecuteQuery("{ heros { name, ... on Stormtrooper { height, specialization } } }");
+            Test.DeepEquals(
+                results,
+                "{ heros: [ " +
+                "{ name: 'Han Solo',}, " +
+                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
+                "{ name: 'R2-D2', } ] }"
+                );
+        }
+
+        [Test]
+        public void QueryFragementWithoutTypenameField()
+        {
+            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
+            InitializeCharacterSchema(schema);
+            schema.Complete();
+
+            var gql = new GraphQL<EfContext>(schema);
+            var results = gql.ExecuteQuery("{ heros { name, ...stormtrooper } }, fragment stormtrooper on Stormtrooper { height, specialization } ");
             Test.DeepEquals(
                 results,
                 "{ heros: [ " +

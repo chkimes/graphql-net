@@ -276,6 +276,24 @@ namespace Tests.EF
                 );
         }
 
+        [Test]
+        public void QueryFragementWithMultiLevelInheritance()
+        {
+            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
+            InitializeCharacterSchema(schema);
+            schema.Complete();
+
+            var gql = new GraphQL<EfContext>(schema);
+            var results = gql.ExecuteQuery("{ heros { name, __typename, ... on Stormtrooper { height, specialization } } }");
+            Test.DeepEquals(
+                results,
+                "{ heros: [ " +
+                "{ name: 'Han Solo', __typename: 'Human'}, " +
+                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
+                "{ name: 'R2-D2', __typename: 'Droid' } ] }"
+                );
+        }
+
         class Sub
         {
             public int Id { get; set; }

@@ -54,7 +54,7 @@ namespace GraphQL.Net
         // Mutation should be null UNLESS adding a mutation at the schema level
         internal GraphQLFieldBuilder<TContext, TField> AddFieldInternal<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
         {
-            var field = GraphQLField.New(_schema, name, exprFunc, typeof (TField));
+            var field = GraphQLField.New(_schema, name, exprFunc, typeof (TField), _type);
             _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
@@ -62,7 +62,7 @@ namespace GraphQL.Net
         // Mutation should be null UNLESS adding a mutation at the schema level
         internal GraphQLFieldBuilder<TContext, TField> AddListFieldInternal<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc)
         {
-            var field = GraphQLField.New(_schema, name, exprFunc, typeof (IEnumerable<TField>));
+            var field = GraphQLField.New(_schema, name, exprFunc, typeof (IEnumerable<TField>), _type);
             _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
@@ -70,7 +70,7 @@ namespace GraphQL.Net
         // Mutation should be null UNLESS adding a mutation at the schema level
         internal GraphQLFieldBuilder<TContext, TField> AddMutationInternal<TArgs, TField, TMutReturn>(string name, Func<TArgs, TMutReturn, Expression<Func<TContext, TEntity, TField>>> exprFunc, Func<TContext, TArgs, TMutReturn> mutation)
         {
-            var field = GraphQLField.NewMutation(_schema, name, exprFunc, typeof (TField), mutation);
+            var field = GraphQLField.NewMutation(_schema, name, exprFunc, typeof (TField), _type, mutation);
             _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
@@ -78,7 +78,7 @@ namespace GraphQL.Net
         // Mutation should be null UNLESS adding a mutation at the schema level
         internal GraphQLFieldBuilder<TContext, TField> AddListMutationInternal<TArgs, TField, TMutReturn>(string name, Func<TArgs, TMutReturn, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc, Func<TContext, TArgs, TMutReturn> mutation)
         {
-            var field = GraphQLField.NewMutation(_schema, name, exprFunc, typeof (IEnumerable<TField>), mutation);
+            var field = GraphQLField.NewMutation(_schema, name, exprFunc, typeof (IEnumerable<TField>), _type, mutation);
             _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
@@ -142,7 +142,7 @@ namespace GraphQL.Net
             var argsExpr = Expression.Lambda(Expression.Quote(lambda), objectParam);
             var exprFunc = argsExpr.Compile();
 
-            return GraphQLField.New(_schema, prop.Name.ToCamelCase(), (Func<object, LambdaExpression>) exprFunc, prop.PropertyType);
+            return GraphQLField.New(_schema, prop.Name.ToCamelCase(), (Func<object, LambdaExpression>) exprFunc, prop.PropertyType, _type);
         }
 
         public GraphQLFieldBuilder<TContext, TField> AddPostField<TField>(string name, Func<TField> fieldFunc)

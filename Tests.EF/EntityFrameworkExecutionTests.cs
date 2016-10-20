@@ -161,10 +161,10 @@ namespace Tests.EF
             character.AddField(c => c.Name);
             
             var human = schema.AddType<Human>();
-            human.AddField(h => (h as Human).Height);
+            human.AddField(h => h.Height);
 
             var droid = schema.AddType<Droid>();
-            droid.AddField(h => (h as Droid).PrimaryFunction);
+            droid.AddField(h => h.PrimaryFunction);
 
             schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));
             schema.AddListField("heros", db => db.Heros);

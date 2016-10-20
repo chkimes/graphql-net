@@ -39,7 +39,7 @@ namespace GraphQL.Net
                 // TODO: This should be temporary - queryable and enumerable should both work 
                 var body = replaced.Body;
                 if (body.NodeType == ExpressionType.Convert)
-                    body = ((UnaryExpression) body).Operand;
+                    body = ((UnaryExpression)body).Operand;
 
                 var call = Expression.Call(typeof(Queryable), "Select", new[] { field.Type.CLRType, field.Type.QueryType }, body, selectorExpr);
                 var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
@@ -94,7 +94,7 @@ namespace GraphQL.Net
             var genericMethod = mce.Method.GetGenericMethodDefinition();
 
             var newMethod = genericMethod.MakeGenericMethod(entityType);
-            var newParameter = Expression.Parameter(typeof (IQueryable<>).MakeGenericType(entityType));
+            var newParameter = Expression.Parameter(typeof(IQueryable<>).MakeGenericType(entityType));
             var newArguments = mce.Arguments.Select(a => ParameterReplacer.Replace(a, call.Parameters[0], newParameter));
             var newCall = Expression.Call(newMethod, newArguments);
             var newLambda = Expression.Lambda(newCall, newParameter);
@@ -114,8 +114,8 @@ namespace GraphQL.Net
                 var field = map.SchemaField.Field();
                 var obj = field.IsPost
                     ? field.PostFieldFunc()
-                    : type.GetProperty(field.Name).GetGetMethod().Invoke(queryObject, new object[] {});
-                
+                    : type.GetProperty(field.Name).GetGetMethod().Invoke(queryObject, new object[] { });
+
                 if (obj == null)
                 {
                     // Filter fields for selections with type conditions
@@ -124,7 +124,7 @@ namespace GraphQL.Net
                     {
                         dict.Add(key, null);
                     }
-                    
+
                     continue;
                 }
 
@@ -188,6 +188,12 @@ namespace GraphQL.Net
             // expr is form of: (context, entity) => entity.Field
             var expr = field.GetExpression(map.Arguments.Values());
 
+            // Add a type cast to the baseBindingExpression since this field might be a selector of a type condition
+            if (toType != field.DefiningType.CLRType)
+            {
+                baseBindingExpr = Expression.TypeAs(baseBindingExpr, field.DefiningType.CLRType);
+            }
+
             // Replace (entity) with baseBindingExpr, note expression is no longer a LambdaExpression
             // `(context, entity) => entity.Field` becomes `someOtherEntity.Entity.Field` where baseBindingExpr is `someOtherEntity.Entity`
             var replacedBase = ParameterReplacer.Replace(expr.Body, expr.Parameters[1], baseBindingExpr);
@@ -218,8 +224,8 @@ namespace GraphQL.Net
 
             // However for lists, we need to check for null and call .Select() and .ToList() first
             var selectLambda = Expression.Lambda(memberInit, listParameter);
-            var call = Expression.Call(typeof (Enumerable), "Select", new[] { field.Type.CLRType, field.Type.QueryType}, replacedContext, selectLambda);
-            var toList = Expression.Call(typeof (Enumerable), "ToList", new[] { field.Type.QueryType}, call);
+            var call = Expression.Call(typeof(Enumerable), "Select", new[] { field.Type.CLRType, field.Type.QueryType }, replacedContext, selectLambda);
+            var toList = Expression.Call(typeof(Enumerable), "ToList", new[] { field.Type.QueryType }, call);
             return Expression.Bind(toMember, options.NullCheckLists ? (Expression)NullPropagate(replacedContext, toList) : toList);
         }
     }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using GraphQL.Net.SchemaAdapters;
 using GraphQL.Parser.CS;
 using GraphQL.Parser.Execution;
@@ -30,7 +31,8 @@ namespace GraphQL.Net
             // sniff queryable provider to determine how selector should be built
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
             var queryType = dummyQuery.GetType();
-            var selector = GetSelector(field.Type, query.Selections.Values(), schema.GetOptionsForQueryable(queryType));
+            var queryExecSelections = query.Selections.Values();
+            var selector = GetSelector(field.Type, queryExecSelections, schema.GetOptionsForQueryable(queryType));
 
             if (field.ResolutionType != ResolutionType.Unmodified)
             {
@@ -52,15 +54,15 @@ namespace GraphQL.Net
                         throw new Exception("Queries cannot have unmodified resolution. May change in the future.");
                     case ResolutionType.ToList:
                         var list = GenericQueryableCall<IEnumerable<object>>(transformed, q => q.ToList());
-                        results = list.Select(o => MapResults(o, query.Selections.Values())).ToList();
+                        results = list.Select(o => MapResults(o, queryExecSelections, schema)).ToList();
                         break;
                     case ResolutionType.FirstOrDefault:
                         var fod = GenericQueryableCall(transformed, q => q.FirstOrDefault());
-                        results = MapResults(fod, query.Selections.Values());
+                        results = MapResults(fod, queryExecSelections, schema);
                         break;
                     case ResolutionType.First:
                         var first = GenericQueryableCall(transformed, q => q.FirstOrDefault());
-                        results = MapResults(first, query.Selections.Values());
+                        results = MapResults(first, queryExecSelections, schema);
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -73,7 +75,7 @@ namespace GraphQL.Net
                 var invocation = Expression.Invoke(selector, replaced.Body);
                 var expr = Expression.Lambda(invocation, GraphQLSchema<TContext>.DbParam);
                 var result = expr.Compile().DynamicInvoke(context);
-                return MapResults(result, query.Selections.Values());
+                return MapResults(result, queryExecSelections, schema);
             }
         }
 
@@ -102,7 +104,7 @@ namespace GraphQL.Net
             return (TReturn)newLambda.Compile().DynamicInvoke(queryable);
         }
 
-        private static IDictionary<string, object> MapResults(object queryObject, IEnumerable<ExecSelection<Info>> selections)
+        private static IDictionary<string, object> MapResults(object queryObject, IEnumerable<ExecSelection<Info>> selections, GraphQLSchema<TContext> schema)
         {
             if (queryObject == null) // TODO: Check type non-null and throw exception
                 return null;
@@ -116,15 +118,59 @@ namespace GraphQL.Net
                     ? field.PostFieldFunc()
                     : type.GetProperty(field.Name).GetGetMethod().Invoke(queryObject, new object[] { });
 
+
+                // Filter fields for selections with type conditions - the '__typename'-property has to be present.
+                if (map.TypeCondition != null)
+                {
+                    // The selection has a type condition, i.e. the result has a type with included types.
+                    // The result contains all fields of all included types and has to be filtered.
+                    // Sample:
+                    // 
+                    // Types: 
+                    //      - Character     [name: string]
+                    //      - Human         [height: float]           extends Character
+                    //      - Stormtrooper  [specialization: string]  extends Human
+                    //      - Droid         [orimaryFunction: string] extends Character
+                    // 
+                    // Sample query:
+                    //      query { heros { name, ... on Human { height }, ... on Stormtrooper { specialization }, ... on Droid { primaryFunction } } }
+                    // 
+                    // The ExecSelection for 'height', 'specialization' and 'primaryFunction' have a type condition with the following type names:
+                    //      - height:           Human
+                    //      - specialization:   Stormtrooper
+                    //      - primaryFunction:  Droid
+                    //
+                    // To filter the result properly, we have to consider the following cases:
+                    // - Human: 
+                    //      - Include: 'name', 'height'
+                    //      - Exclude: 'specialization', 'primaryFunction'
+                    //  => (1) Filter results of selections with a type-condition-name != result.__typename
+                    //
+                    //  - Stormtrooper
+                    //      - Include: 'name', 'height', and 'specialization'
+                    //      - Exclude: 'primaryFunction'
+                    // => Same as Human (1), but:
+                    //  => (2) include results of selections with the same type-condition-name of any ancestor-type.
+                    //
+                    var selectionConditionTypeName = map.TypeCondition.Value?.TypeName;
+                    var typenameProp = type.GetRuntimeProperty("__typename");
+                    var resultTypeName = (string)typenameProp?.GetValue(queryObject);
+
+                    // (1) type-condition-name != result.__typename
+                    if (selectionConditionTypeName != resultTypeName)
+                    {
+                        // (2) Check ancestor types
+                        var resultGraphQlType = schema.Types.FirstOrDefault(t => t.Name == resultTypeName);
+                        if (resultGraphQlType != null && !IsEqualToAnyAncestorType(resultGraphQlType, selectionConditionTypeName))
+                        {
+                            continue;
+                        }
+                    }
+                }
+
                 if (obj == null)
                 {
-                    // Filter fields for selections with type conditions
-                    // TODO: Check whether this field is part of the type in type conditions or not.
-                    if (map.TypeCondition == null)
-                    {
-                        dict.Add(key, null);
-                    }
-
+                    dict.Add(key, null);
                     continue;
                 }
 
@@ -139,11 +185,11 @@ namespace GraphQL.Net
                     var listObj = obj as IEnumerable<object>;
                     if (listObj != null)
                     {
-                        dict.Add(key, listObj.Select(o => MapResults(o, map.Selections.Values())).ToList());
+                        dict.Add(key, listObj.Select(o => MapResults(o, map.Selections.Values(), schema)).ToList());
                     }
                     else if (obj != null)
                     {
-                        dict.Add(key, MapResults(obj, map.Selections.Values()));
+                        dict.Add(key, MapResults(obj, map.Selections.Values(), schema));
                     }
                     else
                     {
@@ -156,6 +202,11 @@ namespace GraphQL.Net
                 }
             }
             return dict;
+        }
+
+        private static bool IsEqualToAnyAncestorType(GraphQLType type, string referenceTypeName)
+        {
+            return type != null && (type.Name == referenceTypeName || IsEqualToAnyAncestorType(type?.BaseType, referenceTypeName));
         }
 
         private static LambdaExpression GetSelector(GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, ExpressionOptions options)

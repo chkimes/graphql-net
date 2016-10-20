@@ -288,7 +288,7 @@ namespace Tests.EF
             Test.DeepEquals(
                 results,
                 "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human', height: 5.6430448}, " + // TODO:  The height should be removed from the expected1
+                "{ name: 'Han Solo', __typename: 'Human'}, " +
                 "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
                 "{ name: 'R2-D2', __typename: 'Droid' } ] }"
                 );

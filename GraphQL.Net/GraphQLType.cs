@@ -25,7 +25,7 @@ namespace GraphQL.Net
         // Returns own fields and the fields of all included types.
         public IEnumerable<GraphQLField> GetQueryFields()
         {
-            return OwnFields.Concat(IncludedTypes.SelectMany(t => t.GetQueryFields()));
+            return OwnFields.Concat(IncludedTypes.SelectMany(t => t.GetQueryFields()).Where(f => f.Name != "__typename"));
         }
     }
 }

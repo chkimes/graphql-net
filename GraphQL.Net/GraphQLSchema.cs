@@ -171,7 +171,7 @@ namespace GraphQL.Net
                 type.QueryType = type.CLRType;
                 return;
             }
-            
+
             var fields = type.GetQueryFields();
             var fieldDict = fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.IsScalar ? TypeHelpers.MakeNullable(f.Type.CLRType) : typeof(object));
             type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), fieldDict);
@@ -255,23 +255,31 @@ namespace GraphQL.Net
             {
                 var param = Expression.Parameter(typeof(TEntity));
 
-                // Generate a nested if-else-expression with all included types.
+                // Generate a nested if-else-expression with all included types starting at the leaves of the type hierarchy tree.
                 // Add the base type name as the last else-expression
                 Expression elseExpr = Expression.Constant(type.CLRType.Name);
 
+                var includedTypes = type.IncludedTypes.SelectMany(SelectIncludedTypesRecursive);
+
                 // Add type checks for all included types#
-                foreach (var includedType in type.IncludedTypes)
+                foreach (var includedType in includedTypes)
                 {
                     var testExpr = Expression.TypeIs(param, includedType.CLRType);
                     var expr = Expression.Constant(includedType.CLRType.Name);
                     elseExpr = Expression.Condition(testExpr, expr, elseExpr);
                 }
-                
+
                 //var lambda = Expression.Lambda<Func<TEntity, string>>(Expression.Block(exprs), param);
                 var lambda = Expression.Lambda<Func<TEntity, string>>(elseExpr, param);
 
                 builder.AddField<string>("__typename", lambda);
             }
+        }
+
+        // Returns all included types of the hierarchy tree, ordered from "root" to the "leaves".
+        private static IEnumerable<GraphQLType> SelectIncludedTypesRecursive(GraphQLType type)
+        {
+            return new[] { type }.Concat(type.IncludedTypes.SelectMany(SelectIncludedTypesRecursive));
         }
 
         // This signature is pretty complicated, but necessarily so.

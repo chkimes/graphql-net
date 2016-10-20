@@ -56,9 +56,17 @@ namespace Tests.EF
                     Height = 5.6430448
                 };
                 db.Heros.Add(human);
-                var droid = new Droid
+                var stormtrooper = new Stormtrooper
                 {
                     Id = 2,
+                    Name = "FN-2187",
+                    Height = 4.9,
+                    Specialization = "Imperial Snowtrooper"
+                };
+                db.Heros.Add(stormtrooper);
+                var droid = new Droid
+                {
+                    Id = 3,
                     Name = "R2-D2",
                     PrimaryFunction = "Astromech"
                 };
@@ -163,6 +171,9 @@ namespace Tests.EF
             var human = schema.AddType<Human>();
             human.AddField(h => h.Height);
 
+            var stormtrooper = schema.AddType<Stormtrooper>();
+            stormtrooper.AddField(h => h.Specialization);
+
             var droid = schema.AddType<Droid>();
             droid.AddField(h => h.PrimaryFunction);
 
@@ -230,6 +241,24 @@ namespace Tests.EF
         }
 
         [Test]
+        public void QueryFragements()
+        {
+            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
+            InitializeCharacterSchema(schema);
+            schema.Complete();
+
+            var gql = new GraphQL<EfContext>(schema);
+            var results = gql.ExecuteQuery("{ heros { name, __typename, ...human, ...stormtrooper, ...droid } }, fragment human on Human { height }, fragment stormtrooper on Stormtrooper { specialization }, fragment droid on Droid { primaryFunction }");
+            Test.DeepEquals(
+                results, 
+                "{ heros: [ " +
+                "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, " +
+                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
+                "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
+                );
+        }
+
+        [Test]
         public void QueryInlineFragements()
         {
             var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
@@ -237,20 +266,14 @@ namespace Tests.EF
             schema.Complete();
 
             var gql = new GraphQL<EfContext>(schema);
-            var results = gql.ExecuteQuery("{ heros { name, __typename, ... on Human { height }, ... on Droid { primaryFunction } } }");
-            Test.DeepEquals(results, "{ heros: [ { name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, { name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }");
-        }
-
-        [Test]
-        public void QueryInlineFragements2()
-        {
-            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
-            InitializeCharacterSchema(schema);
-            schema.Complete();
-
-            var gql = new GraphQL<EfContext>(schema);
-            var results = gql.ExecuteQuery("{ heros { name, __typename, ...human, ...droid } }, fragment human on Human { height }, fragment droid on Droid { primaryFunction }");
-            Test.DeepEquals(results, "{ heros: [ { name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, { name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }");
+            var results = gql.ExecuteQuery("{ heros { name, __typename, ... on Human { height }, ... on Stormtrooper { specialization }, ... on Droid { primaryFunction } } }");
+            Test.DeepEquals(
+                results, 
+                "{ heros: [ " +
+                "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, " +
+                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
+                "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
+                );
         }
 
         class Sub
@@ -326,6 +349,10 @@ namespace Tests.EF
         class Human : Character
         {
             public double Height { get; set; }
+        }
+        class Stormtrooper : Human
+        {
+            public string Specialization { get; set; }
         }
 
         class Droid : Character

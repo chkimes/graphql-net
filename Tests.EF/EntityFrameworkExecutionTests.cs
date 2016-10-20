@@ -159,16 +159,11 @@ namespace Tests.EF
             var character = schema.AddType<Character>();
             character.AddField(c => c.Id);
             character.AddField(c => c.Name);
-
-            //character.AddField("height", c => c is Human? (c as Human).Height : 0);
-            //character.AddField("primaryFunction", c => c is Droid ? (c as Droid).PrimaryFunction : null);
-
-            // TODO: The includeTypeBuilder should provide: AddField( TBaseType => TResult) instead of AddField(TIncludeType => TResult)
-            // so that the cast can be implemented as needed.
-            var human = character.IncludeType<Human>();
+            
+            var human = schema.AddType<Human>();
             human.AddField(h => (h as Human).Height);
 
-            var droid = character.IncludeType<Droid>();
+            var droid = schema.AddType<Droid>();
             droid.AddField(h => (h as Droid).PrimaryFunction);
 
             schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));

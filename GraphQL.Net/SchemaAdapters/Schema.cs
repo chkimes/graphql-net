@@ -33,18 +33,10 @@ namespace GraphQL.Net.SchemaAdapters
         {
             RootType = new SchemaRootType(this, schema.GetGQLType(typeof(TContext)));
             _schema = schema;
-            var rootTypes = schema.Types
+            _queryTypes = schema.Types
                 .Where(t => !t.IsScalar)
                 .Select(OfType)
                 .ToDictionary(t => t.TypeName, t => t as ISchemaQueryType<Info>);
-
-            // Add the included types
-            var includedTypes = schema.Types.SelectMany(t => t.IncludedTypes)
-                .Select(OfType)
-                .ToDictionary(t => t.TypeName, t => t as ISchemaQueryType<Info>);
-
-            _queryTypes = new [] {rootTypes, includedTypes}.SelectMany(dict => dict)
-                .ToDictionary(kv => kv.Key, kv => kv.Value);
         }
 
         public override IReadOnlyDictionary<string, ISchemaQueryType<Info>> QueryTypes

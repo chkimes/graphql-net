@@ -14,7 +14,7 @@ namespace GraphQL.Net.SchemaAdapters
         internal SchemaType(GraphQLType type, Schema schema)
         {
             _type = type;
-            _fields = new Lazy<IReadOnlyDictionary<string, ISchemaField<Info>>>(() => type.Fields
+            _fields = new Lazy<IReadOnlyDictionary<string, ISchemaField<Info>>>(() => type.OwnFields
                 .Select(f => new SchemaField(this, f, schema))
                 .ToDictionary(f => f.FieldName, f => f as ISchemaField<Info>));
         }

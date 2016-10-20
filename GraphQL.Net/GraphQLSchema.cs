@@ -114,19 +114,56 @@ namespace GraphQL.Net
 
             VariableTypes.Complete();
 
-            foreach (var type in _types.Where(t => t.QueryType == null))
-                CompleteType(type);
+            // The order is important:
+            // (1) Build type groups.
+            // (2) Add the '__typename' field to every type.
+            // (3) Complete the types (generate the query-type).
+            BuildTypeGroups(_types);
+            AddTypeNameFields();
+            CompleteTypes(_types);
 
             Adapter = new Schema<TContext>(this);
             Completed = true;
         }
 
+        private static void BuildTypeGroups(List<GraphQLType> types)
+        {
+            //TODO: support type unions
+            // Build inheritance hierarchy
+            foreach (var graphQLType in types)
+            {
+                RelateTypeWithAncestorTypes(graphQLType, types);
+            }
+        }
+
+        // Relates the specified graphQlType to the first ancestor graphql type by adding it to the ancestor's IncludedTypes-property.
+        private static void RelateTypeWithAncestorTypes(GraphQLType graphQLType, List<GraphQLType> types)
+        {
+            // Walk up the type hierarchy and try to find an ancestor type for which there is a related GraphQlType.
+            var ancestorClrType = graphQLType.CLRType;
+            GraphQLType ancestorGraphQlType = null;
+
+            while (ancestorClrType != null && ancestorGraphQlType == null)
+            {
+                ancestorClrType = ancestorClrType.BaseType;
+                ancestorGraphQlType = types.Find(t => t.CLRType == ancestorClrType);
+            }
+
+            ancestorGraphQlType?.IncludedTypes.Add(graphQLType);
+        }
+
+        private static void CompleteTypes(IEnumerable<GraphQLType> types)
+        {
+            foreach (var type in types.Where(t => t.QueryType == null))
+                CompleteType(type);
+        }
+
         private static void CompleteType(GraphQLType type)
         {
             // validation maybe perform somewhere else
-            if (type.IsScalar && type.Fields.Count != 0)
+            if (type.IsScalar && type.OwnFields.Count != 0)
                 throw new Exception("Scalar types must not have any fields defined."); // TODO: Schema validation exception?
-            if (!type.IsScalar && type.Fields.Count == 0)
+            if (!type.IsScalar && type.OwnFields.Count == 0)
                 throw new Exception("Non-scalar types must have at least one field defined."); // TODO: Schema validation exception?
 
             if (type.IsScalar)
@@ -134,9 +171,8 @@ namespace GraphQL.Net
                 type.QueryType = type.CLRType;
                 return;
             }
-
-            // Find the field of the type and all included types
-            var fields = type.Fields.Concat(type.IncludedTypes.SelectMany(t => t.Fields));
+            
+            var fields = type.GetQueryFields();
             var fieldDict = fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.IsScalar ? TypeHelpers.MakeNullable(f.Type.CLRType) : typeof(object));
             type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), fieldDict);
         }
@@ -195,7 +231,10 @@ namespace GraphQL.Net
             this.AddField("__type", new { name = "" },
                 (_, args) => IntroSchema.Of(Adapter).Types
                     .FirstOrDefault(t => t.Name.OrDefault() == args.name));
+        }
 
+        private void AddTypeNameFields()
+        {
             var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
             foreach (var type in _types.Where(t => !t.IsScalar))
             {
@@ -237,7 +276,7 @@ namespace GraphQL.Net
 
         // This signature is pretty complicated, but necessarily so.
         // We need to build a function that we can execute against passed in TArgs that
-        // will return a base expression for combining with selectors (stored on GraphQLType.Fields)
+        // will return a base expression for combining with selectors (stored on GraphQLType.OwnFields)
         // This used to be a Func<TContext, TArgs, IQueryable<TEntity>>, i.e. a function that returned a queryable given a context and arguments.
         // However, this wasn't good enough since we needed to be able to reference the (db) parameter in the expressions.
         // For example, being able to do:
@@ -287,7 +326,7 @@ namespace GraphQL.Net
                 .WithResolutionType(ResolutionType.Unmodified);
         }
 
-        internal GraphQLField FindField(string name) => GetGQLType(typeof(TContext)).Fields.FirstOrDefault(f => f.Name == name);
+        internal GraphQLField FindField(string name) => GetGQLType(typeof(TContext)).OwnFields.FirstOrDefault(f => f.Name == name);
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)

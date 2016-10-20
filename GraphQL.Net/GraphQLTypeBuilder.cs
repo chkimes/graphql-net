@@ -43,8 +43,8 @@ namespace GraphQL.Net
         }
 
         // See GraphQLSchema.AddField for an explanation of the type of exprFunc, since it follows similar reasons
-        // TL:DR; Fields can have parameters passed in, so the Expression<Func> to be used is dependent on TArgs
-        //        Fields can use TContext as well, so we have to return an Expression<Func<TContext, TEntity, TField>> and replace the TContext parameter when needed
+        // TL:DR; OwnFields can have parameters passed in, so the Expression<Func> to be used is dependent on TArgs
+        //        OwnFields can use TContext as well, so we have to return an Expression<Func<TContext, TEntity, TField>> and replace the TContext parameter when needed
         public GraphQLFieldBuilder<TContext, TField> AddField<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
             => AddFieldInternal(name, exprFunc);
 
@@ -55,7 +55,7 @@ namespace GraphQL.Net
         internal GraphQLFieldBuilder<TContext, TField> AddFieldInternal<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, TField>>> exprFunc)
         {
             var field = GraphQLField.New(_schema, name, exprFunc, typeof (TField));
-            _type.Fields.Add(field);
+            _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
 
@@ -63,7 +63,7 @@ namespace GraphQL.Net
         internal GraphQLFieldBuilder<TContext, TField> AddListFieldInternal<TArgs, TField>(string name, Func<TArgs, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc)
         {
             var field = GraphQLField.New(_schema, name, exprFunc, typeof (IEnumerable<TField>));
-            _type.Fields.Add(field);
+            _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
 
@@ -71,7 +71,7 @@ namespace GraphQL.Net
         internal GraphQLFieldBuilder<TContext, TField> AddMutationInternal<TArgs, TField, TMutReturn>(string name, Func<TArgs, TMutReturn, Expression<Func<TContext, TEntity, TField>>> exprFunc, Func<TContext, TArgs, TMutReturn> mutation)
         {
             var field = GraphQLField.NewMutation(_schema, name, exprFunc, typeof (TField), mutation);
-            _type.Fields.Add(field);
+            _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
 
@@ -79,7 +79,7 @@ namespace GraphQL.Net
         internal GraphQLFieldBuilder<TContext, TField> AddListMutationInternal<TArgs, TField, TMutReturn>(string name, Func<TArgs, TMutReturn, Expression<Func<TContext, TEntity, IEnumerable<TField>>>> exprFunc, Func<TContext, TArgs, TMutReturn> mutation)
         {
             var field = GraphQLField.NewMutation(_schema, name, exprFunc, typeof (IEnumerable<TField>), mutation);
-            _type.Fields.Add(field);
+            _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
         }
 
@@ -126,7 +126,7 @@ namespace GraphQL.Net
         public void AddAllFields()
         {
             foreach (var prop in typeof (TEntity).GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                _type.Fields.Add(CreateGenericField(prop));
+                _type.OwnFields.Add(CreateGenericField(prop));
         }
 
         // unsafe generic magic to create a GQLField instance
@@ -148,24 +148,8 @@ namespace GraphQL.Net
         public GraphQLFieldBuilder<TContext, TField> AddPostField<TField>(string name, Func<TField> fieldFunc)
         {
             var field = GraphQLField.Post(_schema, name, fieldFunc);
-            _type.Fields.Add(field);
+            _type.OwnFields.Add(field);
             return new GraphQLFieldBuilder<TContext, TField>(field);
-        }
-        
-        // TODO: This could return another GraphQLTypeBuilder with less functionality, maybe nested includes should not be allowed.
-        public GraphQLTypeBuilder<TContext, TEntity> IncludeType<TEntity>(string name = null, string description = null)
-        {
-            var type = typeof(TEntity);
-            if (_type.IncludedTypes.Any(t => t.CLRType == type))
-                throw new ArgumentException("Type has already been included");
-
-            var gqlType = new GraphQLType(type) { IsScalar = type.IsPrimitive, Description = description ?? "" };
-            if (!string.IsNullOrEmpty(name))
-                gqlType.Name = name;
-
-            _type.IncludedTypes.Add(gqlType);
-
-            return new GraphQLTypeBuilder<TContext, TEntity>(_schema, gqlType);
         }
     }
 }

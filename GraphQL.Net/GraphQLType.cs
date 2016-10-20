@@ -17,6 +17,7 @@ namespace GraphQL.Net
         public string Name { get; set; }
         public string Description { get; set; }
         public List<GraphQLField> OwnFields { get; set; }
+        public GraphQLType BaseType { get; set; }
         public List<GraphQLType> IncludedTypes { get; set; }
         public Type CLRType { get; set; }
         public Type QueryType { get; set; }
@@ -26,6 +27,12 @@ namespace GraphQL.Net
         public IEnumerable<GraphQLField> GetQueryFields()
         {
             return OwnFields.Concat(IncludedTypes.SelectMany(t => t.GetQueryFields()).Where(f => f.Name != "__typename"));
+        }
+
+        // Returns own fields and the fields of all included types.
+        public IEnumerable<GraphQLField> GetAllFieldIncludeBaseType()
+        {
+            return BaseType != null ? OwnFields.Concat(BaseType.GetAllFieldIncludeBaseType()) : OwnFields;
         }
     }
 }

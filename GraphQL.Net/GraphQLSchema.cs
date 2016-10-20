@@ -150,6 +150,7 @@ namespace GraphQL.Net
             }
 
             ancestorGraphQlType?.IncludedTypes.Add(graphQLType);
+            graphQLType.BaseType = ancestorGraphQlType;
         }
 
         private static void CompleteTypes(IEnumerable<GraphQLType> types)

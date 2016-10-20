@@ -4,8 +4,10 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using GraphQL.Net.SchemaAdapters;
+using GraphQL.Parser;
 using GraphQL.Parser.CS;
 using GraphQL.Parser.Execution;
+using Microsoft.FSharp.Core;
 
 namespace GraphQL.Net
 {
@@ -32,7 +34,7 @@ namespace GraphQL.Net
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
             var queryType = dummyQuery.GetType();
             var queryExecSelections = query.Selections.Values();
-            var selector = GetSelector(field.Type, queryExecSelections, schema.GetOptionsForQueryable(queryType));
+            var selector = GetSelector(schema, field.Type, queryExecSelections, schema.GetOptionsForQueryable(queryType));
 
             if (field.ResolutionType != ResolutionType.Unmodified)
             {
@@ -176,7 +178,7 @@ namespace GraphQL.Net
 
                 if (field.IsPost && map.Selections.Any())
                 {
-                    var selector = GetSelector(field.Type, map.Selections.Values(), new ExpressionOptions(null, castAssignment: true));
+                    var selector = GetSelector(schema, field.Type, map.Selections.Values(), new ExpressionOptions(null, castAssignment: true));
                     obj = selector.Compile().DynamicInvoke(obj);
                 }
 
@@ -209,18 +211,43 @@ namespace GraphQL.Net
             return type != null && (type.Name == referenceTypeName || IsEqualToAnyAncestorType(type?.BaseType, referenceTypeName));
         }
 
-        private static LambdaExpression GetSelector(GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, ExpressionOptions options)
+        private static LambdaExpression GetSelector(GraphQLSchema<TContext> schema, GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, ExpressionOptions options)
         {
             var parameter = Expression.Parameter(gqlType.CLRType, "p");
-            var init = GetMemberInit(gqlType.QueryType, selections, parameter, options);
+            var init = GetMemberInit(schema, gqlType.QueryType, selections, parameter, options);
             return Expression.Lambda(init, parameter);
         }
 
-        private static ConditionalExpression GetMemberInit(Type queryType, IEnumerable<ExecSelection<Info>> selections, Expression baseBindingExpr, ExpressionOptions options)
+        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, Type queryType, IEnumerable<ExecSelection<Info>> selections, Expression baseBindingExpr, ExpressionOptions options)
         {
+            selections = selections.ToList();
+
             var bindings = selections
                 .Where(m => !m.SchemaField.Field().IsPost)
-                .Select(map => GetBinding(map, queryType, baseBindingExpr, options)).ToList();
+                .Select(map => GetBinding(schema, map, queryType, baseBindingExpr, options))
+                .ToList();
+
+            // Add selection for '__typename'-field if not contained.
+            if (selections.Any() &&
+                selections.Any(s => s.TypeCondition != null) &&
+                selections.All(s => s.SchemaField.FieldName != "__typename"))
+            {
+                var graphQlType = selections.First().SchemaField.DeclaringType.Info.Type;
+                var typeNameField = graphQlType.OwnFields.Find(f => f.Name == "__typename");
+
+                var typeNameExecSelection = new ExecSelection<Info>(
+                    new SchemaField(
+                        schema.Adapter.QueryTypes[graphQlType?.Name],
+                        typeNameField,
+                        schema.Adapter),
+                    new FSharpOption<string>(typeNameField?.Name),
+                    null,
+                    new WithSource<ExecArgument<Info>>[] { },
+                    new WithSource<ExecDirective<Info>>[] { },
+                    new WithSource<ExecSelection<Info>>[] { }
+                    );
+                bindings = bindings.Concat(new[] { GetBinding(schema, typeNameExecSelection, queryType, baseBindingExpr, options) }).ToList();
+            }
 
             var memberInit = Expression.MemberInit(Expression.New(queryType), bindings);
             return NullPropagate(baseBindingExpr, memberInit);
@@ -232,7 +259,7 @@ namespace GraphQL.Net
             return Expression.Condition(equals, Expression.Constant(null, returnExpr.Type), returnExpr);
         }
 
-        private static MemberBinding GetBinding(ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
+        private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
         {
             var field = map.SchemaField.Field();
             var toMember = toType.GetProperty(map.SchemaField.FieldName);
@@ -267,7 +294,7 @@ namespace GraphQL.Net
             var bindChildrenTo = map.SchemaField.Field().IsList ? listParameter : replacedContext;
 
             // Now that we have our new binding parameter, build the tree for the rest of the children
-            var memberInit = GetMemberInit(field.Type.QueryType, map.Selections.Values(), bindChildrenTo, options);
+            var memberInit = GetMemberInit(schema, field.Type.QueryType, map.Selections.Values(), bindChildrenTo, options);
 
             // For single entities, we're done and we can just bind to the memberInit expression
             if (!field.IsList)

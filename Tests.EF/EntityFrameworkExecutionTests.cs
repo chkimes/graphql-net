@@ -167,7 +167,7 @@ namespace Tests.EF
             var character = schema.AddType<Character>();
             character.AddField(c => c.Id);
             character.AddField(c => c.Name);
-            
+
             var human = schema.AddType<Human>();
             human.AddField(h => h.Height);
 
@@ -225,6 +225,16 @@ namespace Tests.EF
         public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
         [Test]
         public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
+        [Test]
+        public static void Fragements() => GenericTests.Fragements(CreateDefaultContext());
+        [Test]
+        public static void InlineFragements() => GenericTests.InlineFragements(CreateDefaultContext());
+        [Test]
+        public static void FragementWithMultiLevelInheritance() => GenericTests.FragementWithMultiLevelInheritance(CreateDefaultContext());
+        [Test]
+        public static void InlineFragementWithoutTypenameField() => GenericTests.InlineFragementWithoutTypenameField(CreateDefaultContext());
+        [Test]
+        public static void FragementWithoutTypenameField() => GenericTests.FragementWithoutTypenameField(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -238,96 +248,6 @@ namespace Tests.EF
             var gql = new GraphQL<EfContext>(schema);
             var results = gql.ExecuteQuery("{ user(id:1) { id, name } }");
             Test.DeepEquals(results, "{ user: { id: 1, name: 'Joe User' } }");
-        }
-
-        [Test]
-        public void QueryFragements()
-        {
-            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
-            InitializeCharacterSchema(schema);
-            schema.Complete();
-
-            var gql = new GraphQL<EfContext>(schema);
-            var results = gql.ExecuteQuery("{ heros { name, __typename, ...human, ...stormtrooper, ...droid } }, fragment human on Human { height }, fragment stormtrooper on Stormtrooper { specialization }, fragment droid on Droid { primaryFunction }");
-            Test.DeepEquals(
-                results, 
-                "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, " +
-                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
-                );
-        }
-
-        [Test]
-        public void QueryInlineFragements()
-        {
-            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
-            InitializeCharacterSchema(schema);
-            schema.Complete();
-
-            var gql = new GraphQL<EfContext>(schema);
-            var results = gql.ExecuteQuery("{ heros { name, __typename, ... on Human { height }, ... on Stormtrooper { specialization }, ... on Droid { primaryFunction } } }");
-            Test.DeepEquals(
-                results, 
-                "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, " +
-                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
-                );
-        }
-
-        [Test]
-        public void QueryFragementWithMultiLevelInheritance()
-        {
-            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
-            InitializeCharacterSchema(schema);
-            schema.Complete();
-
-            var gql = new GraphQL<EfContext>(schema);
-            var results = gql.ExecuteQuery("{ heros { name, __typename, ... on Stormtrooper { height, specialization } } }");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human'}, " +
-                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', __typename: 'Droid' } ] }"
-                );
-        }
-
-        [Test]
-        public void QueryInlineFragementWithoutTypenameField()
-        {
-            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
-            InitializeCharacterSchema(schema);
-            schema.Complete();
-
-            var gql = new GraphQL<EfContext>(schema);
-            var results = gql.ExecuteQuery("{ heros { name, ... on Stormtrooper { height, specialization } } }");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo',}, " +
-                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', } ] }"
-                );
-        }
-
-        [Test]
-        public void QueryFragementWithoutTypenameField()
-        {
-            var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
-            InitializeCharacterSchema(schema);
-            schema.Complete();
-
-            var gql = new GraphQL<EfContext>(schema);
-            var results = gql.ExecuteQuery("{ heros { name, ...stormtrooper } }, fragment stormtrooper on Stormtrooper { height, specialization } ");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo',}, " +
-                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', } ] }"
-                );
         }
 
         class Sub
@@ -350,7 +270,7 @@ namespace Tests.EF
                 Database.SetInitializer(new SqliteDropCreateDatabaseWhenModelChanges<EfContext>(modelBuilder));
                 base.OnModelCreating(modelBuilder);
             }
-            
+
             public IDbSet<User> Users { get; set; }
             public IDbSet<Account> Accounts { get; set; }
             public IDbSet<MutateMe> MutateMes { get; set; }

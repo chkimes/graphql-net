@@ -260,21 +260,36 @@ namespace GraphQL.Net
         }
 
         private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
-        {
+        {            
             var field = map.SchemaField.Field();
+            var needsTypeCheck = baseBindingExpr.Type != field.DefiningType.CLRType;
             var toMember = toType.GetProperty(map.SchemaField.FieldName);
             // expr is form of: (context, entity) => entity.Field
             var expr = field.GetExpression(map.Arguments.Values());
 
-            // Add a type cast to the baseBindingExpression since this field might be a selector of a type condition
-            if (toType != field.DefiningType.CLRType)
-            {
-                baseBindingExpr = Expression.TypeAs(baseBindingExpr, field.DefiningType.CLRType);
-            }
-
+            // The field might be defined on sub-types of the specified type, so add a type cast if necessary.
+            // If appropriate, `entity.Field` becomes `(entity as TFieldDefiningType).Field`
+            var typeCastedBaseExpression = needsTypeCheck ? Expression.TypeAs(baseBindingExpr, field.DefiningType.CLRType) : baseBindingExpr;
+            
             // Replace (entity) with baseBindingExpr, note expression is no longer a LambdaExpression
             // `(context, entity) => entity.Field` becomes `someOtherEntity.Entity.Field` where baseBindingExpr is `someOtherEntity.Entity`
-            var replacedBase = ParameterReplacer.Replace(expr.Body, expr.Parameters[1], baseBindingExpr);
+            var replacedBase = ParameterReplacer.Replace(expr.Body, expr.Parameters[1], typeCastedBaseExpression);
+
+            // If the entity has to be casted, add a type check:
+            // `(someOtherEntity.Entity as TFieldDefininingType).Field` becomes `(someOtherEntity.Entity is TFieldDefininingType) ? (someOtherEntity.Entity as TFieldDefininingType).Field : null`
+            if (needsTypeCheck)
+            {
+                var typeCheck = Expression.TypeIs(baseBindingExpr, field.DefiningType.CLRType);
+                var nullResult = Expression.Constant(null, toMember.PropertyType);
+                
+                // The expression type has to be nullable
+                if(replacedBase.Type.IsValueType)
+                {
+                    replacedBase = Expression.Convert(replacedBase, typeof(Nullable<>).MakeGenericType(replacedBase.Type));
+                }
+
+                replacedBase = Expression.Condition(typeCheck, replacedBase, nullResult);
+            }
 
             // This just makes sure that the (context) parameter is the same as the one used by the whole query
             var replacedContext = ParameterReplacer.Replace(replacedBase, expr.Parameters[0], GraphQLSchema<TContext>.DbParam);

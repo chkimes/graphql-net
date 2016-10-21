@@ -94,7 +94,11 @@ module private Execution =
             } |> (fun s -> { Source = selection.Source; Value = s }) |> Seq.singleton
         | FragmentSpreadSelection spread ->
             let spreadDirs = spread.Directives |> mapWithSource (execDirective context) |> toReadOnlyList
-            let subMap (sel : ExecSelection<'s>) = { sel with Directives = appendReadOnlyList sel.Directives spreadDirs }
+            let subMap (sel : ExecSelection<'s>) = 
+                { sel with 
+                    Directives = appendReadOnlyList sel.Directives spreadDirs 
+                    TypeCondition = match sel.TypeCondition with None -> spread.Fragment.TypeCondition |> Some | Some _ -> sel.TypeCondition
+                }
             spread.Fragment.Selections
             |> Seq.collect (execSelections context >> mapWithSource subMap)
         | InlineFragmentSelection frag ->

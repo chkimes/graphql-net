@@ -21,6 +21,7 @@ namespace GraphQL.Net
 
         protected Type FieldCLRType { get; set; }
         protected Type ArgsCLRType { get; set; }
+        internal GraphQLType DefiningType { get; private set; }
         internal GraphQLSchema Schema { get; set; }
 
         // ExprFunc should be of type Func<TArgs, Expression<Func<TContext, TEntity, TField>>>
@@ -39,8 +40,8 @@ namespace GraphQL.Net
 
         public virtual LambdaExpression GetExpression(IEnumerable<ExecArgument<Info>> inputs, object mutationReturn = null)
             => IsMutation
-            ? (LambdaExpression) ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs), mutationReturn)
-            : (LambdaExpression) ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
+            ? (LambdaExpression)ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs), mutationReturn)
+            : (LambdaExpression)ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
 
         public virtual object RunMutation<TContext>(TContext context, IEnumerable<ExecArgument<Info>> inputs)
             => MutationFunc?.DynamicInvoke(context, TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
@@ -56,23 +57,23 @@ namespace GraphQL.Net
             {
                 Schema = schema,
                 Name = name,
-                FieldCLRType = typeof (TField),
-                ArgsCLRType = typeof (object),
+                FieldCLRType = typeof(TField),
+                ArgsCLRType = typeof(object),
                 IsPost = true,
                 PostFieldFunc = () => fieldFunc(),
             };
         }
 
-        public static GraphQLField New<TArgs>(GraphQLSchema schema, string name, Func<TArgs, LambdaExpression> exprFunc, Type fieldCLRType)
-            => NewInternal<TArgs>(schema, name, exprFunc, fieldCLRType, null);
+        public static GraphQLField New<TArgs>(GraphQLSchema schema, string name, Func<TArgs, LambdaExpression> exprFunc, Type fieldCLRType, GraphQLType definingType)
+            => NewInternal<TArgs>(schema, name, exprFunc, fieldCLRType, definingType, null);
 
-        public static GraphQLField NewMutation<TContext, TArgs, TMutReturn>(GraphQLSchema schema, string name, Func<TArgs, TMutReturn, LambdaExpression> exprFunc, Type fieldCLRType, Func<TContext, TArgs, TMutReturn> mutationFunc)
-            => NewInternal<TArgs>(schema, name, exprFunc, fieldCLRType, mutationFunc);
+        public static GraphQLField NewMutation<TContext, TArgs, TMutReturn>(GraphQLSchema schema, string name, Func<TArgs, TMutReturn, LambdaExpression> exprFunc, Type fieldCLRType, GraphQLType definingType, Func<TContext, TArgs, TMutReturn> mutationFunc)
+            => NewInternal<TArgs>(schema, name, exprFunc, fieldCLRType, definingType, mutationFunc);
 
-        private static GraphQLField NewInternal<TArgs>(GraphQLSchema schema, string name, Delegate exprFunc, Type fieldCLRType, Delegate mutationFunc)
+        private static GraphQLField NewInternal<TArgs>(GraphQLSchema schema, string name, Delegate exprFunc, Type fieldCLRType, GraphQLType definingType, Delegate mutationFunc)
         {
             var isList = false;
-            if (fieldCLRType.IsGenericType && TypeHelpers.IsAssignableToGenericType(fieldCLRType, typeof (IEnumerable<>)))
+            if (fieldCLRType.IsGenericType && TypeHelpers.IsAssignableToGenericType(fieldCLRType, typeof(IEnumerable<>)))
             {
                 fieldCLRType = fieldCLRType.GetGenericArguments()[0];
                 isList = true;
@@ -83,7 +84,8 @@ namespace GraphQL.Net
                 Schema = schema,
                 Name = name,
                 FieldCLRType = fieldCLRType,
-                ArgsCLRType = typeof (TArgs),
+                DefiningType = definingType,
+                ArgsCLRType = typeof(TArgs),
                 IsList = isList,
                 ExprFunc = exprFunc,
                 MutationFunc = mutationFunc,

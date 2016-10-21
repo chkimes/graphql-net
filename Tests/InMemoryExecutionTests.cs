@@ -31,6 +31,11 @@ namespace Tests
         [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(MemContext.CreateDefaultContext());
         [Test] public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
         [Test] public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
+        [Test] public static void Fragements() => GenericTests.Fragements(MemContext.CreateDefaultContext());
+        [Test] public static void InlineFragements() => GenericTests.InlineFragements(MemContext.CreateDefaultContext());
+        [Test] public static void FragementWithMultiLevelInheritance() => GenericTests.FragementWithMultiLevelInheritance(MemContext.CreateDefaultContext());
+        [Test] public static void InlineFragementWithoutTypenameField() => GenericTests.InlineFragementWithoutTypenameField(MemContext.CreateDefaultContext());
+        [Test] public static void FragementWithoutTypenameField() => GenericTests.FragementWithoutTypenameField(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

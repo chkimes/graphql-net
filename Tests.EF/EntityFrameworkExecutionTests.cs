@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.Data.Entity.Migrations;
 using System.Linq;
+using System.Linq.Expressions;
 using GraphQL.Net;
 using NUnit.Framework;
 using SQLite.CodeFirst;
@@ -46,6 +48,30 @@ namespace Tests.EF
                 };
                 db.Users.Add(user2);
                 db.MutateMes.Add(new MutateMe());
+
+                var human = new Human
+                {
+                    Id = 1,
+                    Name = "Han Solo",
+                    Height = 5.6430448
+                };
+                db.Heros.Add(human);
+                var stormtrooper = new Stormtrooper
+                {
+                    Id = 2,
+                    Name = "FN-2187",
+                    Height = 4.9,
+                    Specialization = "Imperial Snowtrooper"
+                };
+                db.Heros.Add(stormtrooper);
+                var droid = new Droid
+                {
+                    Id = 3,
+                    Name = "R2-D2",
+                    PrimaryFunction = "Astromech"
+                };
+                db.Heros.Add(droid);
+
                 db.SaveChanges();
             }
         }
@@ -58,6 +84,7 @@ namespace Tests.EF
             InitializeAccountSchema(schema);
             InitializeMutationSchema(schema);
             InitializeNullRefSchema(schema);
+            InitializeCharacterSchema(schema);
             schema.Complete();
             return new GraphQL<EfContext>(schema);
         }
@@ -91,14 +118,14 @@ namespace Tests.EF
             account.AddField(a => a.ByteArray);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
-            account.AddListField("usersWithActive", new {active = false}, (db, args, a) => a.Users.Where(u => u.Active == args.active));
-            account.AddField("firstUserWithActive", new {active = false}, (db, args, a) => a.Users.FirstOrDefault(u => u.Active == args.active));
+            account.AddListField("usersWithActive", new { active = false }, (db, args, a) => a.Users.Where(u => u.Active == args.active));
+            account.AddField("firstUserWithActive", new { active = false }, (db, args, a) => a.Users.FirstOrDefault(u => u.Active == args.active));
 
-            schema.AddField("account", new {id = 0}, (db, args) => db.Accounts.FirstOrDefault(a => a.Id == args.id));
+            schema.AddField("account", new { id = 0 }, (db, args) => db.Accounts.FirstOrDefault(a => a.Id == args.id));
             schema.AddField
                 ("accountPaidBy", new { paid = default(DateTime) },
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
-            schema.AddListField("accountsByGuid", new {guid = Guid.Empty},
+            schema.AddListField("accountsByGuid", new { guid = Guid.Empty },
                     (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
         }
 
@@ -107,9 +134,9 @@ namespace Tests.EF
             var mutate = schema.AddType<MutateMe>();
             mutate.AddAllFields();
 
-            schema.AddField("mutateMes", new {id = 0}, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddField("mutateMes", new { id = 0 }, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
             schema.AddMutation("mutate",
-                new {id = 0, newVal = 0},
+                new { id = 0, newVal = 0 },
                 (db, args) =>
                 {
                     var mutateMe = db.MutateMes.First(m => m.Id == args.id);
@@ -118,10 +145,10 @@ namespace Tests.EF
                 },
                 (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
             schema.AddMutation("addMutate",
-                new {newVal = 0},
+                new { newVal = 0 },
                 (db, args) =>
                 {
-                    var newMutate = new MutateMe {Value = args.newVal};
+                    var newMutate = new MutateMe { Value = args.newVal };
                     db.MutateMes.Add(newMutate);
                     db.SaveChanges();
                     return newMutate.Id;
@@ -135,28 +162,79 @@ namespace Tests.EF
             nullRef.AddField(n => n.Id);
         }
 
-        [Test] public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
-        [Test] public void AliasOneField() => GenericTests.AliasOneField(CreateDefaultContext());
-        [Test] public void NestedEntity() => GenericTests.NestedEntity(CreateDefaultContext());
-        [Test] public void NoUserQueryReturnsNull() => GenericTests.NoUserQueryReturnsNull(CreateDefaultContext());
-        [Test] public void CustomFieldSubQuery() => GenericTests.CustomFieldSubQuery(CreateDefaultContext());
-        [Test] public void CustomFieldSubQueryUsingContext() => GenericTests.CustomFieldSubQueryUsingContext(CreateDefaultContext());
-        [Test] public void List() => GenericTests.List(CreateDefaultContext());
-        [Test] public void ListTypeIsList() => GenericTests.ListTypeIsList(CreateDefaultContext());
-        [Test] public void NestedEntityList() => GenericTests.NestedEntityList(CreateDefaultContext());
-        [Test] public void PostField() => GenericTests.PostField(CreateDefaultContext());
-        [Test] public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(CreateDefaultContext());
-        [Test] public void TypeName() => GenericTests.TypeName(CreateDefaultContext());
-        [Test] public void DateTimeFilter() => GenericTests.DateTimeFilter(CreateDefaultContext());
-        [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(CreateDefaultContext());
-        [Test] public void SimpleMutation() => GenericTests.SimpleMutation(CreateDefaultContext());
-        [Test] public void MutationWithReturn() => GenericTests.MutationWithReturn(CreateDefaultContext());
-        [Test] public void NullPropagation() => GenericTests.NullPropagation(CreateDefaultContext());
-        [Test] public void GuidField() => GenericTests.GuidField(CreateDefaultContext());
-        [Test] public void GuidParameter() => GenericTests.GuidParameter(CreateDefaultContext());
-        [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(CreateDefaultContext());
-        [Test] public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
-        [Test] public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
+        private static void InitializeCharacterSchema(GraphQLSchema<EfContext> schema)
+        {
+            var character = schema.AddType<Character>();
+            character.AddField(c => c.Id);
+            character.AddField(c => c.Name);
+
+            var human = schema.AddType<Human>();
+            human.AddField(h => h.Height);
+
+            var stormtrooper = schema.AddType<Stormtrooper>();
+            stormtrooper.AddField(h => h.Specialization);
+
+            var droid = schema.AddType<Droid>();
+            droid.AddField(h => h.PrimaryFunction);
+
+            schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));
+            schema.AddListField("heros", db => db.Heros);
+        }
+
+        [Test]
+        public void LookupSingleEntity() => GenericTests.LookupSingleEntity(CreateDefaultContext());
+        [Test]
+        public void AliasOneField() => GenericTests.AliasOneField(CreateDefaultContext());
+        [Test]
+        public void NestedEntity() => GenericTests.NestedEntity(CreateDefaultContext());
+        [Test]
+        public void NoUserQueryReturnsNull() => GenericTests.NoUserQueryReturnsNull(CreateDefaultContext());
+        [Test]
+        public void CustomFieldSubQuery() => GenericTests.CustomFieldSubQuery(CreateDefaultContext());
+        [Test]
+        public void CustomFieldSubQueryUsingContext() => GenericTests.CustomFieldSubQueryUsingContext(CreateDefaultContext());
+        [Test]
+        public void List() => GenericTests.List(CreateDefaultContext());
+        [Test]
+        public void ListTypeIsList() => GenericTests.ListTypeIsList(CreateDefaultContext());
+        [Test]
+        public void NestedEntityList() => GenericTests.NestedEntityList(CreateDefaultContext());
+        [Test]
+        public void PostField() => GenericTests.PostField(CreateDefaultContext());
+        [Test]
+        public void PostFieldSubQuery() => GenericTests.PostFieldSubQuery(CreateDefaultContext());
+        [Test]
+        public void TypeName() => GenericTests.TypeName(CreateDefaultContext());
+        [Test]
+        public void DateTimeFilter() => GenericTests.DateTimeFilter(CreateDefaultContext());
+        [Test]
+        public void EnumerableSubField() => GenericTests.EnumerableSubField(CreateDefaultContext());
+        [Test]
+        public void SimpleMutation() => GenericTests.SimpleMutation(CreateDefaultContext());
+        [Test]
+        public void MutationWithReturn() => GenericTests.MutationWithReturn(CreateDefaultContext());
+        [Test]
+        public void NullPropagation() => GenericTests.NullPropagation(CreateDefaultContext());
+        [Test]
+        public void GuidField() => GenericTests.GuidField(CreateDefaultContext());
+        [Test]
+        public void GuidParameter() => GenericTests.GuidParameter(CreateDefaultContext());
+        [Test]
+        public void ByteArrayParameter() => GenericTests.ByteArrayParameter(CreateDefaultContext());
+        [Test]
+        public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
+        [Test]
+        public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
+        [Test]
+        public static void Fragements() => GenericTests.Fragements(CreateDefaultContext());
+        [Test]
+        public static void InlineFragements() => GenericTests.InlineFragements(CreateDefaultContext());
+        [Test]
+        public static void FragementWithMultiLevelInheritance() => GenericTests.FragementWithMultiLevelInheritance(CreateDefaultContext());
+        [Test]
+        public static void InlineFragementWithoutTypenameField() => GenericTests.InlineFragementWithoutTypenameField(CreateDefaultContext());
+        [Test]
+        public static void FragementWithoutTypenameField() => GenericTests.FragementWithoutTypenameField(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -197,6 +275,7 @@ namespace Tests.EF
             public IDbSet<Account> Accounts { get; set; }
             public IDbSet<MutateMe> MutateMes { get; set; }
             public IDbSet<NullRef> NullRefs { get; set; }
+            public IDbSet<Character> Heros { get; set; }
         }
 
         class User
@@ -219,7 +298,7 @@ namespace Tests.EF
             public bool Paid { get; set; }
             public DateTime? PaidUtc { get; set; }
             public Guid SomeGuid { get; set; }
-            public byte[] ByteArray { get; set; } = {1, 2, 3, 4};
+            public byte[] ByteArray { get; set; } = { 1, 2, 3, 4 };
 
             public List<User> Users { get; set; }
         }
@@ -233,6 +312,26 @@ namespace Tests.EF
         class NullRef
         {
             public int Id { get; set; }
+        }
+
+        class Character
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+        }
+
+        class Human : Character
+        {
+            public double Height { get; set; }
+        }
+        class Stormtrooper : Human
+        {
+            public string Specialization { get; set; }
+        }
+
+        class Droid : Character
+        {
+            public string PrimaryFunction { get; set; }
         }
     }
 }

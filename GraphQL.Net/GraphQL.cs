@@ -4,6 +4,7 @@ using System.Linq;
 using GraphQL.Net.SchemaAdapters;
 using GraphQL.Parser;
 using GraphQL.Parser.Execution;
+using Microsoft.FSharp.Core;
 
 namespace GraphQL.Net
 {
@@ -37,6 +38,7 @@ namespace GraphQL.Net
             var context = DefaultExecContext.Instance; // TODO use a real IExecContext to support passing variables
             var operation = document.Operations.Single(); // TODO support multiple operations per document, look up by name
             var execSelections = context.ToExecSelections(operation.Value);
+
             var outputs = new Dictionary<string, object>();
             foreach (var execSelection in execSelections.Select(s => s.Value))
             {

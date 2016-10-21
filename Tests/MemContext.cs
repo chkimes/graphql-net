@@ -48,12 +48,36 @@ namespace Tests
                 Value = 0,
             });
             account2.Users = new List<User> { user2 };
+            
+            var human = new Human
+            {
+                Id = 1,
+                Name = "Han Solo",
+                Height = 5.6430448
+            };
+            Heros.Add(human);
+            var stormtrooper = new Stormtrooper
+            {
+                Id = 2,
+                Name = "FN-2187",
+                Height = 4.9,
+                Specialization = "Imperial Snowtrooper"
+            };
+            Heros.Add(stormtrooper);
+            var droid = new Droid
+            {
+                Id = 3,
+                Name = "R2-D2",
+                PrimaryFunction = "Astromech"
+            };
+            Heros.Add(droid);
         }
 
         public List<User> Users { get; set; } = new List<User>();
         public List<Account> Accounts { get; set; } = new List<Account>();
         public List<MutateMe> MutateMes { get; set; } = new List<MutateMe>();
         public List<NullRef> NullRefs { get; set; } = new List<NullRef>();
+        public List<Character> Heros { get; set; } = new List<Character>();
 
         public static GraphQL<MemContext> CreateDefaultContext()
         {
@@ -70,6 +94,7 @@ namespace Tests
             InitializeAccountSchema(schema);
             InitializeMutationSchema(schema);
             InitializeNullRefSchema(schema);
+            InitializeCharacterSchema(schema);
             return schema;
         }
 
@@ -145,6 +170,25 @@ namespace Tests
             var nullRef = schema.AddType<NullRef>();
             nullRef.AddField(n => n.Id);
         }
+        
+        private static void InitializeCharacterSchema(GraphQLSchema<MemContext> schema)
+        {
+            var character = schema.AddType<Character>();
+            character.AddField(c => c.Id);
+            character.AddField(c => c.Name);
+
+            var human = schema.AddType<Human>();
+            human.AddField(h => h.Height);
+
+            var stormtrooper = schema.AddType<Stormtrooper>();
+            stormtrooper.AddField(h => h.Specialization);
+
+            var droid = schema.AddType<Droid>();
+            droid.AddField(h => h.PrimaryFunction);
+
+            schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.AsQueryable().SingleOrDefault(h => h.Id == args.id));
+            schema.AddListField("heros", db => db.Heros.AsQueryable());
+        }
     }
 
     public class User
@@ -186,5 +230,26 @@ namespace Tests
     public class NullRef
     {
         public int Id { get; set; }
+    }
+
+    public class Character
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class Human : Character
+    {
+        public double Height { get; set; }
+    }
+
+    public class Stormtrooper : Human
+    {
+        public string Specialization { get; set; }
+    }
+
+    public class Droid : Character
+    {
+        public string PrimaryFunction { get; set; }
     }
 }

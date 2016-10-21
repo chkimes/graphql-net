@@ -9,7 +9,7 @@ namespace GraphQL.Net.SchemaAdapters
     {
         public SchemaRootType(Schema schema, GraphQLType baseQueryType)
         {
-            Fields = baseQueryType.Fields
+            Fields = baseQueryType.OwnFields
                 .Select(f => new SchemaField(this, f, schema))
                 .ToDictionary(f => f.FieldName, f => f as ISchemaField<Info>);
         }

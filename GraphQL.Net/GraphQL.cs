@@ -31,8 +31,23 @@ namespace GraphQL.Net
 
         public IDictionary<string, object> ExecuteQuery(string queryStr)
         {
+            if (_schema.ContextCreator == null)
+                throw new InvalidOperationException("No context creator specified. Either pass a context " +
+                    "creator to the schema's constroctur or call overloaded method 'Execut(string query, TContext context)' " +
+                    "and pass a context.");
+            var context = _schema.ContextCreator();
+            var result = ExecuteQuery(queryStr, context);
+            (context as IDisposable)?.Dispose();
+            return result;
+        }
+
+        public IDictionary<string, object> ExecuteQuery(string queryStr, TContext queryContext)
+        {
             if (!_schema.Completed)
                 throw new InvalidOperationException("Schema must be Completed before executing a query. Try calling the schema's Complete method.");
+
+            if (queryContext == null)
+                throw new ArgumentException("Contexst must not be null.");
 
             var document = GraphQLDocument<Info>.Parse(_schema.Adapter, queryStr);
             var context = DefaultExecContext.Instance; // TODO use a real IExecContext to support passing variables
@@ -43,7 +58,7 @@ namespace GraphQL.Net
             foreach (var execSelection in execSelections.Select(s => s.Value))
             {
                 var field = execSelection.SchemaField.Field();
-                outputs[execSelection.Name] = Executor<TContext>.Execute(_schema, field, execSelection);
+                outputs[execSelection.Name] = Executor<TContext>.Execute(_schema, queryContext, field, execSelection);
             }
             return outputs;
         }

@@ -238,10 +238,9 @@ namespace GraphQL.Net
                 {
                     graphQlType = graphQlType.BaseType;
                 }
-                if (graphQlType != null)
+                var typeNameField = graphQlType?.OwnFields.Find(f => f.Name == "__typename");
+                if (typeNameField != null && !typeNameField.IsPost)
                 {
-                    var typeNameField = graphQlType.OwnFields.Find(f => f.Name == "__typename");
-
                     var typeNameExecSelection = new ExecSelection<Info>(
                         new SchemaField(
                             schema.Adapter.QueryTypes[graphQlType?.Name],

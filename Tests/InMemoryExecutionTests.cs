@@ -36,6 +36,7 @@ namespace Tests
         [Test] public static void FragementWithMultiLevelInheritance() => GenericTests.FragementWithMultiLevelInheritance(MemContext.CreateDefaultContext());
         [Test] public static void InlineFragementWithoutTypenameField() => GenericTests.InlineFragementWithoutTypenameField(MemContext.CreateDefaultContext());
         [Test] public static void FragementWithoutTypenameField() => GenericTests.FragementWithoutTypenameField(MemContext.CreateDefaultContext());
+        [Test] public static void InlineFragementWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragementWithoutTypenameFieldWithoutOtherFields(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

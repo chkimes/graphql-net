@@ -235,6 +235,8 @@ namespace Tests.EF
         public static void InlineFragementWithoutTypenameField() => GenericTests.InlineFragementWithoutTypenameField(CreateDefaultContext());
         [Test]
         public static void FragementWithoutTypenameField() => GenericTests.FragementWithoutTypenameField(CreateDefaultContext());
+        [Test]
+        public static void InlineFragementWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragementWithoutTypenameFieldWithoutOtherFields(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

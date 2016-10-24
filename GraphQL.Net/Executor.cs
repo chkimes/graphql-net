@@ -232,21 +232,29 @@ namespace GraphQL.Net
                 selections.Any(s => s.TypeCondition != null) &&
                 selections.All(s => s.SchemaField.FieldName != "__typename"))
             {
+                // Find the base types' `__typename` field
                 var graphQlType = selections.First().SchemaField.DeclaringType.Info.Type;
-                var typeNameField = graphQlType.OwnFields.Find(f => f.Name == "__typename");
+                while (graphQlType?.BaseType != null)
+                {
+                    graphQlType = graphQlType.BaseType;
+                }
+                if (graphQlType != null)
+                {
+                    var typeNameField = graphQlType.OwnFields.Find(f => f.Name == "__typename");
 
-                var typeNameExecSelection = new ExecSelection<Info>(
-                    new SchemaField(
-                        schema.Adapter.QueryTypes[graphQlType?.Name],
-                        typeNameField,
-                        schema.Adapter),
-                    new FSharpOption<string>(typeNameField?.Name),
-                    null,
-                    new WithSource<ExecArgument<Info>>[] { },
-                    new WithSource<ExecDirective<Info>>[] { },
-                    new WithSource<ExecSelection<Info>>[] { }
-                    );
-                bindings = bindings.Concat(new[] { GetBinding(schema, typeNameExecSelection, queryType, baseBindingExpr, options) }).ToList();
+                    var typeNameExecSelection = new ExecSelection<Info>(
+                        new SchemaField(
+                            schema.Adapter.QueryTypes[graphQlType?.Name],
+                            typeNameField,
+                            schema.Adapter),
+                        new FSharpOption<string>(typeNameField?.Name),
+                        null,
+                        new WithSource<ExecArgument<Info>>[] { },
+                        new WithSource<ExecDirective<Info>>[] { },
+                        new WithSource<ExecSelection<Info>>[] { }
+                        );
+                    bindings = bindings.Concat(new[] { GetBinding(schema, typeNameExecSelection, queryType, baseBindingExpr, options) }).ToList();
+                }
             }
 
             var memberInit = Expression.MemberInit(Expression.New(queryType), bindings);
@@ -260,7 +268,7 @@ namespace GraphQL.Net
         }
 
         private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
-        {            
+        {
             var field = map.SchemaField.Field();
             var needsTypeCheck = baseBindingExpr.Type != field.DefiningType.CLRType;
             var toMember = toType.GetProperty(map.SchemaField.FieldName);
@@ -270,7 +278,7 @@ namespace GraphQL.Net
             // The field might be defined on sub-types of the specified type, so add a type cast if necessary.
             // If appropriate, `entity.Field` becomes `(entity as TFieldDefiningType).Field`
             var typeCastedBaseExpression = needsTypeCheck ? Expression.TypeAs(baseBindingExpr, field.DefiningType.CLRType) : baseBindingExpr;
-            
+
             // Replace (entity) with baseBindingExpr, note expression is no longer a LambdaExpression
             // `(context, entity) => entity.Field` becomes `someOtherEntity.Entity.Field` where baseBindingExpr is `someOtherEntity.Entity`
             var replacedBase = ParameterReplacer.Replace(expr.Body, expr.Parameters[1], typeCastedBaseExpression);
@@ -281,9 +289,9 @@ namespace GraphQL.Net
             {
                 var typeCheck = Expression.TypeIs(baseBindingExpr, field.DefiningType.CLRType);
                 var nullResult = Expression.Constant(null, toMember.PropertyType);
-                
+
                 // The expression type has to be nullable
-                if(replacedBase.Type.IsValueType)
+                if (replacedBase.Type.IsValueType)
                 {
                     replacedBase = Expression.Convert(replacedBase, typeof(Nullable<>).MakeGenericType(replacedBase.Type));
                 }

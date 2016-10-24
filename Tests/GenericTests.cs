@@ -204,9 +204,21 @@ namespace Tests
             Test.DeepEquals(
                 results,
                 "{ heros: [ " +
-                "{ name: 'Han Solo',}, " +
+                "{ name: 'Han Solo'}, " +
                 "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', } ] }"
+                "{ name: 'R2-D2' } ] }"
+                );
+        }
+
+        public static void InlineFragementWithoutTypenameFieldWithoutOtherFields<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery("{ heros { ... on Stormtrooper { height, specialization } } }");
+            Test.DeepEquals(
+                results,
+                "{ heros: [ " +
+                "{ }, " +
+                "{ height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
+                "{ } ] }"
                 );
         }
 

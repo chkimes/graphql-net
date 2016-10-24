@@ -14,15 +14,6 @@ namespace GraphQL.Net
     internal static class Executor<TContext>
     {
         public static object Execute
-            (GraphQLSchema<TContext> schema, GraphQLField field, ExecSelection<Info> query)
-        {
-            var context = schema.ContextCreator();
-            var results = Execute(schema, context, field, query);
-            (context as IDisposable)?.Dispose();
-            return results;
-        }
-
-        public static object Execute
             (GraphQLSchema<TContext> schema, TContext context, GraphQLField field, ExecSelection<Info> query)
         {
             var mutReturn = field.RunMutation(context, query.Arguments.Values());

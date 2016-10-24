@@ -23,11 +23,15 @@ namespace GraphQL.Net
 
         public static readonly ParameterExpression DbParam = Expression.Parameter(typeof(TContext), "db");
 
-        public GraphQLSchema(Func<TContext> contextCreator)
+        public GraphQLSchema()
         {
-            ContextCreator = contextCreator;
             AddType<TContext>("queryType");
             AddDefaultExpressionOptions();
+        }
+
+        public GraphQLSchema(Func<TContext> contextCreator) : this()
+        {
+            ContextCreator = contextCreator;
         }
 
         public void AddEnum<TEnum>(string name = null, string prefix = null) where TEnum : struct // wish we could do where TEnum : Enum

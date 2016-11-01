@@ -160,7 +160,6 @@ namespace GraphQL.Net
 
         private static void RelateTypeWithImplementedInterfaces(GraphQLType graphQLType, List<GraphQLType> types)
         {
-
             foreach (var interf in graphQLType.CLRType.GetInterfaces())
             {
                 var graphQlInterfaceType = types.Find(t => t.CLRType == interf);
@@ -188,16 +187,16 @@ namespace GraphQL.Net
                 return;
             }
 
-            var fallFields = type.GetQueryFields();
+            var allFields = type.GetQueryFields();
 
             // For union types there may duplicate fields. Validate those and remove duplicates
-            var fieldGroupedByName = fallFields.GroupBy(f => f.Name).ToList();
+            var fieldGroupedByName = allFields.GroupBy(f => f.Name).ToList();
 
             // All fields with the same name have to be of the same type.
             foreach (var fieldGroup in fieldGroupedByName)
             {
                 var typeOfFirstField = fieldGroup.FirstOrDefault()?.Type;
-                if (fieldGroup.Any(f => f.Type != typeOfFirstField))
+                if (fieldGroup.Any(f => f.Type?.CLRType?.IsAssignableFrom(typeOfFirstField?.CLRType) == false && typeOfFirstField?.CLRType?.IsAssignableFrom(f.Type?.CLRType) == false))
                 {
                     var fieldName = fieldGroup.FirstOrDefault()?.Name;
                     throw new ArgumentException($"The type '{type.Name}' has multiple fields named '{fieldName}' with different types.");

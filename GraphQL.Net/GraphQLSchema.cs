@@ -137,6 +137,7 @@ namespace GraphQL.Net
             foreach (var graphQLType in types)
             {
                 RelateTypeWithAncestorTypes(graphQLType, types);
+                RelateTypeWithImplementedInterfaces(graphQLType, types);
             }
         }
 
@@ -155,6 +156,15 @@ namespace GraphQL.Net
 
             ancestorGraphQlType?.IncludedTypes.Add(graphQLType);
             graphQLType.BaseType = ancestorGraphQlType;
+        }
+
+        private static void RelateTypeWithImplementedInterfaces(GraphQLType graphQLType, List<GraphQLType> types)
+        {
+            foreach (var interf in graphQLType.CLRType.GetInterfaces())
+            {
+                var graphQlInterfaceType = types.Find(t => t.CLRType == interf);
+                graphQlInterfaceType?.IncludedTypes.Add(graphQLType);
+            }
         }
 
         private static void CompleteTypes(IEnumerable<GraphQLType> types)
@@ -177,7 +187,24 @@ namespace GraphQL.Net
                 return;
             }
 
-            var fields = type.GetQueryFields();
+            var allFields = type.GetQueryFields();
+
+            // For union types there may duplicate fields. Validate those and remove duplicates
+            var fieldGroupedByName = allFields.GroupBy(f => f.Name).ToList();
+
+            // All fields with the same name have to be of the same type.
+            foreach (var fieldGroup in fieldGroupedByName)
+            {
+                var typeOfFirstField = fieldGroup.FirstOrDefault()?.Type;
+                if (fieldGroup.Any(f => f.Type?.CLRType?.IsAssignableFrom(typeOfFirstField?.CLRType) == false && typeOfFirstField?.CLRType?.IsAssignableFrom(f.Type?.CLRType) == false))
+                {
+                    var fieldName = fieldGroup.FirstOrDefault()?.Name;
+                    throw new ArgumentException($"The type '{type.Name}' has multiple fields named '{fieldName}' with different types.");
+                }
+            }
+
+            var fields = fieldGroupedByName.Select(g => g.First());
+
             var fieldDict = fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.IsScalar ? TypeHelpers.MakeNullable(f.Type.CLRType) : typeof(object));
             type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), fieldDict);
         }

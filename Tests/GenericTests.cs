@@ -234,5 +234,31 @@ namespace Tests
                 "{ name: 'R2-D2', } ] }"
                 );
         }
+
+        public static void FragementWithMultipleTypenameFields<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                "{ heros { name, ...stormtrooper, __typename } }, fragment stormtrooper on Stormtrooper { height, specialization, __typename } ");
+            Test.DeepEquals(
+                results,
+                "{ heros: [ " +
+                "{ name: 'Han Solo', __typename: 'Human'}, " +
+                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper', __typename: 'Stormtrooper'}, " +
+                "{ name: 'R2-D2', __typename: 'Droid'} ] }"
+                );
+        }
+
+        public static void FragementWithMultipleTypenameFieldsMixedWithInlineFragment<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                "{ heros { ...stormtrooper, __typename, ... on Human {name}, ... on Droid {name}}}, fragment stormtrooper on Stormtrooper { name, height, specialization, __typename } ");
+            Test.DeepEquals(
+                results,
+                "{ heros: [ " +
+                "{ __typename: 'Human',  name: 'Han Solo'}, " +
+                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper', __typename: 'Stormtrooper'}, " +
+                "{ __typename: 'Droid', name: 'R2-D2'} ] }"
+                );
+        }
     }
 }

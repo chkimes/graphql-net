@@ -173,18 +173,10 @@ namespace Tests
         
         private static void InitializeCharacterSchema(GraphQLSchema<MemContext> schema)
         {
-            var character = schema.AddType<Character>();
-            character.AddField(c => c.Id);
-            character.AddField(c => c.Name);
-
-            var human = schema.AddType<Human>();
-            human.AddField(h => h.Height);
-
-            var stormtrooper = schema.AddType<Stormtrooper>();
-            stormtrooper.AddField(h => h.Specialization);
-
-            var droid = schema.AddType<Droid>();
-            droid.AddField(h => h.PrimaryFunction);
+            schema.AddType<Character>().AddAllFields();
+            schema.AddType<Human>().AddAllFields();
+            schema.AddType<Stormtrooper>().AddAllFields();
+            schema.AddType<Droid>().AddAllFields();
 
             schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.AsQueryable().SingleOrDefault(h => h.Id == args.id));
             schema.AddListField("heros", db => db.Heros.AsQueryable());

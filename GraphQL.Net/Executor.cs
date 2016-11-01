@@ -173,14 +173,15 @@ namespace GraphQL.Net
                     obj = selector.Compile().DynamicInvoke(obj);
                 }
 
+                // Due to type conditions a key might occur multiple times 
                 if (map.Selections.Any())
                 {
                     var listObj = obj as IEnumerable<object>;
-                    if (listObj != null)
+                    if (listObj != null && !dict.ContainsKey(key))
                     {
                         dict.Add(key, listObj.Select(o => MapResults(o, map.Selections.Values(), schema)).ToList());
                     }
-                    else if (obj != null)
+                    else if (obj != null && !dict.ContainsKey(key))
                     {
                         dict.Add(key, MapResults(obj, map.Selections.Values(), schema));
                     }
@@ -191,7 +192,10 @@ namespace GraphQL.Net
                 }
                 else
                 {
-                    dict.Add(key, obj);
+                    if (!dict.ContainsKey(key))
+                    {
+                        dict.Add(key, obj);
+                    }
                 }
             }
             return dict;
@@ -212,6 +216,11 @@ namespace GraphQL.Net
         private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, Type queryType, IEnumerable<ExecSelection<Info>> selections, Expression baseBindingExpr, ExpressionOptions options)
         {
             selections = selections.ToList();
+            var multipleTypenameSelectionsPresent = selections.Count(s => s.Name == "__typename") > 1;
+
+            // There might be duplicates in the selections caused by type conditions
+            selections = selections
+                .Where(s => s.Name != "__typename");
 
             var bindings = selections
                 .Where(m => !m.SchemaField.Field().IsPost)
@@ -219,12 +228,13 @@ namespace GraphQL.Net
                 .ToList();
 
             // Add selection for '__typename'-field if not contained.
-            if (selections.Any() &&
+            if (multipleTypenameSelectionsPresent ||
+                (selections.Any() &&
                 selections.Any(s => s.TypeCondition != null) &&
-                selections.All(s => s.SchemaField.FieldName != "__typename"))
+                selections.All(s => s.SchemaField.FieldName != "__typename")))
             {
                 // Find the base types' `__typename` field
-                var graphQlType = selections.First().SchemaField.DeclaringType.Info.Type;
+                var graphQlType = schema.GetGQLType(baseBindingExpr.Type);
                 while (graphQlType?.BaseType != null)
                 {
                     graphQlType = graphQlType.BaseType;

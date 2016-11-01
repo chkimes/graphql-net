@@ -38,6 +38,7 @@ namespace Tests
         [Test] public static void FragementWithoutTypenameField() => GenericTests.FragementWithoutTypenameField(MemContext.CreateDefaultContext());
         [Test] public static void InlineFragementWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragementWithoutTypenameFieldWithoutOtherFields(MemContext.CreateDefaultContext());
         [Test] public static void FragementWithMultipleTypenameFields() => GenericTests.FragementWithMultipleTypenameFields(MemContext.CreateDefaultContext());
+        [Test] public static void FragementWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragementWithMultipleTypenameFieldsMixedWithInlineFragment(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

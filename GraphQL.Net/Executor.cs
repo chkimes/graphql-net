@@ -13,6 +13,8 @@ namespace GraphQL.Net
 {
     internal static class Executor<TContext>
     {
+        private const string TypenameFieldSelector = "__typename";
+
         public static object Execute
             (GraphQLSchema<TContext> schema, TContext context, GraphQLField field, ExecSelection<Info> query)
         {
@@ -146,7 +148,7 @@ namespace GraphQL.Net
                     //  => (2) include results of selections with the same type-condition-name of any ancestor-type.
                     //
                     var selectionConditionTypeName = map.TypeCondition.Value?.TypeName;
-                    var typenameProp = type.GetRuntimeProperty("__typename");
+                    var typenameProp = type.GetRuntimeProperty(TypenameFieldSelector);
                     var resultTypeName = (string)typenameProp?.GetValue(queryObject);
 
                     // (1) type-condition-name != result.__typename
@@ -213,25 +215,32 @@ namespace GraphQL.Net
             return Expression.Lambda(init, parameter);
         }
 
-        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, Type queryType, IEnumerable<ExecSelection<Info>> selections, Expression baseBindingExpr, ExpressionOptions options)
+        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, Type queryType, IEnumerable<ExecSelection<Info>> selectionsEnumerable, Expression baseBindingExpr, ExpressionOptions options)
         {
-            selections = selections.ToList();
-            var multipleTypenameSelectionsPresent = selections.Count(s => s.Name == "__typename") > 1;
+            // Avoid possible multiple enumeration of selections-enumerable
+            var selections = selectionsEnumerable as IList<ExecSelection<Info>> ?? selectionsEnumerable.ToList();
 
-            // There might be duplicates in the selections caused by type conditions
+            // The '__typename'-field selection has to be added for queries with type conditions
+            var typeConditionButNoTypeNameSelection = selections.Any() &&
+                                                       selections.Any(s => s.TypeCondition != null);
+
+            // Any '__typename' selection have to be replaced by the '__typename' selection of the target type' '__typename'-field.
+            var typeNameConditionHasToBeReplaced = selections.Any(s => s.Name == TypenameFieldSelector);
+            
+            // Remove all '__typename'-selections as well as duplicates in the selections caused by fragments type condition selections.
             selections = selections
-                .Where(s => s.Name != "__typename");
+                .Where(s => s.Name != TypenameFieldSelector)
+                .GroupBy(s => s.Name)
+                .Select(g => g.First())
+                .ToList();
 
             var bindings = selections
                 .Where(m => !m.SchemaField.Field().IsPost)
                 .Select(map => GetBinding(schema, map, queryType, baseBindingExpr, options))
                 .ToList();
 
-            // Add selection for '__typename'-field if not contained.
-            if (multipleTypenameSelectionsPresent ||
-                (selections.Any() &&
-                selections.Any(s => s.TypeCondition != null) &&
-                selections.All(s => s.SchemaField.FieldName != "__typename")))
+            // Add selection for '__typename'-field of the proper type
+            if (typeConditionButNoTypeNameSelection || typeNameConditionHasToBeReplaced)
             {
                 // Find the base types' `__typename` field
                 var graphQlType = schema.GetGQLType(baseBindingExpr.Type);
@@ -239,7 +248,7 @@ namespace GraphQL.Net
                 {
                     graphQlType = graphQlType.BaseType;
                 }
-                var typeNameField = graphQlType?.OwnFields.Find(f => f.Name == "__typename");
+                var typeNameField = graphQlType?.OwnFields.Find(f => f.Name == TypenameFieldSelector);
                 if (typeNameField != null && !typeNameField.IsPost)
                 {
                     var typeNameExecSelection = new ExecSelection<Info>(

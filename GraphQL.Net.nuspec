@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>GraphQL.Net</id>
-    <version>0.2.4</version>
+    <version>0.3.0</version>
     <authors>Chad Kimes</authors>
     <owners>Chad Kimes</owners>
     <licenseUrl>https://github.com/ckimes89/graphql-net/blob/master/LICENSE.txt</licenseUrl>

@@ -178,7 +178,7 @@ to parse this type of sequence efficiently.
 let stringValue =
     let isRegularCharacter c =
         c <> '"'
-        && c <> '\''
+        && c <> '\\'
         && c <> '\n'
     let regularCharacters = manySatisfy isRegularCharacter
     let escapedCharacter =

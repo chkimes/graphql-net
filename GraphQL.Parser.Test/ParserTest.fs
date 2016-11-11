@@ -114,6 +114,22 @@ mutation {
   }
 }"
     [<Test>]
+    member __.TestStringArguments() =
+        good @"
+{
+  user(id: ""abc"") {
+    id
+  }
+}"
+    [<Test>]
+    member __.TestEscapedStringArguments() =
+        good @"
+{
+  user(id: ""'a\""b\""c'"") {
+    id
+  }
+}"
+    [<Test>]
     member __.TestFieldAlias() =
         good @"
 {

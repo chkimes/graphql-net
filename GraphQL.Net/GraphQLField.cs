@@ -43,8 +43,8 @@ namespace GraphQL.Net
             ? (LambdaExpression)ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs), mutationReturn)
             : (LambdaExpression)ExprFunc.DynamicInvoke(TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
 
-        public virtual object RunMutation<TContext>(TContext context, IEnumerable<ExecArgument<Info>> inputs)
-            => MutationFunc?.DynamicInvoke(context, TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs));
+        public virtual object RunMutation<TContext, TExecutionParameters>(TContext context, IEnumerable<ExecArgument<Info>> inputs, TExecutionParameters executionParameters)
+            => MutationFunc?.DynamicInvoke(context, TypeHelpers.GetArgs(ArgsCLRType, Schema.VariableTypes, inputs), executionParameters);
 
         public Complexity Complexity { get; set; }
 
@@ -63,11 +63,14 @@ namespace GraphQL.Net
                 PostFieldFunc = () => fieldFunc(),
             };
         }
-
+        
         public static GraphQLField New<TArgs>(GraphQLSchema schema, string name, Func<TArgs, LambdaExpression> exprFunc, Type fieldCLRType, GraphQLType definingType)
             => NewInternal<TArgs>(schema, name, exprFunc, fieldCLRType, definingType, null);
 
-        public static GraphQLField NewMutation<TContext, TArgs, TMutReturn>(GraphQLSchema schema, string name, Func<TArgs, TMutReturn, LambdaExpression> exprFunc, Type fieldCLRType, GraphQLType definingType, Func<TContext, TArgs, TMutReturn> mutationFunc)
+        public static GraphQLField New<TArgs, TExecutionParameters>(GraphQLSchema schema, string name, Func<TArgs, TExecutionParameters, LambdaExpression> exprFunc, Type fieldCLRType, GraphQLType definingType)
+            => NewInternal<TArgs>(schema, name, exprFunc, fieldCLRType, definingType, null);
+
+        public static GraphQLField NewMutation<TContext, TArgs, TExecutionParameters, TMutReturn>(GraphQLSchema schema, string name, Func<TArgs, TMutReturn, LambdaExpression> exprFunc, Type fieldCLRType, GraphQLType definingType, Func<TContext, TArgs, TExecutionParameters, TMutReturn> mutationFunc)
             => NewInternal<TArgs>(schema, name, exprFunc, fieldCLRType, definingType, mutationFunc);
 
         private static GraphQLField NewInternal<TArgs>(GraphQLSchema schema, string name, Delegate exprFunc, Type fieldCLRType, GraphQLType definingType, Delegate mutationFunc)

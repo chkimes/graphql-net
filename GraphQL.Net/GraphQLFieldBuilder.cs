@@ -3,7 +3,7 @@ using GraphQL.Parser;
 
 namespace GraphQL.Net
 {
-    public class GraphQLFieldBuilder<TContext, TField>
+    public class GraphQLFieldBuilder<TContext, TExecutionParameters, TField>
     {
         private readonly GraphQLField _field;
 
@@ -12,20 +12,20 @@ namespace GraphQL.Net
             _field = field;
         }
 
-        public GraphQLFieldBuilder<TContext, TField> WithDescription(string description)
+        public GraphQLFieldBuilder<TContext, TExecutionParameters, TField> WithDescription(string description)
         {
             _field.Description = description;
             return this;
         }
 
-        public GraphQLFieldBuilder<TContext, TField> WithComplexity(long min, long max)
+        public GraphQLFieldBuilder<TContext, TExecutionParameters, TField> WithComplexity(long min, long max)
         {
             _field.Complexity = Complexity.NewRange(Tuple.Create(min, max));
             return this;
         }
 
         // TODO: This should be removed once we figure out a better way to do it
-        internal GraphQLFieldBuilder<TContext, TField> WithResolutionType(ResolutionType type)
+        internal GraphQLFieldBuilder<TContext, TExecutionParameters, TField> WithResolutionType(ResolutionType type)
         {
             _field.ResolutionType = type;
             return this;

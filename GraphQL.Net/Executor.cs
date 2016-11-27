@@ -11,17 +11,17 @@ using Microsoft.FSharp.Core;
 
 namespace GraphQL.Net
 {
-    internal static class Executor<TContext>
+    internal static class Executor<TContext, TExecutionParameters>
     {
         private const string TypenameFieldSelector = "__typename";
 
         public static object Execute
-            (GraphQLSchema<TContext> schema, TContext context, GraphQLField field, ExecSelection<Info> query)
+            (GraphQLSchema<TContext, TExecutionParameters> schema, TContext context, GraphQLField field, ExecSelection<Info> query, TExecutionParameters executionParameters)
         {
-            var mutReturn = field.RunMutation(context, query.Arguments.Values());
+            var mutReturn = field.RunMutation(context, query.Arguments.Values(), executionParameters);
 
             var queryableFuncExpr = field.GetExpression(query.Arguments.Values(), mutReturn);
-            var replaced = (LambdaExpression)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+            var replaced = (LambdaExpression)ParameterReplacer.Replace(queryableFuncExpr, queryableFuncExpr.Parameters[0], GraphQLSchema<TContext, TExecutionParameters>.DbParam);
 
             // sniff queryable provider to determine how selector should be built
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
@@ -39,7 +39,7 @@ namespace GraphQL.Net
                     body = ((UnaryExpression)body).Operand;
 
                 var call = Expression.Call(typeof(Queryable), "Select", new[] { field.Type.CLRType, field.Type.QueryType }, body, selectorExpr);
-                var expr = Expression.Lambda(call, GraphQLSchema<TContext>.DbParam);
+                var expr = Expression.Lambda(call, GraphQLSchema<TContext, TExecutionParameters>.DbParam);
                 var transformed = expr.Compile().DynamicInvoke(context);
 
                 object results;
@@ -68,7 +68,7 @@ namespace GraphQL.Net
             else
             {
                 var invocation = Expression.Invoke(selector, replaced.Body);
-                var expr = Expression.Lambda(invocation, GraphQLSchema<TContext>.DbParam);
+                var expr = Expression.Lambda(invocation, GraphQLSchema<TContext, TExecutionParameters>.DbParam);
                 var result = expr.Compile().DynamicInvoke(context);
                 return MapResults(result, queryExecSelections, schema);
             }
@@ -99,7 +99,7 @@ namespace GraphQL.Net
             return (TReturn)newLambda.Compile().DynamicInvoke(queryable);
         }
 
-        private static IDictionary<string, object> MapResults(object queryObject, IEnumerable<ExecSelection<Info>> selections, GraphQLSchema<TContext> schema)
+        private static IDictionary<string, object> MapResults(object queryObject, IEnumerable<ExecSelection<Info>> selections, GraphQLSchema<TContext, TExecutionParameters> schema)
         {
             if (queryObject == null) // TODO: Check type non-null and throw exception
                 return null;
@@ -208,14 +208,14 @@ namespace GraphQL.Net
             return type != null && (type.Name == referenceTypeName || IsEqualToAnyAncestorType(type?.BaseType, referenceTypeName));
         }
 
-        private static LambdaExpression GetSelector(GraphQLSchema<TContext> schema, GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, ExpressionOptions options)
+        private static LambdaExpression GetSelector(GraphQLSchema<TContext, TExecutionParameters> schema, GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, ExpressionOptions options)
         {
             var parameter = Expression.Parameter(gqlType.CLRType, "p");
             var init = GetMemberInit(schema, gqlType.QueryType, selections, parameter, options);
             return Expression.Lambda(init, parameter);
         }
 
-        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, Type queryType, IEnumerable<ExecSelection<Info>> selectionsEnumerable, Expression baseBindingExpr, ExpressionOptions options)
+        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext, TExecutionParameters> schema, Type queryType, IEnumerable<ExecSelection<Info>> selectionsEnumerable, Expression baseBindingExpr, ExpressionOptions options)
         {
             // Avoid possible multiple enumeration of selections-enumerable
             var selections = selectionsEnumerable as IList<ExecSelection<Info>> ?? selectionsEnumerable.ToList();
@@ -276,7 +276,7 @@ namespace GraphQL.Net
             return Expression.Condition(equals, Expression.Constant(null, returnExpr.Type), returnExpr);
         }
 
-        private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
+        private static MemberBinding GetBinding(GraphQLSchema<TContext, TExecutionParameters> schema, ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
         {
             var field = map.SchemaField.Field();
             var needsTypeCheck = baseBindingExpr.Type != field.DefiningType.CLRType;
@@ -309,7 +309,7 @@ namespace GraphQL.Net
             }
 
             // This just makes sure that the (context) parameter is the same as the one used by the whole query
-            var replacedContext = ParameterReplacer.Replace(replacedBase, expr.Parameters[0], GraphQLSchema<TContext>.DbParam);
+            var replacedContext = ParameterReplacer.Replace(replacedBase, expr.Parameters[0], GraphQLSchema<TContext, TExecutionParameters>.DbParam);
 
             // If there aren't any children, then we can assume that this is a scalar entity and we don't have to map child fields
             if (!map.Selections.Any())

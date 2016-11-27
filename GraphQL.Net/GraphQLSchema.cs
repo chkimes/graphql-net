@@ -14,7 +14,12 @@ namespace GraphQL.Net
         internal abstract GraphQLType GetGQLType(Type type);
     }
 
-    public class GraphQLSchema<TContext> : GraphQLSchema
+    public class GraphQLSchema<TContext> : GraphQLSchema<TContext, NoExecutionParameters>
+    {
+        public GraphQLSchema(Func<TContext> creationFunc) : base(creationFunc) { }
+    }
+
+    public class GraphQLSchema<TContext, TExecutionParameters> : GraphQLSchema
     {
         internal readonly Func<TContext> ContextCreator;
         private readonly List<GraphQLType> _types = new List<GraphQLType>();
@@ -60,7 +65,7 @@ namespace GraphQL.Net
                     }
                 }, translate, name);
 
-        public GraphQLTypeBuilder<TContext, TEntity> AddType<TEntity>(string name = null, string description = null)
+        public GraphQLTypeBuilder<TContext, TExecutionParameters, TEntity> AddType<TEntity>(string name = null, string description = null)
         {
             var type = typeof(TEntity);
             if (_types.Any(t => t.CLRType == type))
@@ -71,19 +76,19 @@ namespace GraphQL.Net
                 gqlType.Name = name;
             _types.Add(gqlType);
 
-            return new GraphQLTypeBuilder<TContext, TEntity>(this, gqlType);
+            return new GraphQLTypeBuilder<TContext, TExecutionParameters, TEntity>(this, gqlType);
         }
 
-        public GraphQLTypeBuilder<TContext, TEntity> GetType<TEntity>()
+        public GraphQLTypeBuilder<TContext, TExecutionParameters, TEntity> GetType<TEntity>()
         {
             var type = _types.FirstOrDefault(t => t.CLRType == typeof(TEntity));
             if (type == null)
                 throw new KeyNotFoundException($"Type {typeof(TEntity).FullName} could not be found.");
 
-            return new GraphQLTypeBuilder<TContext, TEntity>(this, type);
+            return new GraphQLTypeBuilder<TContext, TExecutionParameters, TEntity>(this, type);
         }
 
-        public GraphQLSchema<TContext> WithExpressionOptions(Func<Type, bool> validForQueryType, bool castAssignment = true, bool nullCheckLists = false)
+        public GraphQLSchema<TContext, TExecutionParameters> WithExpressionOptions(Func<Type, bool> validForQueryType, bool castAssignment = true, bool nullCheckLists = false)
         {
             _expressionOptions.Insert(0, new ExpressionOptions(validForQueryType, castAssignment, nullCheckLists));
             return this;
@@ -107,7 +112,7 @@ namespace GraphQL.Net
             WithExpressionOptions(t => t.FullName.StartsWith("System.Data.Entity.Infrastructure.DbQuery"), castAssignment: false, nullCheckLists: false);
         }
 
-        internal Schema<TContext> Adapter { get; private set; }
+        internal Schema<TContext, TExecutionParameters> Adapter { get; private set; }
 
         public void Complete()
         {
@@ -126,7 +131,7 @@ namespace GraphQL.Net
             AddTypeNameFields();
             CompleteTypes(_types);
 
-            Adapter = new Schema<TContext>(this);
+            Adapter = new Schema<TContext, TExecutionParameters>(this);
             Completed = true;
         }
 
@@ -267,7 +272,7 @@ namespace GraphQL.Net
 
         private void AddTypeNameFields()
         {
-            var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
+            var method = typeof(GraphQLSchema<TContext, TExecutionParameters>).GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
             foreach (var type in _types.Where(t => !t.IsScalar))
             {
                 var genMethod = method.MakeGenericMethod(type.CLRType);
@@ -277,7 +282,7 @@ namespace GraphQL.Net
 
         private void AddTypeNameField<TEntity>(GraphQLType type)
         {
-            var builder = new GraphQLTypeBuilder<TContext, TEntity>(this, type);
+            var builder = new GraphQLTypeBuilder<TContext, TExecutionParameters, TEntity>(this, type);
             if (!type.IncludedTypes.Any())
             {
                 // No included types, type name is constant.
@@ -330,7 +335,7 @@ namespace GraphQL.Net
         // Since the query will change based on arguments, we need a function to generate the above Expression
         // based on whatever arguments are passed in, so:
         //    Func<TArgs, Expression<TQueryFunc>> where TQueryFunc = Func<TContext, IQueryable<TEntity>>
-        internal GraphQLFieldBuilder<TContext, TEntity> AddFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, IEnumerable<TEntity>>>> exprGetter, ResolutionType type)
+        internal GraphQLFieldBuilder<TContext, TExecutionParameters, TEntity> AddFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, IEnumerable<TEntity>>>> exprGetter, ResolutionType type)
         {
             if (FindField(name) != null)
                 throw new Exception($"Field named {name} has already been created.");
@@ -339,7 +344,7 @@ namespace GraphQL.Net
                 .WithResolutionType(type);
         }
 
-        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, TEntity>>> exprGetter)
+        internal GraphQLFieldBuilder<TContext, TExecutionParameters, TEntity> AddUnmodifiedFieldInternal<TArgs, TEntity>(string name, Func<TArgs, Expression<Func<TContext, TContext, TEntity>>> exprGetter)
         {
             if (FindField(name) != null)
                 throw new Exception($"Field named {name} has already been created.");
@@ -348,7 +353,7 @@ namespace GraphQL.Net
                 .WithResolutionType(ResolutionType.Unmodified);
         }
 
-        internal GraphQLFieldBuilder<TContext, TEntity> AddMutationInternal<TArgs, TEntity, TMutReturn>(string name, Func<TArgs, TMutReturn, Expression<Func<TContext, TContext, IEnumerable<TEntity>>>> exprGetter, ResolutionType type, Func<TContext, TArgs, TMutReturn> mutation)
+        internal GraphQLFieldBuilder<TContext, TExecutionParameters, TEntity> AddMutationInternal<TArgs, TEntity, TMutReturn>(string name, Func<TArgs, TMutReturn, Expression<Func<TContext, TContext, IEnumerable<TEntity>>>> exprGetter, ResolutionType type, Func<TContext, TArgs, TExecutionParameters, TMutReturn> mutation)
         {
             if (FindField(name) != null)
                 throw new Exception($"Field named {name} has already been created.");
@@ -357,7 +362,7 @@ namespace GraphQL.Net
                 .WithResolutionType(type);
         }
 
-        internal GraphQLFieldBuilder<TContext, TEntity> AddUnmodifiedMutationInternal<TArgs, TEntity, TMutReturn>(string name, Func<TArgs, TMutReturn, Expression<Func<TContext, TContext, TEntity>>> exprGetter, Func<TContext, TArgs, TMutReturn> mutation)
+        internal GraphQLFieldBuilder<TContext, TExecutionParameters, TEntity> AddUnmodifiedMutationInternal<TArgs, TEntity, TMutReturn>(string name, Func<TArgs, TMutReturn, Expression<Func<TContext, TContext, TEntity>>> exprGetter, Func<TContext, TArgs, TExecutionParameters, TMutReturn> mutation)
         {
             if (FindField(name) != null)
                 throw new Exception($"Field named {name} has already been created.");

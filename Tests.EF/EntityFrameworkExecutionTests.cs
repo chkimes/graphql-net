@@ -89,7 +89,7 @@ namespace Tests.EF
             return new GraphQL<EfContext>(schema);
         }
 
-        private static void InitializeUserSchema(GraphQLSchema<EfContext> schema)
+        private static void InitializeUserSchema<TExecutionParameters>(GraphQLSchema<EfContext, TExecutionParameters> schema)
         {
             var user = schema.AddType<User>();
             user.AddField(u => u.Id);
@@ -106,9 +106,60 @@ namespace Tests.EF
             schema.AddField("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));
         }
 
+        public static GraphQL<EfContext, TestQueryExecutionParameters> CreateContextWithQueryExecutionParams()
+        {
+            var schema = CreateSchemaWithQueryExecutionParams();
+            schema.Complete();
+            return new GraphQL<EfContext, TestQueryExecutionParameters>(schema);
+        }
+
+        public static GraphQLSchema<EfContext, TestQueryExecutionParameters> CreateSchemaWithQueryExecutionParams()
+        {
+            var schema = new GraphQLSchema<EfContext, TestQueryExecutionParameters>(() => new EfContext());
+            schema.AddScalar(new { year = 0, month = 0, day = 0 }, ymd => new DateTime(ymd.year, ymd.month, ymd.day));
+            InitializeUserSchema(schema);
+            InitializeAccountSchema(schema);
+            InitializeNullRefSchema(schema);
+            InitializeCharacterSchema(schema);
+
+            var mutate = schema.AddType<MutateMe>();
+            mutate.AddAllFields();
+
+            schema.AddMutation("mutate",
+                            new { id = 0, newVal = 0 },
+                            (db, args, execParams) =>
+                            {
+                                var mutateMe = db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id);
+                                execParams.MutateMeService.Update(execParams.authenticatedUserId, mutateMe, args.newVal);
+                                db.SaveChanges();
+                            },
+                            (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddMutation("addMutate",
+                new { newVal = 0 },
+                (db, args, execParams) =>
+                {
+                    var newMutate = execParams.MutateMeService.Create(execParams.authenticatedUserId, args.newVal);
+                    db.MutateMes.Add(newMutate);
+                    db.SaveChanges();
+                    return newMutate.Id;
+                },
+                (db, args, id) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == id));
+
+            return schema;
+        }
+
+        public static TestQueryExecutionParameters CreateQueryExecutionParameters()
+        {
+            return new TestQueryExecutionParameters
+            {
+                MutateMeService = new MutateMeService(),
+                authenticatedUserId = 1
+            };
+        }
+
         private static string GetAbcPostField() => "easy as 123"; // mimic an in-memory function
 
-        private static void InitializeAccountSchema(GraphQLSchema<EfContext> schema)
+        private static void InitializeAccountSchema<TExecutionParameters>(GraphQLSchema<EfContext, TExecutionParameters> schema)
         {
             var account = schema.AddType<Account>();
             account.AddField(a => a.Id);
@@ -129,7 +180,7 @@ namespace Tests.EF
                     (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
         }
 
-        private static void InitializeMutationSchema(GraphQLSchema<EfContext> schema)
+        private static void InitializeMutationSchema<TExecutionParameters>(GraphQLSchema<EfContext, TExecutionParameters> schema)
         {
             var mutate = schema.AddType<MutateMe>();
             mutate.AddAllFields();
@@ -156,13 +207,13 @@ namespace Tests.EF
                 (db, args, id) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == id));
         }
 
-        private static void InitializeNullRefSchema(GraphQLSchema<EfContext> schema)
+        private static void InitializeNullRefSchema<TExecutionParameters>(GraphQLSchema<EfContext, TExecutionParameters> schema)
         {
             var nullRef = schema.AddType<NullRef>();
             nullRef.AddField(n => n.Id);
         }
 
-        private static void InitializeCharacterSchema(GraphQLSchema<EfContext> schema)
+        private static void InitializeCharacterSchema<TExecutionParameters>(GraphQLSchema<EfContext, TExecutionParameters> schema)
         {
             schema.AddType<Character>().AddAllFields();
             schema.AddType<Human>().AddAllFields();
@@ -233,6 +284,10 @@ namespace Tests.EF
         public static void FragementWithMultipleTypenameFields() => GenericTests.FragementWithMultipleTypenameFields(CreateDefaultContext());
         [Test]
         public static void FragementWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragementWithMultipleTypenameFieldsMixedWithInlineFragment(CreateDefaultContext());
+        [Test]
+        public static void SimpleMutationWithQueryExecutionParams() => GenericTests.SimpleMutationWithQueryExecutionParams(CreateContextWithQueryExecutionParams(), CreateQueryExecutionParameters());
+        [Test]
+        public static void MutationWithReturnAndExceutionParameters() => GenericTests.MutationWithReturnAndExceutionParameters(CreateContextWithQueryExecutionParams(), CreateQueryExecutionParameters());
 
         [Test]
         public void AddAllFields()
@@ -253,7 +308,7 @@ namespace Tests.EF
             public int Id { get; set; }
         }
 
-        class EfContext : DbContext
+        public class EfContext : DbContext
         {
             static EfContext()
             {
@@ -276,7 +331,7 @@ namespace Tests.EF
             public IDbSet<Character> Heros { get; set; }
         }
 
-        class User
+        public class User
         {
             public int Id { get; set; }
             public string Name { get; set; }
@@ -289,7 +344,7 @@ namespace Tests.EF
             public NullRef NullRef { get; set; }
         }
 
-        class Account
+        public class Account
         {
             public int Id { get; set; }
             public string Name { get; set; }
@@ -301,35 +356,54 @@ namespace Tests.EF
             public List<User> Users { get; set; }
         }
 
-        class MutateMe
+        public class MutateMe
         {
             public int Id { get; set; }
             public int Value { get; set; }
         }
 
-        class NullRef
+        public class NullRef
         {
             public int Id { get; set; }
         }
 
-        class Character
+        public class Character
         {
             public int Id { get; set; }
             public string Name { get; set; }
         }
 
-        class Human : Character
+        public class Human : Character
         {
             public double Height { get; set; }
         }
-        class Stormtrooper : Human
+        public class Stormtrooper : Human
         {
             public string Specialization { get; set; }
         }
 
-        class Droid : Character
+        public class Droid : Character
         {
             public string PrimaryFunction { get; set; }
+        }
+
+        public class MutateMeService
+        {
+            public MutateMe Create(int authenticatedUserId, int value)
+            {
+                return new MutateMe { Value = value };
+            }
+
+            public void Update(int authenticatedUserId, MutateMe mutateMe, int value)
+            {
+                mutateMe.Value = value;
+            }
+        }
+
+        public class TestQueryExecutionParameters
+        {
+            public MutateMeService MutateMeService { get; set; }
+            public int authenticatedUserId { get; set; }
         }
     }
 }

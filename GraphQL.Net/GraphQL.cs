@@ -15,7 +15,7 @@ namespace GraphQL.Net
             _schema = schema;
         }
 
-        public IDictionary<string, object> ExecuteQuery(string queryStr, TExecutionParameters executionParameters)
+        public IDictionary<string, object> ExecuteQuery(string queryStr, TExecutionParameters executionParameters = default(TExecutionParameters))
         {
             if (_schema.ContextCreator == null)
                 throw new InvalidOperationException("No context creator specified. Either pass a context " +
@@ -59,16 +59,6 @@ namespace GraphQL.Net
         public static GraphQLSchema<TContext> CreateDefaultSchema(Func<TContext> creationFunc)
         {
             return Schema = new GraphQLSchema<TContext>(creationFunc);
-        }
-
-        public IDictionary<string, object> ExecuteQuery(string queryStr)
-        {
-            return ExecuteQuery(queryStr, new NoExecutionParameters());
-        }
-
-        public IDictionary<string, object> ExecuteQuery(string queryStr, TContext queryContext)
-        {
-            return ExecuteQuery(queryStr, queryContext, new NoExecutionParameters());
         }
     }
 

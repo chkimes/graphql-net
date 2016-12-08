@@ -72,7 +72,7 @@ namespace Tests
             };
             Heros.Add(droid);
         }
-
+        
         public List<User> Users { get; set; } = new List<User>();
         public List<Account> Accounts { get; set; } = new List<Account>();
         public List<MutateMe> MutateMes { get; set; } = new List<MutateMe>();
@@ -98,7 +98,56 @@ namespace Tests
             return schema;
         }
 
-        public static void InitializeUserSchema(GraphQLSchema<MemContext> schema)
+        public static GraphQL<MemContext, TestQueryExecutionParameters> CreateContextWithQueryExecutionParams()
+        {
+            var schema = CreateSchemaWithQueryExecutionParams();
+            schema.Complete();
+            return new GraphQL<MemContext, TestQueryExecutionParameters>(schema);
+        }
+
+        public static GraphQLSchema<MemContext, TestQueryExecutionParameters> CreateSchemaWithQueryExecutionParams()
+        {
+            var schema = new GraphQLSchema<MemContext, TestQueryExecutionParameters>(() => new MemContext());
+            schema.AddScalar(new { year = 0, month = 0, day = 0 }, ymd => new DateTime(ymd.year, ymd.month, ymd.day));
+            InitializeUserSchema(schema);
+            InitializeAccountSchema(schema);
+            InitializeNullRefSchema(schema);
+            InitializeCharacterSchema(schema);
+            
+            var mutate = schema.AddType<MutateMe>();
+            mutate.AddAllFields();
+
+            schema.AddMutation("mutate",
+                            new { id = 0, newVal = 0 },
+                            (db, args, execParams) =>
+                            {
+                                var mutateMe = db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id);
+                                execParams.MutateMeService.Update(execParams.authenticatedUserId, mutateMe, args.newVal);
+                            },
+                            (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddMutation("addMutate",
+                new { newVal = 0 },
+                (db, args, execParams) =>
+                {
+                    var newMutate = execParams.MutateMeService.Create(execParams.authenticatedUserId, args.newVal);
+                    db.MutateMes.Add(newMutate);
+                    return newMutate.Id;
+                },
+                (db, args, id) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == id));
+
+            return schema;
+        }
+
+        public static TestQueryExecutionParameters CreateQueryExecutionParameters()
+        {
+            return new TestQueryExecutionParameters
+            {
+                MutateMeService = new MutateMeService(),
+                authenticatedUserId = 1
+            };
+        }
+
+        public static void InitializeUserSchema<TExecutionParameters>(GraphQLSchema<MemContext, TExecutionParameters> schema)
         {
             var user = schema.AddType<User>();
             user.AddField(u => u.Id);
@@ -117,7 +166,7 @@ namespace Tests
 
         private static string GetAbcPostField() => "easy as 123"; // mimic an in-memory function
 
-        public static void InitializeAccountSchema(GraphQLSchema<MemContext> schema)
+        public static void InitializeAccountSchema<TExecutionParameters>(GraphQLSchema<MemContext, TExecutionParameters> schema)
         {
             var account = schema.AddType<Account>();
             account.AddField(a => a.Id);
@@ -138,7 +187,7 @@ namespace Tests
                     (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
         }
 
-        private static void InitializeMutationSchema(GraphQLSchema<MemContext> schema)
+        private static void InitializeMutationSchema<TExecutionParameters>(GraphQLSchema<MemContext, TExecutionParameters> schema)
         {
             var mutate = schema.AddType<MutateMe>();
             mutate.AddAllFields();
@@ -165,13 +214,13 @@ namespace Tests
                 (db, args, id) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == id));
         }
 
-        private static void InitializeNullRefSchema(GraphQLSchema<MemContext> schema)
+        private static void InitializeNullRefSchema<TExecutionParameters>(GraphQLSchema<MemContext, TExecutionParameters> schema)
         {
             var nullRef = schema.AddType<NullRef>();
             nullRef.AddField(n => n.Id);
         }
         
-        private static void InitializeCharacterSchema(GraphQLSchema<MemContext> schema)
+        private static void InitializeCharacterSchema<TExecutionParameters>(GraphQLSchema<MemContext, TExecutionParameters> schema)
         {
             schema.AddType<Character>().AddAllFields();
             schema.AddType<Human>().AddAllFields();
@@ -244,4 +293,24 @@ namespace Tests
     {
         public string PrimaryFunction { get; set; }
     }
+
+    public class MutateMeService
+    {
+        public MutateMe Create(int authenticatedUserId, int value)
+        {
+            return new MutateMe { Value = value };
+        }
+
+        public void Update(int authenticatedUserId, MutateMe mutateMe, int value)
+        {
+            mutateMe.Value = value;
+        }
+    }
+
+    public class TestQueryExecutionParameters
+    {
+        public MutateMeService MutateMeService { get; set; }
+        public int authenticatedUserId { get; set; }
+    }
+
 }

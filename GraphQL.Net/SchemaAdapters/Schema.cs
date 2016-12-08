@@ -24,12 +24,12 @@ namespace GraphQL.Net.SchemaAdapters
             return _typeMap[type] = new SchemaType(type, this);
         }
     }
-    class Schema<TContext> : Schema
+    class Schema<TContext, TExecutionParameters> : Schema
     {
-        private readonly GraphQLSchema<TContext> _schema;
+        private readonly GraphQLSchema<TContext, TExecutionParameters> _schema;
         private readonly Dictionary<string, ISchemaQueryType<Info>> _queryTypes;
 
-        public Schema(GraphQLSchema<TContext> schema) : base(schema)
+        public Schema(GraphQLSchema<TContext, TExecutionParameters> schema) : base(schema)
         {
             RootType = new SchemaRootType(this, schema.GetGQLType(typeof(TContext)));
             _schema = schema;

@@ -39,7 +39,11 @@ namespace Tests
         [Test] public static void InlineFragementWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragementWithoutTypenameFieldWithoutOtherFields(MemContext.CreateDefaultContext());
         [Test] public static void FragementWithMultipleTypenameFields() => GenericTests.FragementWithMultipleTypenameFields(MemContext.CreateDefaultContext());
         [Test] public static void FragementWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragementWithMultipleTypenameFieldsMixedWithInlineFragment(MemContext.CreateDefaultContext());
-
+        [Test]
+        public static void SimpleMutationWithQueryExecutionParams() => GenericTests.SimpleMutationWithQueryExecutionParams(MemContext.CreateContextWithQueryExecutionParams(), MemContext.CreateQueryExecutionParameters());
+        [Test]
+        public static void MutationWithReturnAndExceutionParameters() => GenericTests.MutationWithReturnAndExceutionParameters(MemContext.CreateContextWithQueryExecutionParams(), MemContext.CreateQueryExecutionParameters());
+        
         [Test]
         public void AddAllFields()
         {

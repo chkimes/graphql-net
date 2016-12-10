@@ -71,7 +71,22 @@ namespace Tests.EF
                     PrimaryFunction = "Astromech"
                 };
                 db.Heros.Add(droid);
-
+                var vehicle = new Vehicle
+                {
+                    Id = 1,
+                    Name = "Millennium falcon",
+                    Human = human
+                };
+                db.Vehicles.Add(vehicle);
+                
+                var vehicle2 = new Vehicle
+                {
+                    Id = 2,
+                    Name = "Speeder bike",
+                    Human = stormtrooper
+                };
+                db.Vehicles.Add(vehicle2);
+                
                 db.SaveChanges();
             }
         }
@@ -168,9 +183,10 @@ namespace Tests.EF
             schema.AddType<Human>().AddAllFields();
             schema.AddType<Stormtrooper>().AddAllFields();
             schema.AddType<Droid>().AddAllFields();
+            schema.AddType<Vehicle>().AddAllFields();
 
             schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));
-            schema.AddListField("heros", db => db.Heros);
+            schema.AddListField("heros", db => db.Heros.AsQueryable());
         }
 
         [Test]
@@ -221,6 +237,8 @@ namespace Tests.EF
         public static void Fragements() => GenericTests.Fragements(CreateDefaultContext());
         [Test]
         public static void InlineFragements() => GenericTests.InlineFragements(CreateDefaultContext());
+        [Test]
+        public static void InlineFragementWithListField() => GenericTests.InlineFragementWithListField(CreateDefaultContext());
         [Test]
         public static void FragementWithMultiLevelInheritance() => GenericTests.FragementWithMultiLevelInheritance(CreateDefaultContext());
         [Test]
@@ -274,6 +292,7 @@ namespace Tests.EF
             public IDbSet<MutateMe> MutateMes { get; set; }
             public IDbSet<NullRef> NullRefs { get; set; }
             public IDbSet<Character> Heros { get; set; }
+            public IDbSet<Vehicle> Vehicles { get; set; }
         }
 
         class User
@@ -321,7 +340,9 @@ namespace Tests.EF
         class Human : Character
         {
             public double Height { get; set; }
+            public ICollection<Vehicle> Vehicles { get; set; }
         }
+
         class Stormtrooper : Human
         {
             public string Specialization { get; set; }
@@ -330,6 +351,14 @@ namespace Tests.EF
         class Droid : Character
         {
             public string PrimaryFunction { get; set; }
+        }
+
+        class Vehicle
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public int HumanId { get; set; }
+            public virtual Human Human { get; set; }
         }
     }
 }

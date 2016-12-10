@@ -296,15 +296,14 @@ namespace GraphQL.Net
             // `(someOtherEntity.Entity as TFieldDefininingType).Field` becomes `(someOtherEntity.Entity is TFieldDefininingType) ? (someOtherEntity.Entity as TFieldDefininingType).Field : null`
             if (needsTypeCheck)
             {
-                var typeCheck = Expression.TypeIs(baseBindingExpr, field.DefiningType.CLRType);
-                var nullResult = Expression.Constant(null, toMember.PropertyType);
-
                 // The expression type has to be nullable
                 if (replacedBase.Type.IsValueType)
                 {
                     replacedBase = Expression.Convert(replacedBase, typeof(Nullable<>).MakeGenericType(replacedBase.Type));
                 }
 
+                var typeCheck = Expression.TypeIs(baseBindingExpr, field.DefiningType.CLRType);
+                var nullResult = Expression.Constant(null, replacedBase.Type);
                 replacedBase = Expression.Condition(typeCheck, replacedBase, nullResult);
             }
 

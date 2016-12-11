@@ -171,7 +171,7 @@ namespace GraphQL.Net
 
                 if (field.IsPost && map.Selections.Any())
                 {
-                    var selector = GetSelector(schema, field.Type, map.Selections.Values(), new ExpressionOptions(null, castAssignment: true));
+                    var selector = GetSelector(schema, field.Type, map.Selections.Values(), new ExpressionOptions(null, castAssignment: true, nullCheckLists: true, typeCheckInheritance: true));
                     obj = selector.Compile().DynamicInvoke(obj);
                 }
 
@@ -294,7 +294,7 @@ namespace GraphQL.Net
 
             // If the entity has to be casted, add a type check:
             // `(someOtherEntity.Entity as TFieldDefininingType).Field` becomes `(someOtherEntity.Entity is TFieldDefininingType) ? (someOtherEntity.Entity as TFieldDefininingType).Field : null`
-            if (needsTypeCheck)
+            if (needsTypeCheck && options.TypeCheckInheritance)
             {
                 // The expression type has to be nullable
                 if (replacedBase.Type.IsValueType)

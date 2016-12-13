@@ -104,7 +104,7 @@ namespace GraphQL.Net
                                     || t.FullName.StartsWith("GraphQL.Parser"), castAssignment: true, nullCheckLists: true, typeCheckInheritance: true);
 
             // Entity Framework
-            WithExpressionOptions(t => t.FullName.StartsWith("System.Data.Entity.Infrastructure.DbQuery"), castAssignment: false, nullCheckLists: false, typeCheckInheritance: true);
+            WithExpressionOptions(t => t.FullName.StartsWith("System.Data.Entity"), castAssignment: false, nullCheckLists: false, typeCheckInheritance: false);
         }
 
         internal Schema<TContext> Adapter { get; private set; }

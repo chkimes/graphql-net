@@ -1,6 +1,8 @@
 # GraphQL.Net
 An implementation of GraphQL for .NET and IQueryable
 
+[docs](https://ckimes89.gitbooks.io/graphql-net/content)
+
 ## Description
 Many of the .NET GraphQL implementations that have come out so far only seem to work in memory.
 For me, this isn't terribly useful since most of my data is stored in a database (and I assume that's the case for many others). 

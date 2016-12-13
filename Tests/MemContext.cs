@@ -48,7 +48,7 @@ namespace Tests
                 Value = 0,
             });
             account2.Users = new List<User> { user2 };
-            
+
             var human = new Human
             {
                 Id = 1,
@@ -71,6 +71,23 @@ namespace Tests
                 PrimaryFunction = "Astromech"
             };
             Heros.Add(droid);
+
+            var vehicle = new Vehicle
+            {
+                Id = 1,
+                Name = "Millennium falcon",
+                OwnerId = human.Id
+            };
+            Vehicles.Add(vehicle);
+            human.Vehicles = new List<Vehicle> { vehicle };
+            var vehicle2 = new Vehicle
+            {
+                Id = 2,
+                Name = "Speeder bike",
+                OwnerId = stormtrooper.Id
+            };
+            Vehicles.Add(vehicle2);
+            stormtrooper.Vehicles = new List<Vehicle> { vehicle2 };
         }
 
         public List<User> Users { get; set; } = new List<User>();
@@ -78,6 +95,7 @@ namespace Tests
         public List<MutateMe> MutateMes { get; set; } = new List<MutateMe>();
         public List<NullRef> NullRefs { get; set; } = new List<NullRef>();
         public List<Character> Heros { get; set; } = new List<Character>();
+        public List<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 
         public static GraphQL<MemContext> CreateDefaultContext()
         {
@@ -127,14 +145,14 @@ namespace Tests
             account.AddField(a => a.ByteArray);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
-            account.AddListField("usersWithActive", new {active = false}, (db, args, a) => a.Users.Where(u => u.Active == args.active));
-            account.AddField("firstUserWithActive", new {active = false}, (db, args, a) => a.Users.FirstOrDefault(u => u.Active == args.active));
+            account.AddListField("usersWithActive", new { active = false }, (db, args, a) => a.Users.Where(u => u.Active == args.active));
+            account.AddField("firstUserWithActive", new { active = false }, (db, args, a) => a.Users.FirstOrDefault(u => u.Active == args.active));
 
             schema.AddField("account", new { id = 0 }, (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.Id == args.id));
             schema.AddField
                 ("accountPaidBy", new { paid = default(DateTime) },
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
-            schema.AddListField("accountsByGuid", new {guid = Guid.Empty},
+            schema.AddListField("accountsByGuid", new { guid = Guid.Empty },
                     (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
         }
 
@@ -143,9 +161,9 @@ namespace Tests
             var mutate = schema.AddType<MutateMe>();
             mutate.AddAllFields();
 
-            schema.AddField("mutateMes", new {id = 0}, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
+            schema.AddField("mutateMes", new { id = 0 }, (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
             schema.AddMutation("mutate",
-                new {id = 0, newVal = 0},
+                new { id = 0, newVal = 0 },
                 (db, args) =>
                 {
                     var mutateMe = db.MutateMes.First(m => m.Id == args.id);
@@ -153,10 +171,10 @@ namespace Tests
                 },
                 (db, args) => db.MutateMes.AsQueryable().FirstOrDefault(a => a.Id == args.id));
             schema.AddMutation("addMutate",
-                new {newVal = 0},
+                new { newVal = 0 },
                 (db, args) =>
                 {
-                    var newMutate = new MutateMe {Value = args.newVal};
+                    var newMutate = new MutateMe { Value = args.newVal };
                     db.MutateMes.Add(newMutate);
                     // simulate Id being set by database
                     newMutate.Id = db.MutateMes.Max(m => m.Id) + 1;
@@ -170,13 +188,14 @@ namespace Tests
             var nullRef = schema.AddType<NullRef>();
             nullRef.AddField(n => n.Id);
         }
-        
+
         private static void InitializeCharacterSchema(GraphQLSchema<MemContext> schema)
         {
             schema.AddType<Character>().AddAllFields();
             schema.AddType<Human>().AddAllFields();
             schema.AddType<Stormtrooper>().AddAllFields();
             schema.AddType<Droid>().AddAllFields();
+            schema.AddType<Vehicle>().AddAllFields();
 
             schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.AsQueryable().SingleOrDefault(h => h.Id == args.id));
             schema.AddListField("heros", db => db.Heros.AsQueryable());
@@ -203,7 +222,7 @@ namespace Tests
         public bool Paid { get; set; }
         public DateTime? PaidUtc { get; set; }
         public Guid SomeGuid { get; set; }
-        public byte[] ByteArray { get; set; } = {1, 2, 3, 4};
+        public byte[] ByteArray { get; set; } = { 1, 2, 3, 4 };
 
         public List<User> Users { get; set; }
     }
@@ -233,6 +252,7 @@ namespace Tests
     public class Human : Character
     {
         public double Height { get; set; }
+        public ICollection<Vehicle> Vehicles { get; set; }
     }
 
     public class Stormtrooper : Human
@@ -243,5 +263,12 @@ namespace Tests
     public class Droid : Character
     {
         public string PrimaryFunction { get; set; }
+    }
+
+    public class Vehicle
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public int OwnerId { get; set; }
     }
 }

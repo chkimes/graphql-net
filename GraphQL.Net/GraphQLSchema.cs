@@ -83,9 +83,9 @@ namespace GraphQL.Net
             return new GraphQLTypeBuilder<TContext, TEntity>(this, type);
         }
 
-        public GraphQLSchema<TContext> WithExpressionOptions(Func<Type, bool> validForQueryType, bool castAssignment = true, bool nullCheckLists = false)
+        public GraphQLSchema<TContext> WithExpressionOptions(Func<Type, bool> validForQueryType, bool castAssignment = true, bool nullCheckLists = false, bool typeCheckInheritance = false)
         {
-            _expressionOptions.Insert(0, new ExpressionOptions(validForQueryType, castAssignment, nullCheckLists));
+            _expressionOptions.Insert(0, new ExpressionOptions(validForQueryType, castAssignment, nullCheckLists, typeCheckInheritance));
             return this;
         }
 
@@ -97,14 +97,14 @@ namespace GraphQL.Net
             // these will execute in reverse order
 
             // Default
-            WithExpressionOptions(t => true, castAssignment: true, nullCheckLists: false);
+            WithExpressionOptions(t => true, castAssignment: true, nullCheckLists: false, typeCheckInheritance: false);
 
             // In-memory against IEnumerable or Schema (introspection)
             WithExpressionOptions(t => t.FullName.StartsWith("System.Linq.EnumerableQuery")
-                                    || t.FullName.StartsWith("GraphQL.Parser"), castAssignment: true, nullCheckLists: true);
+                                    || t.FullName.StartsWith("GraphQL.Parser"), castAssignment: true, nullCheckLists: true, typeCheckInheritance: true);
 
             // Entity Framework
-            WithExpressionOptions(t => t.FullName.StartsWith("System.Data.Entity.Infrastructure.DbQuery"), castAssignment: false, nullCheckLists: false);
+            WithExpressionOptions(t => t.FullName.StartsWith("System.Data.Entity"), castAssignment: false, nullCheckLists: false, typeCheckInheritance: false);
         }
 
         internal Schema<TContext> Adapter { get; private set; }

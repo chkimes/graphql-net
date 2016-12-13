@@ -183,6 +183,20 @@ namespace Tests
                 "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, " +
                 "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
                 "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
+                ); 
+        }
+
+        public static void InlineFragementWithListField<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                "{ heros { name, __typename, ... on Human { height, vehicles { name } }, ... on Stormtrooper { specialization }, " +
+                "... on Droid { primaryFunction } } }");
+            Test.DeepEquals(
+                results,
+                "{ heros: [ " +
+                "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448, vehicles: [ {name: 'Millennium falcon'}] }, " +
+                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, vehicles: [ {name: 'Speeder bike'}], specialization: 'Imperial Snowtrooper'}, " +
+                "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
                 );
         }
 

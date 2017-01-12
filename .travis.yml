@@ -4,6 +4,6 @@ install:
     - nuget restore GraphQL.Net.sln
     - nuget install NUnit.Runners -Version 3.2.0 -OutputDirectory testrunner
 script:
-    - xbuild /p:Configuration=Release GraphQL.Net.sln
+    - xbuild /p:Configuration=Debug GraphQL.Net.sln
     - mono ./testrunner/NUnit.ConsoleRunner.3.2.0/tools/nunit3-console.exe ./Tests/bin/Release/Tests.dll
     - mono ./testrunner/NUnit.ConsoleRunner.3.2.0/tools/nunit3-console.exe ./GraphQL.Parser.Test/bin/Release/GraphQL.Parser.Test.exe

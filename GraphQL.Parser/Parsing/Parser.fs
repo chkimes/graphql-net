@@ -146,14 +146,14 @@ let variable =
 Helper functions to parse int with fix culture.
 
 *)
-let int64ParseLocalized v = Int64.Parse(v, CultureInfo.CreateSpecificCulture("en-US"))
+let int64ParseLocalized v = Int64.Parse(v, CultureInfo.InvariantCulture)
 
 (**
 
 Helper functions to parse double with fix culture.
 
 *)
-let doubleParseLocalized v = Double.Parse(v, CultureInfo.CreateSpecificCulture("en-US"))
+let doubleParseLocalized v = Double.Parse(v, CultureInfo.InvariantCulture)
 
 (**
 

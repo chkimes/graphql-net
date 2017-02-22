@@ -140,6 +140,21 @@ let variableName =
 let variable =
     %% +.variableName -%> Variable
 
+
+(**
+
+Helper functions to parse int with fix culture.
+
+*)
+let int64ParseLocalized v = Int64.Parse(v, CultureInfo.InvariantCulture)
+
+(**
+
+Helper functions to parse double with fix culture.
+
+*)
+let doubleParseLocalized v = Double.Parse(v, CultureInfo.InvariantCulture)
+
 (**
 
 Both float and int parsers can be implemented to match the spec
@@ -162,9 +177,9 @@ let numericValue =
             |> sprintf "Non-zero numeric literal (%s) may not start with a 0"
             |> fail
         else if literal.IsInteger then
-            literal.String |> Int64.Parse |> IntValue |> preturn
+            literal.String |> int64ParseLocalized |> IntValue |> preturn
         else
-            literal.String |> Double.Parse |> FloatValue |> preturn
+            literal.String |> doubleParseLocalized |> FloatValue |> preturn
 
 (**
 

@@ -201,7 +201,7 @@ let stringValue =
             char <| Int32.Parse(new String(hex4), NumberStyles.HexNumber)
         %% '\\'
         -- +.[
-            %% 'u' -- +.(4, hex) -%> unicode
+            %% 'u' -- +.(qty.[4] * hex) -%> unicode
             % '"'
             % '\\'
             %% 'b' -%> '\b'

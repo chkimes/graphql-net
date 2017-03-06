@@ -14,7 +14,7 @@
     <tags>graphql graph ql iqueryable</tags>
     <dependencies>
       <dependency id="FParsec" version="1.0.2" />
-      <dependency id="FParsec-Pipes" version="0.1.1" />
+      <dependency id="FParsec-Pipes" version="0.3.1.0" />
       <dependency id="FSharp.Core" version="4.0.0.1" />
     </dependencies>
   </metadata>

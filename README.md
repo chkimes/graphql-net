@@ -116,7 +116,7 @@ user(id:1) {
         paid
     }
     totalUsers
-}";
+}}";
 
 var gql = new GraphQL<TestContext>(schema);
 var dict = gql.ExecuteQuery(query);

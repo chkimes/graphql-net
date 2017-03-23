@@ -46,5 +46,10 @@ namespace GraphQL.Net.SchemaAdapters
             => _schema.VariableTypes.TypeDictionary;
 
         public override ISchemaQueryType<Info> RootType { get; }
+
+        public override EnumValue ResolveEnumValue(string name)
+        {
+            return _schema.VariableTypes.ResolveEnumValue(name);
+        }
     }
 }

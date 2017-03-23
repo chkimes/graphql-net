@@ -41,6 +41,11 @@ namespace GraphQL.Net
 
         public IReadOnlyDictionary<string, CoreVariableType> TypeDictionary => _rootTypeHandler.TypeDictionary;
 
+        public EnumValue ResolveEnumValue(string name)
+        {
+            return _rootTypeHandler.ResolveEnumValueByName(name).Value;
+        }
+
         /// <summary>
         /// Return the schema variable type used to represent values of type <paramref name="clrType"/>.
         /// </summary>

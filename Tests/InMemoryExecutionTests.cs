@@ -23,6 +23,7 @@ namespace Tests
         [Test] public void TypeName() => GenericTests.TypeName(MemContext.CreateDefaultContext());
         [Test] public void DateTimeFilter() => GenericTests.DateTimeFilter(MemContext.CreateDefaultContext());
         [Test] public void EnumerableSubField() => GenericTests.EnumerableSubField(MemContext.CreateDefaultContext());
+        [Test] public void EnumFieldQuery() => GenericTests.EnumFieldQuery(MemContext.CreateDefaultContext());
         [Test] public void SimpleMutation() => GenericTests.SimpleMutation(MemContext.CreateDefaultContext());
         [Test] public void MutationWithReturn() => GenericTests.MutationWithReturn(MemContext.CreateDefaultContext());
         [Test] public void NullPropagation() => GenericTests.NullPropagation(MemContext.CreateDefaultContext());

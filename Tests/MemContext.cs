@@ -15,6 +15,7 @@ namespace Tests
                 Name = "My Test Account",
                 Paid = true,
                 PaidUtc = new DateTime(2016, 1, 1),
+                AccountType = AccountType.Gold
             };
             Accounts.Add(account);
             var user = new User
@@ -31,7 +32,8 @@ namespace Tests
             {
                 Id = 2,
                 Name = "Another Test Account",
-                Paid = false
+                Paid = false,
+                AccountType = AccountType.Silver
             };
             Accounts.Add(account2);
             var user2 = new User
@@ -143,6 +145,7 @@ namespace Tests
             account.AddField(a => a.Paid);
             account.AddField(a => a.SomeGuid);
             account.AddField(a => a.ByteArray);
+            account.AddField(a => a.AccountType);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
             account.AddListField("usersWithActive", new { active = false }, (db, args, a) => a.Users.Where(u => u.Active == args.active));
@@ -154,6 +157,13 @@ namespace Tests
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
             schema.AddListField("accountsByGuid", new { guid = Guid.Empty },
                     (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
+
+            schema.AddListField("accountsByType", new { accountType = AccountType.None },
+                (db, args) => db.Accounts.AsQueryable().Where(a => a.AccountType == args.accountType));
+
+            schema.AddEnum<AccountType>(prefix: "accountType_");
+            //add this enum just so it is part of the schema
+            schema.AddEnum<MaterialType>(prefix: "materialType_");
         }
 
         private static void InitializeMutationSchema(GraphQLSchema<MemContext> schema)
@@ -215,6 +225,26 @@ namespace Tests
         public NullRef NullRef { get; set; }
     }
 
+    public enum AccountType
+    {
+        None,
+        Silver,
+        Gold,
+        Platinum
+    }
+
+    //another enum with values that are also in AccountType
+    public enum MaterialType
+    {
+        None,
+        Iron,
+        Plastic,
+        Wood,
+        Silver,
+        Gold,
+        Platinum
+    }
+
     public class Account
     {
         public int Id { get; set; }
@@ -225,6 +255,8 @@ namespace Tests
         public byte[] ByteArray { get; set; } = { 1, 2, 3, 4 };
 
         public List<User> Users { get; set; }
+
+        public AccountType AccountType { get; set; }
     }
 
     public class Sub

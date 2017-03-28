@@ -132,6 +132,16 @@ namespace Tests
                                        }");
         }
 
+        public static void EnumFieldQuery<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery("{ accountsByType(accountType:accountType_Gold) { id, accountType } }");
+            Test.DeepEquals(results, @"{ 
+                                            accountsByType: [
+                                                    { id: 1, accountType: 'Gold' }
+                                            ]
+                                        }");
+        }
+
         public static void ByteArrayParameter<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery("{ account(id:1) { id, byteArray } }");
@@ -183,7 +193,7 @@ namespace Tests
                 "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, " +
                 "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
                 "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
-                ); 
+                );
         }
 
         public static void InlineFragementWithListField<TContext>(GraphQL<TContext> gql)

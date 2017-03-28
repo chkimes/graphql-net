@@ -26,6 +26,7 @@ namespace Tests.EF
                     Name = "My Test Account",
                     Paid = true,
                     PaidUtc = new DateTime(2016, 1, 1),
+                    AccountType = AccountType.Gold
                 };
                 db.Accounts.Add(account);
                 var user = new User
@@ -39,6 +40,7 @@ namespace Tests.EF
                 {
                     Name = "Another Test Account",
                     Paid = false,
+                    AccountType = AccountType.Silver
                 };
                 db.Accounts.Add(account2);
                 var user2 = new User
@@ -78,7 +80,7 @@ namespace Tests.EF
                     Human = human
                 };
                 db.Vehicles.Add(vehicle);
-                
+
                 var vehicle2 = new Vehicle
                 {
                     Id = 2,
@@ -86,7 +88,7 @@ namespace Tests.EF
                     Human = stormtrooper
                 };
                 db.Vehicles.Add(vehicle2);
-                
+
                 db.SaveChanges();
             }
         }
@@ -131,6 +133,7 @@ namespace Tests.EF
             account.AddField(a => a.Paid);
             account.AddField(a => a.SomeGuid);
             account.AddField(a => a.ByteArray);
+            account.AddField(a => a.AccountType);
             account.AddListField(a => a.Users);
             account.AddListField("activeUsers", (db, a) => a.Users.Where(u => u.Active));
             account.AddListField("usersWithActive", new { active = false }, (db, args, a) => a.Users.Where(u => u.Active == args.active));
@@ -142,6 +145,11 @@ namespace Tests.EF
                     (db, args) => db.Accounts.AsQueryable().FirstOrDefault(a => a.PaidUtc <= args.paid));
             schema.AddListField("accountsByGuid", new { guid = Guid.Empty },
                     (db, args) => db.Accounts.AsQueryable().Where(a => a.SomeGuid == args.guid));
+            schema.AddListField("accountsByType", new { accountType = AccountType.None },
+                    (db, args) => db.Accounts.AsQueryable().Where(a => a.AccountType == args.accountType));
+            schema.AddEnum<AccountType>(prefix: "accountType_");
+            //add this enum just so it is part of the schema
+            schema.AddEnum<MaterialType>(prefix: "materialType_");
         }
 
         private static void InitializeMutationSchema(GraphQLSchema<EfContext> schema)
@@ -227,6 +235,8 @@ namespace Tests.EF
         public void GuidField() => GenericTests.GuidField(CreateDefaultContext());
         [Test]
         public void GuidParameter() => GenericTests.GuidParameter(CreateDefaultContext());
+        [Test]
+        public void EnumFieldQuery() => GenericTests.EnumFieldQuery(CreateDefaultContext());
         [Test]
         public void ByteArrayParameter() => GenericTests.ByteArrayParameter(CreateDefaultContext());
         [Test]
@@ -316,6 +326,8 @@ namespace Tests.EF
             public DateTime? PaidUtc { get; set; }
             public Guid SomeGuid { get; set; }
             public byte[] ByteArray { get; set; } = { 1, 2, 3, 4 };
+
+            public AccountType AccountType { get; set; }
 
             public List<User> Users { get; set; }
         }

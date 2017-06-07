@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using GraphQL.Parser;
 using GraphQL.Parser.CS;
@@ -16,5 +17,7 @@ namespace GraphQL.Net.SchemaAdapters
 
         public override IReadOnlyDictionary<string, ISchemaField<Info>> Fields { get; }
         public override string TypeName => "SchemaRoot";
+
+        public override IEnumerable<ISchemaQueryType<Info>> PossibleTypes => new Collection<ISchemaQueryType<Info>>();
     }
 }

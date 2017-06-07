@@ -105,11 +105,14 @@ type IntroType =
         else IntroType.Of(varType.Type)
     static member Of(queryType : ISchemaQueryType<'s>) =
         let fields = queryType.Fields.Values |> Seq.map IntroField.Of
+        let possibleTypes = queryType.PossibleTypes |> Seq.map IntroType.Of
+        let typeKind = if queryType.PossibleTypes |> Seq.isEmpty then TypeKind.OBJECT else TypeKind.INTERFACE
         { IntroType.Default with
-            Kind = TypeKind.OBJECT
+            Kind = typeKind
             Name = Some queryType.TypeName
             Description = queryType.Description
             Fields = fields |> Some
+            PossibleTypes = possibleTypes |> Some
             Interfaces = Some Seq.empty
         }
     static member Of(fieldType : SchemaFieldType<'s>) =
@@ -200,6 +203,7 @@ type IntroSchema =
         Types : IntroType seq
         QueryType : IntroType
         MutationType : IntroType option
+        SubscriptionType : IntroType option
         Directives : IntroDirective seq
     }
     static member Of(schema : ISchema<'s>) =
@@ -211,6 +215,7 @@ type IntroSchema =
                 ] |> Seq.concat
             QueryType = IntroType.Of(schema.RootType)
             MutationType = None // TODO: support mutation schema
+            SubscriptionType = None // TODO: support subscription schema
             Directives =
                 schema.Directives.Values |> Seq.map IntroDirective.Of
         }

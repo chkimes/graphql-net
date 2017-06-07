@@ -34,7 +34,7 @@ namespace GraphQL.Net.SchemaAdapters
             RootType = new SchemaRootType(this, schema.GetGQLType(typeof(TContext)));
             _schema = schema;
             _queryTypes = schema.Types
-                .Where(t => !t.IsScalar)
+                .Where(t => t.TypeKind != TypeKind.SCALAR)
                 .Select(OfType)
                 .ToDictionary(t => t.TypeName, t => t as ISchemaQueryType<Info>);
         }

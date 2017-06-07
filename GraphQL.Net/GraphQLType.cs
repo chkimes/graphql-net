@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using GraphQL.Parser;
 
 namespace GraphQL.Net
 {
@@ -21,7 +22,7 @@ namespace GraphQL.Net
         public List<GraphQLType> IncludedTypes { get; set; }
         public Type CLRType { get; set; }
         public Type QueryType { get; set; }
-        public bool IsScalar { get; set; } // TODO: TypeKind?
+        public TypeKind TypeKind { get; set; }
 
         // Returns own fields and the fields of all included types.
         public IEnumerable<GraphQLField> GetQueryFields()

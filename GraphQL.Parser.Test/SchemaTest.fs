@@ -77,6 +77,7 @@ type UserType() =
                         "id", new IdArgument() :> _
                     |])
             |] |> dictionary :> _
+        member this.PossibleTypes = Seq.empty
 
 type RootType() =
     member private this.Field(name, fieldType : SchemaFieldType<FakeData>, args) =
@@ -105,6 +106,7 @@ type RootType() =
                         "id", new IdArgument() :> _
                     |])
             |] |> dictionary :> _
+        member this.PossibleTypes = Seq.empty
 
 type FakeSchema() =
     let root = new RootType() :> ISchemaQueryType<_>

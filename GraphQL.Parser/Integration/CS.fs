@@ -52,13 +52,15 @@ type SchemaQueryTypeCS<'s>() =
     abstract member Description : string
     default this.Description = null
     abstract member Info : 's
-    default this.Info = Unchecked.defaultof<'s>
+    default this.Info = Unchecked.defaultof<'s>    
     abstract member Fields : IReadOnlyDictionary<string, ISchemaField<'s>>
+    abstract member PossibleTypes : IEnumerable<ISchemaQueryType<'s>> 
     interface ISchemaQueryType<'s> with
         member this.TypeName = this.TypeName
         member this.Description = this.Description |> obj2option
-        member this.Info = this.Info
+        member this.Info = this.Info        
         member this.Fields = this.Fields
+        member this.PossibleTypes = this.PossibleTypes
 
 [<AbstractClass>]
 type SchemaFieldCS<'s>() =

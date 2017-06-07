@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using GraphQL.Net.SchemaAdapters;
 using GraphQL.Parser;
+using Microsoft.FSharp.Core;
 
 namespace GraphQL.Net
 {
@@ -34,7 +36,7 @@ namespace GraphQL.Net
             ContextCreator = contextCreator;
         }
 
-        public void AddEnum<TEnum>(string name = null, string prefix = null) where TEnum : struct // wish we could do where TEnum : Enum
+        public void AddEnum<TEnum>(string name = null, string prefix = null) where TEnum : struct // wish we could do where TEnum : Enum 
             => VariableTypes.AddType(_ => TypeHandler.Enum<TEnum>(name ?? typeof(TEnum).Name, prefix ?? ""));
 
         public void AddScalar<TRepr, TOutput>(TRepr shape, Func<TRepr, bool> validate, Func<TRepr, TOutput> translate, string name = null)
@@ -66,7 +68,9 @@ namespace GraphQL.Net
             if (_types.Any(t => t.CLRType == type))
                 throw new ArgumentException("Type has already been added");
 
-            var gqlType = new GraphQLType(type) { IsScalar = type.IsPrimitive, Description = description ?? "" };
+            var typeKind = type.IsEnum ? TypeKind.ENUM : (type.IsPrimitive ? TypeKind.SCALAR : TypeKind.OBJECT);
+
+            var gqlType = new GraphQLType(type) { TypeKind = typeKind, Description = description ?? "" };
             if (!string.IsNullOrEmpty(name))
                 gqlType.Name = name;
             _types.Add(gqlType);
@@ -176,12 +180,12 @@ namespace GraphQL.Net
         private static void CompleteType(GraphQLType type)
         {
             // validation maybe perform somewhere else
-            if (type.IsScalar && type.OwnFields.Count != 0)
+            if (type.TypeKind == TypeKind.SCALAR && type.OwnFields.Count != 0)
                 throw new Exception("Scalar types must not have any fields defined."); // TODO: Schema validation exception?
-            if (!type.IsScalar && type.OwnFields.Count == 0)
+            if (type.TypeKind != TypeKind.SCALAR && type.OwnFields.Count == 0)
                 throw new Exception("Non-scalar types must have at least one field defined."); // TODO: Schema validation exception?
 
-            if (type.IsScalar)
+            if (type.TypeKind == TypeKind.SCALAR)
             {
                 type.QueryType = type.CLRType;
                 return;
@@ -205,7 +209,7 @@ namespace GraphQL.Net
 
             var fields = fieldGroupedByName.Select(g => g.First());
 
-            var fieldDict = fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.IsScalar ? TypeHelpers.MakeNullable(f.Type.CLRType) : typeof(object));
+            var fieldDict = fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.TypeKind == TypeKind.SCALAR ? TypeHelpers.MakeNullable(f.Type.CLRType) : typeof(object));
             type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), fieldDict);
         }
 
@@ -217,18 +221,28 @@ namespace GraphQL.Net
             ischema.AddListField("types", s => s.Types);
             ischema.AddField("queryType", s => s.QueryType);
             ischema.AddField("mutationType", s => s.MutationType.OrDefault());
+            ischema.AddField("subscriptionType", s => s.MutationType.OrDefault());
             ischema.AddListField("directives", s => s.Directives);
 
             var itype = AddType<IntroType>("__Type");
-            itype.AddField("kind", t => t.Kind);
+            itype.AddField("kind", t => t.Kind.ToString());
             itype.AddField("name", t => t.Name.OrDefault());
             itype.AddField("description", t => t.Description.OrDefault());
-            // TODO: support includeDeprecated filter argument
-            itype.AddListField("fields", t => t.Fields.OrDefault());
+            itype.AddListField(
+                "fields",
+                new { includeDeprecated = false },
+                (c, args, t) =>
+                    t.Fields.Map(fields => fields.Where(f => !f.IsDeprecated || args.includeDeprecated)).OrDefault());
             itype.AddListField("inputFields", t => t.InputFields.OrDefault());
             itype.AddField("ofType", s => s.OfType.OrDefault());
             itype.AddListField("interfaces", s => s.Interfaces.OrDefault());
             itype.AddListField("possibleTypes", s => s.PossibleTypes.OrDefault());
+            itype.AddListField(
+                "enumValues",
+                new { includeDeprecated = false },
+                (c, args, t) => t.EnumValues.Map(
+                    enumValues => enumValues.Where(f => !f.IsDeprecated || args.includeDeprecated)
+                ).OrDefault());
 
             var ifield = AddType<IntroField>("__Field");
 
@@ -268,7 +282,7 @@ namespace GraphQL.Net
         private void AddTypeNameFields()
         {
             var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
-            foreach (var type in _types.Where(t => !t.IsScalar))
+            foreach (var type in _types.Where(t => t.TypeKind != TypeKind.SCALAR))
             {
                 var genMethod = method.MakeGenericMethod(type.CLRType);
                 genMethod.Invoke(this, new object[] { type });
@@ -370,7 +384,7 @@ namespace GraphQL.Net
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type)
-                ?? new GraphQLType(type) { IsScalar = true };
+                ?? new GraphQLType(type) { TypeKind = TypeKind.SCALAR };
 
         internal IEnumerable<GraphQLType> Types => _types;
     }

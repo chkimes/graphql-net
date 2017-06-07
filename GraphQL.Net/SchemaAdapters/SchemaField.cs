@@ -16,7 +16,7 @@ namespace GraphQL.Net.SchemaAdapters
             DeclaringType = declaringType;
             _field = field;
             _schema = schema;
-            if (_field.Type.IsScalar)
+            if (_field.Type.TypeKind == TypeKind.SCALAR)
             {
                 var varType = _schema.GraphQLSchema.VariableTypes.VariableTypeOf(_field.Type.CLRType);
                 FieldType = SchemaFieldType<Info>.NewValueField(varType);
@@ -37,7 +37,7 @@ namespace GraphQL.Net.SchemaAdapters
         public override IReadOnlyDictionary<string, ISchemaArgument<Info>> Arguments { get; }
         public override Complexity EstimateComplexity(IEnumerable<ISchemaArgument<Info>> args)
         {
-            if (_field.Type.IsScalar) return Complexity.Zero; // scalars are practically free to select
+            if (_field.Type.TypeKind == TypeKind.SCALAR) return Complexity.Zero; // scalars are practically free to select
             if (!_field.IsList) return Complexity.One;
             return _field.Complexity ?? (args.Any(a => a.ArgumentName.Equals("id", StringComparison.OrdinalIgnoreCase))
                 ? Complexity.One

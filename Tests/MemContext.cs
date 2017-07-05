@@ -96,7 +96,7 @@ namespace Tests
         public List<Account> Accounts { get; set; } = new List<Account>();
         public List<MutateMe> MutateMes { get; set; } = new List<MutateMe>();
         public List<NullRef> NullRefs { get; set; } = new List<NullRef>();
-        public List<Character> Heros { get; set; } = new List<Character>();
+        public List<ICharacter> Heros { get; set; } = new List<ICharacter>();
         public List<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 
         public static GraphQL<MemContext> CreateDefaultContext()
@@ -201,10 +201,25 @@ namespace Tests
 
         private static void InitializeCharacterSchema(GraphQLSchema<MemContext> schema)
         {
-            schema.AddType<Character>().AddAllFields();
-            schema.AddType<Human>().AddAllFields();
-            schema.AddType<Stormtrooper>().AddAllFields();
-            schema.AddType<Droid>().AddAllFields();
+            var characterInterface = schema.AddInterfaceType<ICharacter>();
+            characterInterface.AddAllFields();
+            var humanInterface = schema.AddInterfaceType<IHuman>();
+            humanInterface.AddAllFields();
+
+            var humanType = schema.AddType<Human>();
+            humanType.AddAllFields();
+            humanType.AddInterface(characterInterface);
+            humanType.AddInterface(humanInterface);
+
+            var stormtrooperType = schema.AddType<Stormtrooper>();
+            stormtrooperType.AddAllFields();
+            stormtrooperType.AddInterface(characterInterface);
+            stormtrooperType.AddInterface(humanInterface);
+
+            var droidType = schema.AddType<Droid>();
+            droidType.AddAllFields();
+            droidType.AddInterface(characterInterface);
+
             schema.AddType<Vehicle>().AddAllFields();
 
             schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.AsQueryable().SingleOrDefault(h => h.Id == args.id));
@@ -275,25 +290,39 @@ namespace Tests
         public int Id { get; set; }
     }
 
-    public class Character
+    public interface ICharacter
+    {
+        int Id { get; set; }
+        string Name { get; set; }
+    }
+
+    public interface IHuman
+    {
+        double Height { get; set; }
+        ICollection<Vehicle> Vehicles { get; set; }
+    }
+
+    public class Human : ICharacter, IHuman
     {
         public int Id { get; set; }
         public string Name { get; set; }
-    }
-
-    public class Human : Character
-    {
         public double Height { get; set; }
         public ICollection<Vehicle> Vehicles { get; set; }
     }
 
-    public class Stormtrooper : Human
+    public class Stormtrooper : ICharacter, IHuman
     {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public double Height { get; set; }
         public string Specialization { get; set; }
+        public ICollection<Vehicle> Vehicles { get; set; }
     }
 
-    public class Droid : Character
+    public class Droid : ICharacter
     {
+        public int Id { get; set; }
+        public string Name { get; set; }
         public string PrimaryFunction { get; set; }
     }
 

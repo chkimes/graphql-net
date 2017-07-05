@@ -107,13 +107,14 @@ type IntroType =
         let fields = queryType.Fields.Values |> Seq.map IntroField.Of
         let possibleTypes = queryType.PossibleTypes |> Seq.map IntroType.Of
         let typeKind = if queryType.PossibleTypes |> Seq.isEmpty then TypeKind.OBJECT else TypeKind.INTERFACE
+        let interfaces = queryType.Interfaces |> Seq.map IntroType.Of
         { IntroType.Default with
             Kind = typeKind
             Name = Some queryType.TypeName
             Description = queryType.Description
             Fields = fields |> Some
             PossibleTypes = possibleTypes |> Some
-            Interfaces = Some Seq.empty
+            Interfaces = Some interfaces
         }
     static member Of(fieldType : SchemaFieldType<'s>) =
         match fieldType with

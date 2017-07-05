@@ -120,6 +120,7 @@ type ISchemaQueryType<'s> =
     /// May be empty, for example if the type is a primitive.
     abstract member Fields : IReadOnlyDictionary<string, ISchemaField<'s>>
     abstract member PossibleTypes : IEnumerable<ISchemaQueryType<'s>>
+    abstract member Interfaces : IEnumerable<ISchemaQueryType<'s>>
 /// Represents a named core type, e.g. a "Time" type represented by an ISO-formatted string.
 /// The type may define validation rules that run on values after they have been checked to
 /// match the given core type.

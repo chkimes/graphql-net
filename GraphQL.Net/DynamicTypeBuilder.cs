@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -17,45 +18,77 @@ namespace GraphQL.Net
             ModuleBuilder = assemblyBuilder.DefineDynamicModule(AssemblyName + ".dll");
         }
 
-        public static Type CreateDynamicType(string name, Dictionary<string, Type> properties)
+        public static Type CreateDynamicType(string name, Dictionary<string, Type> properties, IEnumerable<Type> implementedInterfaces)
         {
             var typeBuilder = ModuleBuilder.DefineType(AssemblyName + "." + name,
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AutoClass | TypeAttributes.AnsiClass | TypeAttributes.Serializable | TypeAttributes.BeforeFieldInit);
+
+            foreach (var implementedInterface in implementedInterfaces)
+            {
+                typeBuilder.AddInterfaceImplementation(implementedInterface);
+            }
+            
             foreach (var prop in properties)
                 CreateProperty(typeBuilder, prop.Key, prop.Value);
             return typeBuilder.CreateType();
         }
-
-        private static void CreateProperty(TypeBuilder typeBuilder, string name, Type type)
+        public static Type CreateDynamicInterface(string name, Dictionary<string, Type> properties)
         {
-            var fieldBuilder = typeBuilder.DefineField("_" + name.ToLower(), type, FieldAttributes.Private);
-            var propertyBuilder = typeBuilder.DefineProperty(name, PropertyAttributes.HasDefault, type, null);
+            var typeBuilder = ModuleBuilder.DefineType(AssemblyName + "." + name,
+                TypeAttributes.Public | TypeAttributes.Interface | TypeAttributes.Abstract);
 
-            propertyBuilder.SetGetMethod(CreateGetMethod(typeBuilder, fieldBuilder, name, type));
-            propertyBuilder.SetSetMethod(CreateSetMethod(typeBuilder, fieldBuilder, name, type));
+            foreach (var prop in properties)
+                CreateProperty(typeBuilder, prop.Key, prop.Value, true);
+            return typeBuilder.CreateType();
         }
 
-        const MethodAttributes MethodAttrs = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
-        private static MethodBuilder CreateGetMethod(TypeBuilder typeBuilder, FieldInfo fieldBuilder, string name, Type type)
+        private static void CreateProperty(TypeBuilder typeBuilder, string name, Type type, bool isAbstract = false)
         {
+            FieldBuilder fieldBuilder = null;
+            if (!isAbstract) { 
+                fieldBuilder = typeBuilder.DefineField("_" + name.ToLower(), type, FieldAttributes.Private);
+            }
+            var propertyBuilder = typeBuilder.DefineProperty(name, PropertyAttributes.HasDefault, type, null);
+            propertyBuilder.SetGetMethod(CreateGetMethod(typeBuilder, fieldBuilder, name, type, isAbstract));
+            propertyBuilder.SetSetMethod(CreateSetMethod(typeBuilder, fieldBuilder, name, type, isAbstract));
+        }
+
+        const MethodAttributes MethodAttrs = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual | MethodAttributes.HideBySig;
+
+        private static MethodBuilder CreateGetMethod(TypeBuilder typeBuilder, FieldInfo fieldBuilder, string name,
+            Type type, bool isAbstract)
+        {
+            if (isAbstract)
+            {
+                return typeBuilder.DefineMethod("get_" + name, MethodAttributes.Virtual | MethodAttributes.Abstract | MethodAttributes.Public, type, Type.EmptyTypes);
+            }
+            
             var methodBuilder = typeBuilder.DefineMethod("get_" + name, MethodAttrs, type, Type.EmptyTypes);
             var generator = methodBuilder.GetILGenerator();
             generator.Emit(OpCodes.Ldarg_0);
             generator.Emit(OpCodes.Ldfld, fieldBuilder);
             generator.Emit(OpCodes.Ret);
-
+            
             return methodBuilder;
         }
 
-        private static MethodBuilder CreateSetMethod(TypeBuilder typeBuilder, FieldInfo fieldBuilder, string name, Type type)
+        private static MethodBuilder CreateSetMethod(TypeBuilder typeBuilder, FieldInfo fieldBuilder, string name, Type type, 
+            bool isAbstract)
         {
-            var methodBuilder = typeBuilder.DefineMethod("set" + name, MethodAttrs, null, new[] { type });
-            var generator = methodBuilder.GetILGenerator();
-            generator.Emit(OpCodes.Ldarg_0);
-            generator.Emit(OpCodes.Ldarg_1);
-            generator.Emit(OpCodes.Stfld, fieldBuilder);
-            generator.Emit(OpCodes.Ret);
-
+            var attrs = MethodAttrs;
+            if (isAbstract)
+            {
+                attrs = attrs | MethodAttributes.Abstract | MethodAttributes.Virtual;
+            }
+            var methodBuilder = typeBuilder.DefineMethod("set" + name, attrs, null, new[] { type });
+            if (!isAbstract)
+            {
+                var generator = methodBuilder.GetILGenerator();
+                generator.Emit(OpCodes.Ldarg_0);
+                generator.Emit(OpCodes.Ldarg_1);
+                generator.Emit(OpCodes.Stfld, fieldBuilder);
+                generator.Emit(OpCodes.Ret);
+            }
             return methodBuilder;
         }
     }

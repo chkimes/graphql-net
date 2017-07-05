@@ -170,7 +170,7 @@ namespace Tests
         {
             var results = gql.ExecuteQuery(
                 "{ heros { name, __typename, ...human, ...stormtrooper, ...droid } }, " +
-                "fragment human on Human { height }, " +
+                "fragment human on IHuman { height }, " +
                 "fragment stormtrooper on Stormtrooper { specialization }, " +
                 "fragment droid on Droid { primaryFunction }");
             Test.DeepEquals(
@@ -185,7 +185,7 @@ namespace Tests
         public static void InlineFragements<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery(
-                "{ heros { name, __typename, ... on Human { height }, ... on Stormtrooper { specialization }, " +
+                "{ heros { name, __typename, ... on IHuman { height }, ... on Stormtrooper { specialization }, " +
                 "... on Droid { primaryFunction } } }");
             Test.DeepEquals(
                 results,
@@ -199,7 +199,7 @@ namespace Tests
         public static void InlineFragementWithListField<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery(
-                "{ heros { name, __typename, ... on Human { height, vehicles { name } }, ... on Stormtrooper { specialization }, " +
+                "{ heros { name, __typename, ... on IHuman { height, vehicles { name } }, ... on Stormtrooper { specialization }, " +
                 "... on Droid { primaryFunction } } }");
             Test.DeepEquals(
                 results,
@@ -275,7 +275,7 @@ namespace Tests
         public static void FragementWithMultipleTypenameFieldsMixedWithInlineFragment<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery(
-                "{ heros { ...stormtrooper, __typename, ... on Human {name}, ... on Droid {name}}}, fragment stormtrooper on Stormtrooper { name, height, specialization, __typename } ");
+                "{ heros { ...stormtrooper, __typename, ... on IHuman {name}, ... on Droid {name}}}, fragment stormtrooper on Stormtrooper { name, height, specialization, __typename } ");
             Test.DeepEquals(
                 results,
                 "{ heros: [ " +

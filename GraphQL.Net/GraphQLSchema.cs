@@ -187,8 +187,10 @@ namespace GraphQL.Net
             var allFields = type.GetQueryFields();
             if (type.TypeKind == TypeKind.INTERFACE || type.TypeKind == TypeKind.UNION)
             {
-                type.QueryType = DynamicTypeBuilder.CreateDynamicUnionTypeOrInterface(type.Name + Guid.NewGuid(),
-                    allFields, type.PossibleTypes);
+                type.QueryType = DynamicTypeBuilder.CreateDynamicUnionTypeOrInterface(
+                    type.Name + Guid.NewGuid(),
+                    allFields, type.PossibleTypes,
+                    CreatePossibleTypePropertyName);
             }
             else
             {
@@ -391,5 +393,10 @@ namespace GraphQL.Net
                 new GraphQLType(queryType) {TypeKind = TypeKind.SCALAR};
 
         internal IEnumerable<GraphQLType> Types => _types;
+
+        public static string CreatePossibleTypePropertyName(string possibleTypeName, string fieldName)
+        {
+            return possibleTypeName + "$$$" + fieldName;
+        }
     }
 }

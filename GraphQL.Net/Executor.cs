@@ -105,7 +105,7 @@ namespace GraphQL.Net
             var type = queryObject.GetType();
 
             // TODO: Improve performance/efficiency
-            var graphQlQueryType = schema.Types.First(t => t.QueryType == queryObject.GetType());
+            var graphQlQueryType = schema.GetGQLTypeByQueryType(queryObject.GetType());
 
             var queryTypeToSelections = CreateQueryTypeToSelectionsMapping(graphQlQueryType, selections.ToList());
             if (!queryTypeToSelections.ContainsKey(type))
@@ -118,9 +118,8 @@ namespace GraphQL.Net
                 var key = map.Name;
                 var field = map.SchemaField.Field();
                 var typeConditionType = map.TypeCondition?.Value?.Type();
-                var propertyName = (typeConditionType != null
-                                       ? typeConditionType.Name + "$$$" // TODO: Extract utility method
-                                       : "") + field.Name;
+                var propertyName = CreatePropertyName(graphQlQueryType, typeConditionType, field.Name);
+
                 object obj = null;
 
                 if (field.IsPost)
@@ -322,22 +321,31 @@ namespace GraphQL.Net
             return Expression.Condition(equals, Expression.Constant(null, returnExpr.Type), returnExpr);
         }
 
+        private static string CreatePropertyName(IGraphQLType graphQlType, IGraphQLType typeConditionTypeName,
+            string fieldName)
+        {
+            var isAbstractType = graphQlType.TypeKind == TypeKind.UNION ||
+                                 graphQlType.TypeKind == TypeKind.INTERFACE;
+            return isAbstractType && typeConditionTypeName != null
+                ? GraphQLSchema<TContext>.CreatePossibleTypePropertyName(typeConditionTypeName.Name, fieldName)
+                : fieldName;
+        }
+
         private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
         {
             var field = map.SchemaField.Field();
             var needsTypeCheck = baseBindingExpr.Type != map.SchemaField.DeclaringType?.Info?.Type?.CLRType;
-            var isTypeConditionSelection = map.TypeCondition?.Value != null;
-            var propertyName = (isTypeConditionSelection ? map.TypeCondition?.Value.Type().Name + "$$$" : "") +
-                               map.SchemaField.FieldName;
-
+            // TODO: Pass GraphQlType as argument
+            var graphQlType = schema.GetGQLTypeByQueryType(toType);
+            var propertyName = CreatePropertyName(graphQlType, map.TypeCondition?.Value?.Type(),
+                map.SchemaField.FieldName);
             var toMember = toType.GetProperty(
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-           
+
             if (toMember == null)
             {
-                var graphqlType = schema.GetGQLType(toType);
-                throw new Exception($"The field '{map.SchemaField.FieldName}' does not exist on type '{graphqlType.Name}'.");
+                throw new Exception($"The field '{map.SchemaField.FieldName}' does not exist on type '{graphQlType.Name}'.");
             } 
             // expr is form of: (context, entity) => entity.Field
             var expr = field.GetExpression(map.Arguments.Values());

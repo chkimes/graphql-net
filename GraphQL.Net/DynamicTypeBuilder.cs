@@ -30,8 +30,9 @@ namespace GraphQL.Net
                 CreateProperty(typeBuilder, prop.Key, prop.Value);
             return typeBuilder.CreateType();
         }
-        
-        public static Type CreateDynamicUnionTypeOrInterface(string name, IEnumerable<GraphQLField> fields, IEnumerable<GraphQLType> possibleTypes)
+
+        public static Type CreateDynamicUnionTypeOrInterface(string name, IEnumerable<GraphQLField> fields,
+            IEnumerable<GraphQLType> possibleTypes, Func<string, string, string> createPossibleTypePropertyName)
         {
             var typeBuilder = ModuleBuilder.DefineType(AssemblyName + "." + name,
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AutoClass | TypeAttributes.AnsiClass |
@@ -40,7 +41,7 @@ namespace GraphQL.Net
             // Prefix all properties of a possible type to avoid conflicts of property names
             var subTypeProperties = possibleTypes
                 .SelectMany(
-                    t => t.Fields.Select(f => new {Name = t.Name + "$$$" + f.Name, Type = GetFieldPropertyType(f)}));
+                    t => t.Fields.Select(f => new {Name = createPossibleTypePropertyName(t.Name, f.Name), Type = GetFieldPropertyType(f)}));
             var properties =
                 subTypeProperties.Concat(fields.Select(f => new {Name = f.Name, Type = GetFieldPropertyType(f)}));
             foreach (var prop in properties)

@@ -225,7 +225,8 @@ namespace Tests.EF
             schema.AddUnionType("OtherUnionType02", new List<IGraphQLType>());
 
             schema.AddType<Vehicle>().AddAllFields();
-            schema.AddField("hero", new {id = 0}, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));
+            schema.AddField("hero", new {id = 0}, (db, args) => db.Heros.FirstOrDefault(h => h.Id == args.id))
+                .WithReturnType(heroUnionType);
             schema.AddListField("heros", db => db.Heros.AsQueryable())
                 .WithReturnType(heroUnionType);
         }

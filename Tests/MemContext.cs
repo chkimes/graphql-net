@@ -221,7 +221,7 @@ namespace Tests
             droidType.AddAllFields();
             droidType.AddInterface(characterInterface);
 
-            var characterUnionType = schema.AddUnionType(
+            var heroUnionType = schema.AddUnionType(
                 "Hero",
                 new[]
                 {
@@ -234,9 +234,10 @@ namespace Tests
                 });
 
             schema.AddType<Vehicle>().AddAllFields();
-            schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));
+            schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id))
+                .WithReturnType(heroUnionType);
             schema.AddListField("heros", db => db.Heros.AsQueryable())
-                .WithReturnType(characterUnionType);
+                .WithReturnType(heroUnionType);
         }
     }
 

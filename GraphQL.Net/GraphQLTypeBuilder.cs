@@ -17,6 +17,8 @@ namespace GraphQL.Net
             _type = type;
         }
 
+        public IGraphQLType GraphQLType => _type;
+
         // This overload is provided to the user so they can shape TArgs with an anonymous type and rely on type inference for type parameters
         // e.g.  AddField("profilePic", new { size = 0 }, (db, user) => db.ProfilePics.Where(p => p.UserId == u.Id && p.Size == args.size));
         [Obsolete]

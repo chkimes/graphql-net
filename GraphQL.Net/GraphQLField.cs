@@ -19,7 +19,7 @@ namespace GraphQL.Net
 
         public bool IsMutation { get; protected set; }
 
-        protected Type FieldCLRType { get; set; }
+        internal Type FieldCLRType { get; set; }
         protected Type ArgsCLRType { get; set; }
         internal GraphQLType DefiningType { get; private set; }
         internal GraphQLSchema Schema { get; set; }
@@ -34,6 +34,12 @@ namespace GraphQL.Net
         // lazily initialize type, fields may be defined before all types are loaded
         private GraphQLType _type;
         public GraphQLType Type => _type ?? (_type = Schema.GetGQLType(FieldCLRType));
+
+        //TODO: Necessary for union types - find better solution
+        internal void SetReturnType(GraphQLType type)
+        {
+            _type = type;
+        }
 
         public virtual IEnumerable<ISchemaArgument<Info>> Arguments
             => TypeHelpers.GetArgs(Schema.VariableTypes, ArgsCLRType);

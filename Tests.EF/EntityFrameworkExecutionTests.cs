@@ -187,14 +187,47 @@ namespace Tests.EF
 
         private static void InitializeCharacterSchema(GraphQLSchema<EfContext> schema)
         {
-            schema.AddType<Character>().AddAllFields();
-            schema.AddType<Human>().AddAllFields();
-            schema.AddType<Stormtrooper>().AddAllFields();
-            schema.AddType<Droid>().AddAllFields();
-            schema.AddType<Vehicle>().AddAllFields();
+            var characterInterface = schema.AddInterfaceType<ICharacter>();
+            characterInterface.AddAllFields();
 
-            schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));
-            schema.AddListField("heros", db => db.Heros.AsQueryable());
+            var humanInterface = schema.AddInterfaceType<IHuman>();
+            humanInterface.AddAllFields();
+            humanInterface.AddInterface(characterInterface);
+
+            var humanType = schema.AddType<Human>();
+            humanType.AddAllFields();
+            humanType.AddInterface(characterInterface);
+            humanType.AddInterface(humanInterface);
+
+            var stormtrooperType = schema.AddType<Stormtrooper>();
+            stormtrooperType.AddAllFields();
+            stormtrooperType.AddInterface(characterInterface);
+            stormtrooperType.AddInterface(humanInterface);
+
+            var droidType = schema.AddType<Droid>();
+            droidType.AddAllFields();
+            droidType.AddInterface(characterInterface);
+            schema.AddUnionType("OtherUnionType01", new List<IGraphQLType>());
+
+            var heroUnionType = schema.AddUnionType(
+                "Hero",
+                new[]
+                {
+                    // TODO: ORDER MATTERS FOR TYPENAME RESOLUTION
+                    characterInterface.GraphQLType,
+                    humanInterface.GraphQLType,
+                    humanType.GraphQLType,
+                    stormtrooperType.GraphQLType,
+                    droidType.GraphQLType
+                });
+
+
+            schema.AddUnionType("OtherUnionType02", new List<IGraphQLType>());
+
+            schema.AddType<Vehicle>().AddAllFields();
+            schema.AddField("hero", new {id = 0}, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));
+            schema.AddListField("heros", db => db.Heros.AsQueryable())
+                .WithReturnType(heroUnionType);
         }
 
         [Test]
@@ -244,23 +277,23 @@ namespace Tests.EF
         [Test]
         public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
         [Test]
-        public static void Fragements() => GenericTests.Fragements(CreateDefaultContext());
+        public static void Fragments() => GenericTests.Fragments(CreateDefaultContext());
         [Test]
-        public static void InlineFragements() => GenericTests.InlineFragements(CreateDefaultContext());
+        public static void InlineFragments() => GenericTests.InlineFragments(CreateDefaultContext());
         [Test]
-        public static void InlineFragementWithListField() => GenericTests.InlineFragementWithListField(CreateDefaultContext());
+        public static void InlineFragmentWithListField() => GenericTests.InlineFragmentWithListField(CreateDefaultContext());
         [Test]
-        public static void FragementWithMultiLevelInheritance() => GenericTests.FragementWithMultiLevelInheritance(CreateDefaultContext());
+        public static void FragmentWithMultiLevelInheritance() => GenericTests.FragmentWithMultiLevelInheritance(CreateDefaultContext());
         [Test]
-        public static void InlineFragementWithoutTypenameField() => GenericTests.InlineFragementWithoutTypenameField(CreateDefaultContext());
+        public static void InlineFragmentWithoutTypenameField() => GenericTests.InlineFragmentWithoutTypenameField(CreateDefaultContext());
         [Test]
-        public static void FragementWithoutTypenameField() => GenericTests.FragementWithoutTypenameField(CreateDefaultContext());
+        public static void FragmentWithoutTypenameField() => GenericTests.FragmentWithoutTypenameField(CreateDefaultContext());
         [Test]
-        public static void InlineFragementWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragementWithoutTypenameFieldWithoutOtherFields(CreateDefaultContext());
+        public static void InlineFragmentWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragmentWithoutTypenameFieldWithoutOtherFields(CreateDefaultContext());
         [Test]
-        public static void FragementWithMultipleTypenameFields() => GenericTests.FragementWithMultipleTypenameFields(CreateDefaultContext());
+        public static void FragmentWithMultipleTypenameFields() => GenericTests.FragmentWithMultipleTypenameFields(CreateDefaultContext());
         [Test]
-        public static void FragementWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragementWithMultipleTypenameFieldsMixedWithInlineFragment(CreateDefaultContext());
+        public static void FragmentWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragmentWithMultipleTypenameFieldsMixedWithInlineFragment(CreateDefaultContext());
 
         [Test]
         public void AddAllFields()
@@ -301,7 +334,7 @@ namespace Tests.EF
             public IDbSet<Account> Accounts { get; set; }
             public IDbSet<MutateMe> MutateMes { get; set; }
             public IDbSet<NullRef> NullRefs { get; set; }
-            public IDbSet<Character> Heros { get; set; }
+            public IDbSet<ICharacter> Heros { get; set; }
             public IDbSet<Vehicle> Vehicles { get; set; }
         }
 
@@ -343,24 +376,29 @@ namespace Tests.EF
             public int Id { get; set; }
         }
 
-        class Character
+        class ICharacter
         {
             public int Id { get; set; }
             public string Name { get; set; }
         }
-
-        class Human : Character
+        
+        class IHuman : ICharacter
         {
             public double Height { get; set; }
             public ICollection<Vehicle> Vehicles { get; set; }
         }
 
-        class Stormtrooper : Human
+        class Human : IHuman
+        {
+            
+        }
+
+        class Stormtrooper : IHuman
         {
             public string Specialization { get; set; }
         }
 
-        class Droid : Character
+        class Droid : ICharacter
         {
             public string PrimaryFunction { get; set; }
         }
@@ -370,7 +408,7 @@ namespace Tests.EF
             public int Id { get; set; }
             public string Name { get; set; }
             public int HumanId { get; set; }
-            public virtual Human Human { get; set; }
+            public virtual IHuman Human { get; set; }
         }
     }
 }

@@ -78,7 +78,7 @@ namespace Tests
             {
                 Id = 1,
                 Name = "Millennium falcon",
-                OwnerId = human.Id
+                HumanId = human.Id
             };
             Vehicles.Add(vehicle);
             human.Vehicles = new List<Vehicle> { vehicle };
@@ -86,7 +86,7 @@ namespace Tests
             {
                 Id = 2,
                 Name = "Speeder bike",
-                OwnerId = stormtrooper.Id
+                HumanId = stormtrooper.Id
             };
             Vehicles.Add(vehicle2);
             stormtrooper.Vehicles = new List<Vehicle> { vehicle2 };
@@ -96,8 +96,8 @@ namespace Tests
         public List<Account> Accounts { get; set; } = new List<Account>();
         public List<MutateMe> MutateMes { get; set; } = new List<MutateMe>();
         public List<NullRef> NullRefs { get; set; } = new List<NullRef>();
-        public List<ICharacter> Heros { get; set; } = new List<ICharacter>();
-        public List<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+        List<Hero> Heros { get; set; } = new List<Hero>();
+        List<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 
         public static GraphQL<MemContext> CreateDefaultContext()
         {
@@ -203,6 +203,7 @@ namespace Tests
         {
             var characterInterface = schema.AddInterfaceType<ICharacter>();
             characterInterface.AddAllFields();
+
             var humanInterface = schema.AddInterfaceType<IHuman>();
             humanInterface.AddAllFields();
 
@@ -220,10 +221,22 @@ namespace Tests
             droidType.AddAllFields();
             droidType.AddInterface(characterInterface);
 
-            schema.AddType<Vehicle>().AddAllFields();
+            var characterUnionType = schema.AddUnionType(
+                "Hero",
+                new[]
+                {
+                    // TODO: ORDER MATTERS FOR TYPENAME RESOLUTION
+                    characterInterface.GraphQLType,
+                    humanInterface.GraphQLType,
+                    humanType.GraphQLType,
+                    stormtrooperType.GraphQLType,
+                    droidType.GraphQLType
+                });
 
-            schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.AsQueryable().SingleOrDefault(h => h.Id == args.id));
-            schema.AddListField("heros", db => db.Heros.AsQueryable());
+            schema.AddType<Vehicle>().AddAllFields();
+            schema.AddField("hero", new { id = 0 }, (db, args) => db.Heros.SingleOrDefault(h => h.Id == args.id));
+            schema.AddListField("heros", db => db.Heros.AsQueryable())
+                .WithReturnType(characterUnionType);
         }
     }
 
@@ -290,46 +303,45 @@ namespace Tests
         public int Id { get; set; }
     }
 
-    public interface ICharacter
+    interface ICharacter
     {
         int Id { get; set; }
         string Name { get; set; }
     }
 
-    public interface IHuman
+    class Hero : ICharacter
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    interface IHuman
     {
         double Height { get; set; }
         ICollection<Vehicle> Vehicles { get; set; }
     }
 
-    public class Human : ICharacter, IHuman
+    class Human : Hero, IHuman
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
         public double Height { get; set; }
         public ICollection<Vehicle> Vehicles { get; set; }
     }
 
-    public class Stormtrooper : ICharacter, IHuman
+    class Stormtrooper : Human
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public double Height { get; set; }
         public string Specialization { get; set; }
-        public ICollection<Vehicle> Vehicles { get; set; }
     }
 
-    public class Droid : ICharacter
+    class Droid : Hero
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
         public string PrimaryFunction { get; set; }
     }
 
-    public class Vehicle
+    class Vehicle
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public int OwnerId { get; set; }
+        public int HumanId { get; set; }
+        public virtual IHuman Human { get; set; }
     }
 }

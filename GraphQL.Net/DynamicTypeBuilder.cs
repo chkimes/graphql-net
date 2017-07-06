@@ -1,8 +1,10 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using GraphQL.Parser;
 
 namespace GraphQL.Net
 {
@@ -18,28 +20,45 @@ namespace GraphQL.Net
             ModuleBuilder = assemblyBuilder.DefineDynamicModule(AssemblyName + ".dll");
         }
 
-        public static Type CreateDynamicType(string name, Dictionary<string, Type> properties, IEnumerable<Type> implementedInterfaces)
+        public static Type CreateDynamicType(string name, IEnumerable<GraphQLField> fields)
         {
             var typeBuilder = ModuleBuilder.DefineType(AssemblyName + "." + name,
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AutoClass | TypeAttributes.AnsiClass | TypeAttributes.Serializable | TypeAttributes.BeforeFieldInit);
-
-            foreach (var implementedInterface in implementedInterfaces)
-            {
-                typeBuilder.AddInterfaceImplementation(implementedInterface);
-            }
             
+            var properties = ConvertFieldsToProperties(fields);
             foreach (var prop in properties)
                 CreateProperty(typeBuilder, prop.Key, prop.Value);
             return typeBuilder.CreateType();
         }
-        public static Type CreateDynamicInterface(string name, Dictionary<string, Type> properties)
+        
+        public static Type CreateDynamicUnionTypeOrInterface(string name, IEnumerable<GraphQLField> fields, IEnumerable<GraphQLType> possibleTypes)
         {
             var typeBuilder = ModuleBuilder.DefineType(AssemblyName + "." + name,
-                TypeAttributes.Public | TypeAttributes.Interface | TypeAttributes.Abstract);
-
+                TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AutoClass | TypeAttributes.AnsiClass |
+                TypeAttributes.Serializable | TypeAttributes.BeforeFieldInit);
+            // Create an union type containing all properties of its possible types.
+            // Prefix all properties of a possible type to avoid conflicts of property names
+            var subTypeProperties = possibleTypes
+                .SelectMany(
+                    t => t.Fields.Select(f => new {Name = t.Name + "$$$" + f.Name, Type = GetFieldPropertyType(f)}));
+            var properties =
+                subTypeProperties.Concat(fields.Select(f => new {Name = f.Name, Type = GetFieldPropertyType(f)}));
             foreach (var prop in properties)
-                CreateProperty(typeBuilder, prop.Key, prop.Value, true);
+                CreateProperty(typeBuilder, prop.Name, prop.Type);
+
             return typeBuilder.CreateType();
+        }
+
+        private static Type GetFieldPropertyType(GraphQLField field)
+        {
+            return field.Type.TypeKind == TypeKind.SCALAR
+                ? TypeHelpers.MakeNullable(field.Type.CLRType)
+                : typeof(object);
+        }
+
+        private static IDictionary<string, Type> ConvertFieldsToProperties(IEnumerable<GraphQLField> fields)
+        {
+            return fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, GetFieldPropertyType);
         }
 
         private static void CreateProperty(TypeBuilder typeBuilder, string name, Type type, bool isAbstract = false)

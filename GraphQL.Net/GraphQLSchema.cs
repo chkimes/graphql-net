@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Reflection.Emit;
 using GraphQL.Net.SchemaAdapters;
 using GraphQL.Parser;
 
@@ -12,6 +13,7 @@ namespace GraphQL.Net
     {
         internal readonly VariableTypes VariableTypes = new VariableTypes();
         internal abstract GraphQLType GetGQLType(Type type);
+        internal abstract GraphQLType GetGQLTypeByQueryType(Type queryType);
     }
 
     public class GraphQLSchema<TContext> : GraphQLSchema
@@ -74,6 +76,23 @@ namespace GraphQL.Net
             _types.Add(gqlType);
 
             return new GraphQLTypeBuilder<TContext, TEntity>(this, gqlType);
+        }
+
+        public IGraphQLType AddUnionType(string name, IEnumerable<IGraphQLType> possibleTypes,
+            string description = null)
+        {
+            if (_types.Any(t => t.Name == name))
+                throw new ArgumentException("Union type with same name has already been added: " + name);
+
+            var gqlType = new GraphQLType(typeof(object))
+            {
+                TypeKind = TypeKind.UNION,
+                Name = name,
+                Description = description ?? "",
+                PossibleTypes = possibleTypes.Cast<GraphQLType>().ToList()
+            };
+            _types.Add(gqlType);
+            return gqlType;
         }
 
         public GraphQLTypeBuilder<TContext, TInterface> AddInterfaceType<TInterface>(string name = null, string description = null)
@@ -155,9 +174,9 @@ namespace GraphQL.Net
         {
             // validation maybe perform somewhere else
             if (type.TypeKind == TypeKind.SCALAR && type.Fields.Count != 0)
-                throw new Exception("Scalar types must not have any fields defined."); // TODO: Schema validation exception?
+                throw new Exception("Scalar and union types must not have any fields defined."); // TODO: Schema validation exception?
             if (type.TypeKind != TypeKind.SCALAR && type.Fields.Count == 0)
-                throw new Exception("Non-scalar types must have at least one field defined."); // TODO: Schema validation exception?
+                throw new Exception("Non-scalar and non-union types must have at least one field defined."); // TODO: Schema validation exception?
 
             if (type.TypeKind == TypeKind.SCALAR)
             {
@@ -166,33 +185,14 @@ namespace GraphQL.Net
             }
 
             var allFields = type.GetQueryFields();
-
-            // For union types there may duplicate fields. Validate those and remove duplicates
-            var fieldGroupedByName = allFields.GroupBy(f => f.Name).ToList();
-
-            // All fields with the same name have to be of the same type.
-            foreach (var fieldGroup in fieldGroupedByName)
+            if (type.TypeKind == TypeKind.INTERFACE || type.TypeKind == TypeKind.UNION)
             {
-                var typeOfFirstField = fieldGroup.FirstOrDefault()?.Type;
-                if (fieldGroup.Any(f => f.Type?.CLRType?.IsAssignableFrom(typeOfFirstField?.CLRType) == false && typeOfFirstField?.CLRType?.IsAssignableFrom(f.Type?.CLRType) == false))
-                {
-                    var fieldName = fieldGroup.FirstOrDefault()?.Name;
-                    throw new ArgumentException($"The type '{type.Name}' has multiple fields named '{fieldName}' with different types.");
-                }
-            }
-
-            var fields = fieldGroupedByName.Select(g => g.First());
-
-            var fieldDict = fields.Where(f => !f.IsPost).ToDictionary(f => f.Name, f => f.Type.TypeKind == TypeKind.SCALAR ? TypeHelpers.MakeNullable(f.Type.CLRType) : typeof(object));
-
-            if (type.TypeKind == TypeKind.INTERFACE)
-            {
-                type.QueryType = DynamicTypeBuilder.CreateDynamicInterface(type.Name + Guid.NewGuid(), fieldDict);
+                type.QueryType = DynamicTypeBuilder.CreateDynamicUnionTypeOrInterface(type.Name + Guid.NewGuid(),
+                    allFields, type.PossibleTypes);
             }
             else
             {
-                type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), fieldDict,
-                    type.Interfaces.Select(i => i.QueryType));
+                type.QueryType = DynamicTypeBuilder.CreateDynamicType(type.Name + Guid.NewGuid(), allFields);
             }
         }
 
@@ -287,9 +287,47 @@ namespace GraphQL.Net
             */
             var builder = new GraphQLTypeBuilder<TContext, TEntity>(this, type);
 
-            builder.AddPostField("__typename", () => type.Name);
+            if (!type.PossibleTypes.Any())
+            {
+                // No included types, type name is constant.
+                builder.AddPostField("__typename", () => type.Name);
+            }
+            else
+            {
+                var param = Expression.Parameter(typeof(TEntity));
+
+                // Generate a nested if-else-expression with all included types starting at the leaves of the type hierarchy tree.
+                // Add the base type name as the last else-expression
+                Expression elseExpr = Expression.Constant(type.CLRType.Name);
+
+                var includedTypes =
+                    type.PossibleTypes.SelectMany(SelectIncludedTypesRecursive)
+                        .Where(
+                            t =>
+                                t.TypeKind != TypeKind.INTERFACE && t.TypeKind != TypeKind.UNION &&
+                                t.CLRType != typeof(object));
+
+                // Add type checks for all included types#
+                foreach (var includedType in includedTypes)
+                {
+                    var testExpr = Expression.TypeIs(param, includedType.CLRType);
+                    var expr = Expression.Constant(includedType.CLRType.Name);
+                    elseExpr = Expression.Condition(testExpr, expr, elseExpr);
+                }
+
+                //var lambda = Expression.Lambda<Func<TEntity, string>>(Expression.Block(exprs), param);
+                var lambda = Expression.Lambda<Func<TEntity, string>>(elseExpr, param);
+
+                builder.AddField<string>("__typename", lambda);
+            }
         }
 
+        // Returns all included types of the hierarchy tree, ordered from "root" to the "leaves".
+        private static IEnumerable<GraphQLType> SelectIncludedTypesRecursive(GraphQLType type)
+        {
+            return new[] { type }.Union(type.PossibleTypes.SelectMany(SelectIncludedTypesRecursive));
+        }
+        
         // This signature is pretty complicated, but necessarily so.
         // We need to build a function that we can execute against passed in TArgs that
         // will return a base expression for combining with selectors (stored on GraphQLType.Fields)
@@ -345,8 +383,12 @@ namespace GraphQL.Net
         internal GraphQLField FindField(string name) => GetGQLType(typeof(TContext)).Fields.FirstOrDefault(f => f.Name == name);
 
         internal override GraphQLType GetGQLType(Type type)
-            => _types.FirstOrDefault(t => t.CLRType == type)
-                ?? new GraphQLType(type) { TypeKind = TypeKind.SCALAR };
+            => _types.FirstOrDefault(t => t.CLRType == type) ?? new GraphQLType(type) {TypeKind = TypeKind.SCALAR};
+
+        internal override GraphQLType GetGQLTypeByQueryType(Type queryType)
+            =>
+                _types.FirstOrDefault(t => t.QueryType == queryType) ??
+                new GraphQLType(queryType) {TypeKind = TypeKind.SCALAR};
 
         internal IEnumerable<GraphQLType> Types => _types;
     }

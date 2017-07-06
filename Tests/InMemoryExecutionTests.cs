@@ -32,15 +32,15 @@ namespace Tests
         [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(MemContext.CreateDefaultContext());
         [Test] public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
         [Test] public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
-        [Test] public static void Fragements() => GenericTests.Fragements(MemContext.CreateDefaultContext());
-        [Test] public static void InlineFragements() => GenericTests.InlineFragements(MemContext.CreateDefaultContext());
-        [Test] public static void InlineFragementWithListField() => GenericTests.InlineFragementWithListField(MemContext.CreateDefaultContext());
-        [Test] public static void FragementWithMultiLevelInheritance() => GenericTests.FragementWithMultiLevelInheritance(MemContext.CreateDefaultContext());
-        [Test] public static void InlineFragementWithoutTypenameField() => GenericTests.InlineFragementWithoutTypenameField(MemContext.CreateDefaultContext());
-        [Test] public static void FragementWithoutTypenameField() => GenericTests.FragementWithoutTypenameField(MemContext.CreateDefaultContext());
-        [Test] public static void InlineFragementWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragementWithoutTypenameFieldWithoutOtherFields(MemContext.CreateDefaultContext());
-        [Test] public static void FragementWithMultipleTypenameFields() => GenericTests.FragementWithMultipleTypenameFields(MemContext.CreateDefaultContext());
-        [Test] public static void FragementWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragementWithMultipleTypenameFieldsMixedWithInlineFragment(MemContext.CreateDefaultContext());
+        [Test] public static void Fragments() => GenericTests.Fragments(MemContext.CreateDefaultContext());
+        [Test] public static void InlineFragments() => GenericTests.InlineFragments(MemContext.CreateDefaultContext());
+        [Test] public static void InlineFragmentWithListField() => GenericTests.InlineFragmentWithListField(MemContext.CreateDefaultContext());
+        [Test] public static void FragmentWithMultiLevelInheritance() => GenericTests.FragmentWithMultiLevelInheritance(MemContext.CreateDefaultContext());
+        [Test] public static void InlineFragmentWithoutTypenameField() => GenericTests.InlineFragmentWithoutTypenameField(MemContext.CreateDefaultContext());
+        [Test] public static void FragmentWithoutTypenameField() => GenericTests.FragmentWithoutTypenameField(MemContext.CreateDefaultContext());
+        [Test] public static void InlineFragmentWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragmentWithoutTypenameFieldWithoutOtherFields(MemContext.CreateDefaultContext());
+        [Test] public static void FragmentWithMultipleTypenameFields() => GenericTests.FragmentWithMultipleTypenameFields(MemContext.CreateDefaultContext());
+        [Test] public static void FragmentWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragmentWithMultipleTypenameFieldsMixedWithInlineFragment(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

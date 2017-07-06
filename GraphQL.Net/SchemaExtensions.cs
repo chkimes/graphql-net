@@ -97,7 +97,9 @@ namespace GraphQL.Net
         }
 
         // Transform  db => db.Entities.Where(args)  into  args => db => db.Entities.Where(args)
-        public static GraphQLFieldBuilder<TContext, TEntity> AddListField<TContext, TEntity>(this GraphQLSchema<TContext> context, string name, Expression<Func<TContext, IEnumerable<TEntity>>> queryableGetter)
+        public static GraphQLFieldBuilder<TContext, TEntity> AddListField<TContext, TEntity>(
+            this GraphQLSchema<TContext> context, string name,
+            Expression<Func<TContext, IEnumerable<TEntity>>> queryableGetter)
         {
             return context.AddFieldInternal(name, GetFinalQueryFunc<TContext, object, IEnumerable<TEntity>>(queryableGetter), ResolutionType.ToList);
         }

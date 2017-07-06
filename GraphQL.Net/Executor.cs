@@ -103,8 +103,6 @@ namespace GraphQL.Net
                 return null;
             var dict = new Dictionary<string, object>();
             var type = queryObject.GetType();
-
-            // TODO: Improve performance/efficiency
             var graphQlQueryType = schema.GetGQLTypeByQueryType(queryObject.GetType());
 
             var queryTypeToSelections = CreateQueryTypeToSelectionsMapping(graphQlQueryType, selections.ToList());
@@ -232,7 +230,7 @@ namespace GraphQL.Net
         private static LambdaExpression GetSelector(GraphQLSchema<TContext> schema, GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, ExpressionOptions options)
         {
             var parameter = Expression.Parameter(gqlType.CLRType, "p");
-            var init = GetMemberInit(schema, gqlType.QueryType, selections, parameter, options);
+            var init = GetMemberInit(schema, gqlType, selections, parameter, options);
             return Expression.Lambda(init, parameter);
         }
         
@@ -267,8 +265,9 @@ namespace GraphQL.Net
                 );
         }
 
-        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, Type queryType, IEnumerable<ExecSelection<Info>> selectionsEnumerable, Expression parameterExpression, ExpressionOptions options)
+        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, GraphQLType graphQlType, IEnumerable<ExecSelection<Info>> selectionsEnumerable, Expression parameterExpression, ExpressionOptions options)
         {
+            var queryType = graphQlType.QueryType;
             // Avoid possible multiple enumeration of selections-enumerable
             var selections = selectionsEnumerable as IList<ExecSelection<Info>> ?? selectionsEnumerable.ToList();
 
@@ -281,13 +280,12 @@ namespace GraphQL.Net
 
             var bindings =
                 selections.Where(s => !s.SchemaField.Info.Field.IsPost)
-                    .Select(s => GetBinding(schema, s, queryType, parameterExpression, options));
+                    .Select(s => GetBinding(schema, s, graphQlType, parameterExpression, options));
 
             // Add selection for '__typename'-field of the proper type
             if (typeConditionButNoTypeNameSelection || typeNameConditionHasToBeReplaced)
             {
                 // Find the base types' `__typename` field
-                var graphQlType = schema.GetGQLTypeByQueryType(queryType);
                 var typeNameField = graphQlType?.Fields.Find(f => f.Name == "__typename");
                 if (typeNameField != null && !typeNameField.IsPost)
                 {
@@ -306,7 +304,7 @@ namespace GraphQL.Net
                         bindings
                         .Where(b => b.Member.Name != "__typename")
                         .Concat(new[]
-                                {GetBinding(schema, typeNameExecSelection, queryType, parameterExpression, options)})
+                                {GetBinding(schema, typeNameExecSelection, graphQlType, parameterExpression, options)})
                             .ToList();
                 }
             }
@@ -331,12 +329,11 @@ namespace GraphQL.Net
                 : fieldName;
         }
 
-        private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
+        private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, GraphQLType graphQlType, Expression baseBindingExpr, ExpressionOptions options)
         {
+            var toType = graphQlType.QueryType;
             var field = map.SchemaField.Field();
             var needsTypeCheck = baseBindingExpr.Type != map.SchemaField.DeclaringType?.Info?.Type?.CLRType;
-            // TODO: Pass GraphQlType as argument
-            var graphQlType = schema.GetGQLTypeByQueryType(toType);
             var propertyName = CreatePropertyName(graphQlType, map.TypeCondition?.Value?.Type(),
                 map.SchemaField.FieldName);
             var toMember = toType.GetProperty(
@@ -391,7 +388,7 @@ namespace GraphQL.Net
             var bindChildrenTo = map.SchemaField.Field().IsList ? listParameter : replacedContext;
 
             // Now that we have our new binding parameter, build the tree for the rest of the children
-            var memberInit = GetMemberInit(schema, field.Type.QueryType, map.Selections.Values(), bindChildrenTo, options);
+            var memberInit = GetMemberInit(schema, field.Type, map.Selections.Values(), bindChildrenTo, options);
 
             // For single entities, we're done and we can just bind to the memberInit expression
             if (!field.IsList)

@@ -29,8 +29,7 @@ namespace GraphQL.Net
             _field.SetReturnType(type as GraphQLType);
             return this;
         }
-
-        // TODO: This should be removed once we figure out a better way to do it
+        
         internal GraphQLFieldBuilder<TContext, TField> WithResolutionType(ResolutionType type)
         {
             _field.ResolutionType = type;

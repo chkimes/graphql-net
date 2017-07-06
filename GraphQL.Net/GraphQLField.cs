@@ -35,7 +35,7 @@ namespace GraphQL.Net
         private GraphQLType _type;
         public GraphQLType Type => _type ?? (_type = Schema.GetGQLType(FieldCLRType));
 
-        //TODO: Necessary for union types - find better solution
+        // Set return type, e.g. union types.
         internal void SetReturnType(GraphQLType type)
         {
             _type = type;

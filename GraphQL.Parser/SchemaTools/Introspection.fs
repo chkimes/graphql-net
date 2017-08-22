@@ -132,7 +132,12 @@ and IntroField =
     }
     static member Of(field : ISchemaField<'s>) =
         let args = field.Arguments.Values |> Seq.map IntroInputValue.Of
-        let ty = IntroType.Of(field.FieldType)
+        let ty = if field.IsList then
+                    { IntroType.Default with
+                        Kind = TypeKind.LIST
+                        OfType = IntroType.Of(field.FieldType) |> Some
+                    }
+                    else IntroType.Of(field.FieldType)
         {
             Name = field.FieldName
             Description = field.Description

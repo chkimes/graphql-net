@@ -23,7 +23,13 @@ namespace GraphQL.Net
 
             // sniff queryable provider to determine how selector should be built
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
+
             var queryType = dummyQuery.GetType();
+            if (queryType.Namespace == "System.Data.Entity.DynamicProxies")
+            {
+                queryType = queryType.BaseType;
+            }
+
             var queryExecSelections = query.Selections.Values();
             var selector = GetSelector(schema, field.Type, queryExecSelections, schema.GetOptionsForQueryable(queryType));
 
@@ -116,7 +122,7 @@ namespace GraphQL.Net
                 var key = map.Name;
                 var field = map.SchemaField.Field();
                 var typeConditionType = map.TypeCondition?.Value?.Type();
-                var propertyName = CreatePropertyName(graphQlQueryType, typeConditionType, field.Name);
+                var propertyName = field.Name == "__typename" ? field.Name : CreatePropertyName(graphQlQueryType, typeConditionType, field.Name);
 
                 object obj = null;
 
@@ -277,10 +283,15 @@ namespace GraphQL.Net
 
             // Any '__typename' selection have to be replaced by the '__typename' selection of the target type' '__typename'-field.
             var typeNameConditionHasToBeReplaced = selections.Any(s => s.Name == "__typename");
-
-            var bindings =
+            
+            var bindingsWithPossibleDuplicates =
                 selections.Where(s => !s.SchemaField.Info.Field.IsPost)
-                    .Select(s => GetBinding(schema, s, graphQlType, parameterExpression, options));
+                    .Where(s => s.Name != "__typename")
+                    .Select(s => GetBinding(schema, s, graphQlType, parameterExpression, options))
+                    .ToList();
+            var uniqueBindingMemberNames = bindingsWithPossibleDuplicates.Select(b => b.Member.Name).Distinct();
+            var bindings =
+                uniqueBindingMemberNames.Select(name => bindingsWithPossibleDuplicates.First(b => b.Member.Name == name));
 
             // Add selection for '__typename'-field of the proper type
             if (typeConditionButNoTypeNameSelection || typeNameConditionHasToBeReplaced)
@@ -302,8 +313,8 @@ namespace GraphQL.Net
                     );
                     bindings =
                         bindings
-                        .Where(b => b.Member.Name != "__typename")
-                        .Concat(new[]
+                            .Where(b => b.Member.Name != "__typename")
+                            .Concat(new[]
                                 {GetBinding(schema, typeNameExecSelection, graphQlType, parameterExpression, options)})
                             .ToList();
                 }
@@ -319,13 +330,14 @@ namespace GraphQL.Net
             return Expression.Condition(equals, Expression.Constant(null, returnExpr.Type), returnExpr);
         }
 
-        private static string CreatePropertyName(IGraphQLType graphQlType, IGraphQLType typeConditionTypeName,
+        private static string CreatePropertyName(IGraphQLType graphQlType, IGraphQLType typeConditionType,
             string fieldName)
         {
-            var isAbstractType = graphQlType.TypeKind == TypeKind.UNION ||
-                                 graphQlType.TypeKind == TypeKind.INTERFACE;
-            return isAbstractType && typeConditionTypeName != null
-                ? GraphQLSchema<TContext>.CreatePossibleTypePropertyName(typeConditionTypeName.Name, fieldName)
+            var isObjectAbstractType = graphQlType.TypeKind == TypeKind.UNION ||
+                                       graphQlType.TypeKind == TypeKind.INTERFACE;
+            var isTypeConditionInterface = typeConditionType?.TypeKind == TypeKind.INTERFACE;
+            return isObjectAbstractType && !isTypeConditionInterface && typeConditionType != null
+                ? GraphQLSchema<TContext>.CreatePossibleTypePropertyName(typeConditionType.Name, fieldName)
                 : fieldName;
         }
 

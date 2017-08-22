@@ -12,7 +12,7 @@ namespace GraphQL.Net
     {
         public string Name { get; protected set; }
         public string Description { get; set; }
-        public bool IsList { get; protected set; }
+        public bool IsList { get; internal set; }
 
         public bool IsPost { get; protected set; }
         public Func<object> PostFieldFunc { get; protected set; }

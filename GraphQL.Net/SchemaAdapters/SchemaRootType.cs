@@ -16,7 +16,7 @@ namespace GraphQL.Net.SchemaAdapters
         }
 
         public override IReadOnlyDictionary<string, ISchemaField<Info>> Fields { get; }
-        public override string TypeName => "SchemaRoot";
+        public override string TypeName => "queryType";
 
         public override IEnumerable<ISchemaQueryType<Info>> PossibleTypes => new Collection<ISchemaQueryType<Info>>();
         public override IEnumerable<ISchemaQueryType<Info>> Interfaces => new Collection<ISchemaQueryType<Info>>();

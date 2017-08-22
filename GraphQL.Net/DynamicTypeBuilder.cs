@@ -24,8 +24,17 @@ namespace GraphQL.Net
         {
             var typeBuilder = ModuleBuilder.DefineType(AssemblyName + "." + name,
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AutoClass | TypeAttributes.AnsiClass | TypeAttributes.Serializable | TypeAttributes.BeforeFieldInit);
-            
-            var properties = ConvertFieldsToProperties(fields);
+
+            var graphQlFields = fields as GraphQLField[] ?? fields.ToArray();
+            if (graphQlFields.Count() != graphQlFields.Select(f => f.Name).Distinct().Count())
+            {
+                var firstDuplicatedFieldName = graphQlFields.GroupBy(f => f.Name)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .FirstOrDefault();
+                throw new Exception("Duplicated field name '" + firstDuplicatedFieldName + "' on type '" + name + "'.");
+            }
+            var properties = ConvertFieldsToProperties(graphQlFields);
             foreach (var prop in properties)
                 CreateProperty(typeBuilder, prop.Key, prop.Value);
             return typeBuilder.CreateType();

@@ -22,7 +22,6 @@ namespace GraphQL.Net
         private readonly List<GraphQLType> _types = new List<GraphQLType>();
         private readonly List<ExpressionOptions> _expressionOptions = new List<ExpressionOptions>();
         internal bool Completed;
-
         public static readonly ParameterExpression DbParam = Expression.Parameter(typeof(TContext), "db");
 
         public GraphQLSchema()
@@ -35,7 +34,7 @@ namespace GraphQL.Net
         {
             ContextCreator = contextCreator;
         }
-
+        
         public void AddEnum<TEnum>(string name = null, string prefix = null) where TEnum : struct // wish we could do where TEnum : Enum 
             => VariableTypes.AddType(_ => TypeHandler.Enum<TEnum>(name ?? typeof(TEnum).Name, prefix ?? ""));
 
@@ -78,13 +77,13 @@ namespace GraphQL.Net
             return new GraphQLTypeBuilder<TContext, TEntity>(this, gqlType);
         }
 
-        public IGraphQLType AddUnionType(string name, IEnumerable<IGraphQLType> possibleTypes,
+        public IGraphQLType AddUnionType(string name, IEnumerable<IGraphQLType> possibleTypes, Type type= null,
             string description = null)
         {
             if (_types.Any(t => t.Name == name))
                 throw new ArgumentException("Union type with same name has already been added: " + name);
 
-            var gqlType = new GraphQLType(typeof(object))
+            var gqlType = new GraphQLType(type ?? typeof(object))
             {
                 TypeKind = TypeKind.UNION,
                 Name = name,
@@ -206,7 +205,7 @@ namespace GraphQL.Net
             ischema.AddListField("types", s => s.Types);
             ischema.AddField("queryType", s => s.QueryType);
             ischema.AddField("mutationType", s => s.MutationType.OrDefault());
-            ischema.AddField("subscriptionType", s => s.MutationType.OrDefault());
+            ischema.AddField("subscriptionType", s => s.SubscriptionType.OrDefault());
             ischema.AddListField("directives", s => s.Directives);
 
             var itype = AddType<IntroType>("__Type");

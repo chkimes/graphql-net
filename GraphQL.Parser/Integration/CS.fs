@@ -69,6 +69,7 @@ type SchemaFieldCS<'s>() =
     abstract member DeclaringType : ISchemaQueryType<'s>
     abstract member FieldType : SchemaFieldType<'s>
     abstract member FieldName : string
+    abstract member IsList : bool
     abstract member Description : string
     default this.Description = null
     abstract member Info : 's
@@ -81,6 +82,7 @@ type SchemaFieldCS<'s>() =
         member this.DeclaringType = this.DeclaringType
         member this.FieldType = this.FieldType
         member this.FieldName = this.FieldName
+        member this.IsList = this.IsList
         member this.Description = this.Description |> obj2option
         member this.Info = this.Info
         member this.Arguments = this.Arguments

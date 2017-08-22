@@ -23,6 +23,11 @@ namespace GraphQL.Net
             return Schema = new GraphQLSchema<TContext>(creationFunc);
         }
 
+        public EnumValue ResolveEnumValue(string name)
+        {
+            return _schema.VariableTypes.ResolveEnumValue(name);
+        }
+
         public static IDictionary<string, object> Execute(string query)
         {
             var gql = new GraphQL<TContext>();

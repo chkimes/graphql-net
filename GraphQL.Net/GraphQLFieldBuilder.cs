@@ -33,6 +33,11 @@ namespace GraphQL.Net
         internal GraphQLFieldBuilder<TContext, TField> WithResolutionType(ResolutionType type)
         {
             _field.ResolutionType = type;
+            
+            if (_field.IsList && (type == ResolutionType.First || type == ResolutionType.FirstOrDefault))
+            {
+                _field.IsList = false;
+            }
             return this;
         }
     }

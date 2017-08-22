@@ -140,6 +140,7 @@ and ISchemaField<'s> =
     abstract member DeclaringType : ISchemaQueryType<'s>
     abstract member FieldType : SchemaFieldType<'s>
     abstract member FieldName : string
+    abstract member IsList : bool
     abstract member Description : string option
     /// Get the possible arguments of this field, keyed by name.
     /// May be empty if the field accepts no arguments.

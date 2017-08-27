@@ -35,7 +35,6 @@ namespace Tests
         [Test] public static void Fragments() => GenericTests.Fragments(MemContext.CreateDefaultContext());
         [Test] public static void InlineFragments() => GenericTests.InlineFragments(MemContext.CreateDefaultContext());
         [Test] public static void InlineFragmentWithListField() => GenericTests.InlineFragmentWithListField(MemContext.CreateDefaultContext());
-        [Test] public static void FragmentWithMultiLevelInheritance() => GenericTests.FragmentWithMultiLevelInheritance(MemContext.CreateDefaultContext());
         [Test] public static void InlineFragmentWithoutTypenameField() => GenericTests.InlineFragmentWithoutTypenameField(MemContext.CreateDefaultContext());
         [Test] public static void FragmentWithoutTypenameField() => GenericTests.FragmentWithoutTypenameField(MemContext.CreateDefaultContext());
         [Test] public static void InlineFragmentWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragmentWithoutTypenameFieldWithoutOtherFields(MemContext.CreateDefaultContext());
@@ -46,6 +45,7 @@ namespace Tests
         public void AddAllFields()
         {
             var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());
+            schema.AddType<NullRef>().AddAllFields();
             schema.AddType<User>().AddAllFields();
             schema.AddType<Account>().AddAllFields();
             schema.AddField("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Id == args.id));

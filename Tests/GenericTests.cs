@@ -185,7 +185,7 @@ namespace Tests
         public static void InlineFragments<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery(
-                "{ heros { __typename, ... on ICharacter { name }, ... on IHuman { height }, ... on Stormtrooper { specialization }, " +
+                "{ heros { __typename, ... on Droid { name }, ... on Human { name, height }, ... on Stormtrooper { name, height, specialization }, " +
                 "... on Droid { primaryFunction } } }");
             Test.DeepEquals(
                 results,
@@ -199,7 +199,7 @@ namespace Tests
         public static void InlineFragmentWithListField<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery(
-                "{ heros { __typename, ... on ICharacter { name }, ... on IHuman { height, vehicles { name } }, ... on Stormtrooper { specialization }, " +
+                "{ heros { __typename, ... on Droid { name }, ... on Human { name, height, vehicles { name } }, ... on Stormtrooper { name, height, vehicles { name }, specialization } " +
                 "... on Droid { primaryFunction } } }");
             Test.DeepEquals(
                 results,
@@ -224,7 +224,7 @@ namespace Tests
 
         public static void InlineFragmentWithoutTypenameField<TContext>(GraphQL<TContext> gql)
         {
-            var results = gql.ExecuteQuery("{ heros { ... on ICharacter { name }, ... on Stormtrooper { height, specialization } } }");
+            var results = gql.ExecuteQuery("{ heros { ... on Human { name }, ... on Droid { name }, ... on Stormtrooper { name, height, specialization } } }");
             Test.DeepEquals(
                 results,
                 "{ heros: [ " +
@@ -249,7 +249,7 @@ namespace Tests
         public static void FragmentWithoutTypenameField<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery(
-                "{ heros { ...character, ...stormtrooper } }, fragment character on ICharacter { name }, fragment stormtrooper on Stormtrooper { height, specialization } ");
+                "{ heros { ...human, ...droid, ...stormtrooper } }, fragment human on Human { name }, fragment droid on Droid { name }, fragment stormtrooper on Stormtrooper { name, height, specialization } ");
             Test.DeepEquals(
                 results,
                 "{ heros: [ " +
@@ -262,7 +262,7 @@ namespace Tests
         public static void FragmentWithMultipleTypenameFields<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery(
-                "{ heros { ...character, ...stormtrooper, __typename } }, fragment character on ICharacter { name }, fragment stormtrooper on Stormtrooper { height, specialization, __typename } ");
+                "{ heros { ...human, ...droid, ...stormtrooper, __typename } }, fragment human on Human { name }, fragment droid on Droid { name }, fragment stormtrooper on Stormtrooper { name, height, specialization, __typename } ");
             Test.DeepEquals(
                 results,
                 "{ heros: [ " +

@@ -226,7 +226,6 @@ namespace Tests
                 new[]
                 {
                     // TODO: ORDER MATTERS FOR TYPENAME RESOLUTION
-                    characterInterface.GraphQLType,
                     humanInterface.GraphQLType,
                     humanType.GraphQLType,
                     stormtrooperType.GraphQLType,

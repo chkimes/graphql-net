@@ -284,8 +284,6 @@ namespace Tests.EF
         [Test]
         public static void InlineFragmentWithListField() => GenericTests.InlineFragmentWithListField(CreateDefaultContext());
         [Test]
-        public static void FragmentWithMultiLevelInheritance() => GenericTests.FragmentWithMultiLevelInheritance(CreateDefaultContext());
-        [Test]
         public static void InlineFragmentWithoutTypenameField() => GenericTests.InlineFragmentWithoutTypenameField(CreateDefaultContext());
         [Test]
         public static void FragmentWithoutTypenameField() => GenericTests.FragmentWithoutTypenameField(CreateDefaultContext());
@@ -300,6 +298,7 @@ namespace Tests.EF
         public void AddAllFields()
         {
             var schema = GraphQL<EfContext>.CreateDefaultSchema(() => new EfContext());
+            schema.AddType<NullRef>().AddAllFields();
             schema.AddType<User>().AddAllFields();
             schema.AddType<Account>().AddAllFields();
             schema.AddField("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));

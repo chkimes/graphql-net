@@ -231,34 +231,52 @@ namespace Tests.EF
             GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
 
         [Test]
-        public static void Fragments() => GenericTests.Fragments(CreateDefaultContext());
+        public static void StarWarsBasicQueryHero() =>
+            StarWarsTests.BasicQueryHero(MemContext.CreateDefaultContext());
 
         [Test]
-        public static void InlineFragments() => GenericTests.InlineFragments(CreateDefaultContext());
+        public static void StarWarsBasicQueryHeroWithIdAndFriends() =>
+            StarWarsTests.BasicQueryHeroWithIdAndFriends(MemContext.CreateDefaultContext());
 
         [Test]
-        public static void InlineFragmentWithListField() =>
-            GenericTests.InlineFragmentWithListField(CreateDefaultContext());
+        public static void StarWarsBasicQueryHeroWithIdAndFriendsOfFriends() =>
+            StarWarsTests.BasicQueryHeroWithFriendsOfFriends(MemContext.CreateDefaultContext());
 
         [Test]
-        public static void InlineFragmentWithoutTypenameField() =>
-            GenericTests.InlineFragmentWithoutTypenameField(CreateDefaultContext());
+        public static void StarWarsBasicQueryFetchLuke() =>
+            StarWarsTests.BasicQueryFetchLuke(MemContext.CreateDefaultContext());
+        
+        [Test]
+        public static void StarWarsFragmentsDuplicatedContent() =>
+            StarWarsTests.FragmentsDuplicatedContent(MemContext.CreateDefaultContext());
+        
+        [Test]
+        public static void StarWarsFragmentsAvoidDuplicatedContent() =>
+            StarWarsTests.FragmentsAvoidDuplicatedContent(MemContext.CreateDefaultContext());
+        
+        [Test]
+        public static void StarWarsFragmentsInlineFragments() =>
+            StarWarsTests.FragmentsInlineFragments(MemContext.CreateDefaultContext());
 
         [Test]
-        public static void FragmentWithoutTypenameField() =>
-            GenericTests.FragmentWithoutTypenameField(CreateDefaultContext());
+        public static void StarWarsTypenameR2Droid() =>
+            StarWarsTests.TypenameR2Droid(MemContext.CreateDefaultContext());
 
         [Test]
-        public static void InlineFragmentWithoutTypenameFieldWithoutOtherFields() =>
-            GenericTests.InlineFragmentWithoutTypenameFieldWithoutOtherFields(CreateDefaultContext());
+        public static void StarWarsTypenameLukeHuman() =>
+            StarWarsTests.TypenameLukeHuman(MemContext.CreateDefaultContext());
 
         [Test]
-        public static void FragmentWithMultipleTypenameFields() =>
-            GenericTests.FragmentWithMultipleTypenameFields(CreateDefaultContext());
+        public static void StarWarsIntrospectionDroidType() =>
+            StarWarsTests.IntrospectionDroidType(MemContext.CreateDefaultContext());
 
         [Test]
-        public static void FragmentWithMultipleTypenameFieldsMixedWithInlineFragment() =>
-            GenericTests.FragmentWithMultipleTypenameFieldsMixedWithInlineFragment(CreateDefaultContext());
+        public static void StarWarsIntrospectionDroidTypeKind() =>
+            StarWarsTests.IntrospectionDroidTypeKind(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void StarWarsIntrospectionCharacterInterface() =>
+            StarWarsTests.IntrospectionCharacterInterface(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

@@ -32,6 +32,7 @@ namespace Tests
         [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(MemContext.CreateDefaultContext());
         [Test] public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
         [Test] public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
+        
         [Test]
         public static void StarWarsBasicQueryHero() =>
             StarWarsTests.BasicQueryHero(MemContext.CreateDefaultContext());

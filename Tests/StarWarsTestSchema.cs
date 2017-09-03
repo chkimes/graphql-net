@@ -121,9 +121,9 @@ namespace Tests
                 Name = "Luke Skywalker",
                 AppearsIn = new List<EpisodeEnum>
                 {
+                    EpisodeEnum.NEWHOPE,
                     EpisodeEnum.EMPIRE,
-                    EpisodeEnum.JEDI,
-                    EpisodeEnum.NEWHOPE
+                    EpisodeEnum.JEDI
                 },
                 HomePlanet = "Tatooine"
             };
@@ -133,9 +133,9 @@ namespace Tests
                 Name = "Darth Vader",
                 AppearsIn = new List<EpisodeEnum>
                 {
+                    EpisodeEnum.NEWHOPE,
                     EpisodeEnum.EMPIRE,
-                    EpisodeEnum.JEDI,
-                    EpisodeEnum.NEWHOPE
+                    EpisodeEnum.JEDI
                 },
                 HomePlanet = "Tatooine"
             };
@@ -145,9 +145,9 @@ namespace Tests
                 Name = "Han Solo",
                 AppearsIn = new List<EpisodeEnum>
                 {
+                    EpisodeEnum.NEWHOPE,
                     EpisodeEnum.EMPIRE,
-                    EpisodeEnum.JEDI,
-                    EpisodeEnum.NEWHOPE
+                    EpisodeEnum.JEDI
                 }
             };
             var leia = new Human
@@ -156,9 +156,9 @@ namespace Tests
                 Name = "Leia Organa",
                 AppearsIn = new List<EpisodeEnum>
                 {
+                    EpisodeEnum.NEWHOPE,
                     EpisodeEnum.EMPIRE,
-                    EpisodeEnum.JEDI,
-                    EpisodeEnum.NEWHOPE
+                    EpisodeEnum.JEDI
                 },
                 HomePlanet = "Alderaan"
             };
@@ -177,9 +177,9 @@ namespace Tests
                 Name = "C-3PO",
                 AppearsIn = new List<EpisodeEnum>
                 {
+                    EpisodeEnum.NEWHOPE,
                     EpisodeEnum.EMPIRE,
-                    EpisodeEnum.JEDI,
-                    EpisodeEnum.NEWHOPE
+                    EpisodeEnum.JEDI
                 },
                 PrimaryFunction = "Protocol"
             };
@@ -189,9 +189,9 @@ namespace Tests
                 Name = "R2-D2",
                 AppearsIn = new List<EpisodeEnum>
                 {
+                    EpisodeEnum.NEWHOPE,
                     EpisodeEnum.EMPIRE,
-                    EpisodeEnum.JEDI,
-                    EpisodeEnum.NEWHOPE
+                    EpisodeEnum.JEDI
                 },
                 PrimaryFunction = "Astromech"
             };

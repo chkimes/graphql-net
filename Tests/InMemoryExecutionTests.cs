@@ -44,12 +44,34 @@ namespace Tests
         [Test]
         public static void StarWarsBasicQueryHero() =>
             StarWarsTests.BasicQueryHero(MemContext.CreateDefaultContext());
+
         [Test]
         public static void StarWarsBasicQueryHeroWithIdAndFriends() =>
             StarWarsTests.BasicQueryHeroWithIdAndFriends(MemContext.CreateDefaultContext());
+
         [Test]
         public static void StarWarsBasicQueryHeroWithIdAndFriendsOfFriends() =>
-            StarWarsTests.BasicQueryHeroWithIdAndFriendsOfFriends(MemContext.CreateDefaultContext());
+            StarWarsTests.BasicQueryHeroWithFriendsOfFriends(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void StarWarsBasicQueryFetchLuke() =>
+            StarWarsTests.BasicQueryFetchLuke(MemContext.CreateDefaultContext());
+        
+        [Test]
+        public static void StarWarsFragmentsDuplicatedContent() =>
+            StarWarsTests.FragmentsDuplicatedContent(MemContext.CreateDefaultContext());
+        
+        [Test]
+        public static void StarWarsFragmentsAvoidDuplicatedContent() =>
+            StarWarsTests.FragmentsAvoidDuplicatedContent(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void StarWarsTypenameR2Droid() =>
+            StarWarsTests.TypenameR2Droid(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void StarWarsTypenameLukeHuman() =>
+            StarWarsTests.TypenameLukeHuman(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

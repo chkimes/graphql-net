@@ -42,6 +42,16 @@ namespace Tests
         [Test] public static void FragmentWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragmentWithMultipleTypenameFieldsMixedWithInlineFragment(MemContext.CreateDefaultContext());
 
         [Test]
+        public static void StarWarsBasicQueryHero() =>
+            StarWarsTests.BasicQueryHero(MemContext.CreateDefaultContext());
+        [Test]
+        public static void StarWarsBasicQueryHeroWithIdAndFriends() =>
+            StarWarsTests.BasicQueryHeroWithIdAndFriends(MemContext.CreateDefaultContext());
+        [Test]
+        public static void StarWarsBasicQueryHeroWithIdAndFriendsOfFriends() =>
+            StarWarsTests.BasicQueryHeroWithIdAndFriendsOfFriends(MemContext.CreateDefaultContext());
+
+        [Test]
         public void AddAllFields()
         {
             var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());

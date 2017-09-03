@@ -203,5 +203,43 @@ namespace Tests
             Test.DeepEquals(results,
                 "{ hero: { __typename: 'Human', name: 'Luke Skywalker' } }");
         }
+
+        public static void IntrospectionDroidType<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                @"query IntrospectionDroidTypeQuery {
+                    __type(name: ""Droid"") {
+                      name
+                    }
+                  }");
+            Test.DeepEquals(results,
+                "{ __type: { name: 'Droid' } }");
+        }
+
+        public static void IntrospectionDroidTypeKind<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                @"query IntrospectionDroidKindQuery {
+                    __type(name: ""Droid"") {
+                      name
+                      kind
+                    }
+                  }");
+            Test.DeepEquals(results,
+                "{ __type: { name: 'Droid', kind: 'OBJECT' } }");
+        }
+
+        public static void IntrospectionCharacterInterface<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                @"query IntrospectionCharacterKindQuery {
+                  __type(name: ""ICharacter"") {
+                    name
+                    kind
+                  }
+                }");
+            Test.DeepEquals(results,
+                "{ __type: { name: 'ICharacter', kind: 'INTERFACE' } }");
+        }
     }
 }

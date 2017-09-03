@@ -69,6 +69,18 @@ namespace Tests
             StarWarsTests.TypenameLukeHuman(MemContext.CreateDefaultContext());
 
         [Test]
+        public static void StarWarsIntrospectionDroidType() =>
+            StarWarsTests.IntrospectionDroidType(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void StarWarsIntrospectionDroidTypeKind() =>
+            StarWarsTests.IntrospectionDroidTypeKind(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void StarWarsIntrospectionCharacterInterface() =>
+            StarWarsTests.IntrospectionCharacterInterface(MemContext.CreateDefaultContext());
+
+        [Test]
         public void AddAllFields()
         {
             var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());

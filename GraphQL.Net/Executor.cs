@@ -388,9 +388,17 @@ namespace GraphQL.Net
             // If there aren't any children, then we can assume that this is a scalar entity and we don't have to map child fields
             if (!map.Selections.Any())
             {
-                if (options.CastAssignment && expr.Body.Type != toMember.PropertyType)
-                    replacedContext = Expression.Convert(replacedContext, toMember.PropertyType);
-                return Expression.Bind(toMember, replacedContext);
+                if (!field.IsList)
+                {
+                    if (options.CastAssignment && expr.Body.Type != toMember.PropertyType)
+                        replacedContext = Expression.Convert(replacedContext, toMember.PropertyType);
+                    return Expression.Bind(toMember, replacedContext);
+                }
+
+                return Expression.Bind(toMember,
+                    options.NullCheckLists
+                        ? NullPropagate(replacedContext, replacedContext)
+                        : replacedContext);
             }
 
             // If binding a single entity, just use the already built selector expression (replaced context)

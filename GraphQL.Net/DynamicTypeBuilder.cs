@@ -62,7 +62,9 @@ namespace GraphQL.Net
         private static Type GetFieldPropertyType(GraphQLField field)
         {
             return field.Type.TypeKind == TypeKind.SCALAR
-                ? TypeHelpers.MakeNullable(field.Type.CLRType)
+                ? (field.IsList
+                    ? typeof(IEnumerable<>).MakeGenericType(field.Type.CLRType)
+                    : TypeHelpers.MakeNullable(field.Type.CLRType))
                 : typeof(object);
         }
 

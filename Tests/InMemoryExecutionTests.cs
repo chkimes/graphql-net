@@ -32,15 +32,6 @@ namespace Tests
         [Test] public void ByteArrayParameter() => GenericTests.ByteArrayParameter(MemContext.CreateDefaultContext());
         [Test] public void ChildListFieldWithParameters() => GenericTests.ChildListFieldWithParameters(MemContext.CreateDefaultContext());
         [Test] public void ChildFieldWithParameters() => GenericTests.ChildFieldWithParameters(MemContext.CreateDefaultContext());
-        [Test] public static void Fragments() => GenericTests.Fragments(MemContext.CreateDefaultContext());
-        [Test] public static void InlineFragments() => GenericTests.InlineFragments(MemContext.CreateDefaultContext());
-        [Test] public static void InlineFragmentWithListField() => GenericTests.InlineFragmentWithListField(MemContext.CreateDefaultContext());
-        [Test] public static void InlineFragmentWithoutTypenameField() => GenericTests.InlineFragmentWithoutTypenameField(MemContext.CreateDefaultContext());
-        [Test] public static void FragmentWithoutTypenameField() => GenericTests.FragmentWithoutTypenameField(MemContext.CreateDefaultContext());
-        [Test] public static void InlineFragmentWithoutTypenameFieldWithoutOtherFields() => GenericTests.InlineFragmentWithoutTypenameFieldWithoutOtherFields(MemContext.CreateDefaultContext());
-        [Test] public static void FragmentWithMultipleTypenameFields() => GenericTests.FragmentWithMultipleTypenameFields(MemContext.CreateDefaultContext());
-        [Test] public static void FragmentWithMultipleTypenameFieldsMixedWithInlineFragment() => GenericTests.FragmentWithMultipleTypenameFieldsMixedWithInlineFragment(MemContext.CreateDefaultContext());
-
         [Test]
         public static void StarWarsBasicQueryHero() =>
             StarWarsTests.BasicQueryHero(MemContext.CreateDefaultContext());
@@ -64,6 +55,10 @@ namespace Tests
         [Test]
         public static void StarWarsFragmentsAvoidDuplicatedContent() =>
             StarWarsTests.FragmentsAvoidDuplicatedContent(MemContext.CreateDefaultContext());
+        
+        [Test]
+        public static void StarWarsFragmentsInlineFragments() =>
+            StarWarsTests.FragmentsInlineFragments(MemContext.CreateDefaultContext());
 
         [Test]
         public static void StarWarsTypenameR2Droid() =>

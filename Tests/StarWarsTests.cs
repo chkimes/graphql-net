@@ -152,13 +152,51 @@ namespace Tests
             ");
         }
 
+        public static void FragmentsInlineFragments<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                @"query UseInlineFragments {
+                  luke: hero(episode: EMPIRE) {
+                      ...HumanFragment,
+                      ...DroidFragment
+                  }
+                  r2d2: hero {
+                    ...HumanFragment,
+                    ...DroidFragment
+                  }
+                }
+                fragment HumanFragment on Human {
+                  name
+                  homePlanet
+                }
+                fragment DroidFragment on Droid {
+                  name
+                  primaryFunction
+                }
+            "
+            );
+            Test.DeepEquals(results,
+                @"
+                {
+                  luke: {
+                    name: 'Luke Skywalker',
+                    homePlanet: 'Tatooine'
+                  },
+                  r2d2: {
+                    name: 'R2-D2',
+                    primaryFunction: 'Astromech'
+                  }
+                }
+            ");
+        }
+
         public static void TypenameR2Droid<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery("query CheckTypeOfR2 { hero { __typename, name } }");
             Test.DeepEquals(results,
                 "{ hero: { __typename: 'Droid', name: 'R2-D2' } }");
         }
-      
+
         public static void TypenameLukeHuman<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery("query CheckTypeOfLuke { hero(episode: EMPIRE) { __typename, name } }");

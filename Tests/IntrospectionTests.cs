@@ -265,14 +265,14 @@ namespace Tests
                               ""name"": ""hero"",
                               ""args"": [
                                 {
-                                  ""name"": ""id"",
+                                  ""name"": ""episode"",
                                   ""description"": null,
                                   ""type"": {
                                     ""name"": null,
                                     ""kind"": ""NON_NULL"",
                                     ""ofType"": {
-                                      ""name"": ""Int"",
-                                      ""kind"": ""SCALAR""
+                                      ""name"": ""EpisodeEnum"",
+                                      ""kind"": ""ENUM""
                                     }
                                   },
                                   ""defaultValue"": null
@@ -280,8 +280,34 @@ namespace Tests
                               ]
                             },
                             {
-                              ""name"": ""heros"",
-                              ""args"": []
+                              ""name"": ""human"",
+                              ""args"": [
+                                {
+                                  ""name"": ""id"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": ""String"",
+                                    ""kind"": ""SCALAR"",
+                                    ""ofType"": null
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""droid"",
+                              ""args"": [
+                              {
+                                ""name"": ""id"",
+                                ""description"": null,
+                                ""type"": {
+                                  ""name"": ""String"",
+                                  ""kind"": ""SCALAR"",
+                                  ""ofType"": null
+                                },
+                                ""defaultValue"": null
+                              }
+                              ]
                             },
                             {
                               ""name"": ""__schema"",

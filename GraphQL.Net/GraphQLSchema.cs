@@ -132,11 +132,12 @@ namespace GraphQL.Net
             // these will execute in reverse order
 
             // Default
-            WithExpressionOptions(t => true, castAssignment: true, nullCheckLists: false, typeCheckInheritance: false);
+            WithExpressionOptions(t => true, castAssignment: true, nullCheckLists: false, typeCheckInheritance: true);
 
             // In-memory against IEnumerable or Schema (introspection)
             WithExpressionOptions(t => t.FullName.StartsWith("System.Linq.EnumerableQuery")
-                                    || t.FullName.StartsWith("GraphQL.Parser"), castAssignment: true, nullCheckLists: true, typeCheckInheritance: true);
+                                       || t.FullName.StartsWith("GraphQL.Parser"),
+                castAssignment: true, nullCheckLists: true, typeCheckInheritance: true);
 
             // Entity Framework
             WithExpressionOptions(t => t.FullName.StartsWith("System.Data.Entity"), castAssignment: false, nullCheckLists: false, typeCheckInheritance: false);

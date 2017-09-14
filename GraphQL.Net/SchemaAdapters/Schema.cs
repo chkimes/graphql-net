@@ -10,6 +10,7 @@ namespace GraphQL.Net.SchemaAdapters
     abstract class Schema : SchemaCS<Info>
     {
         internal readonly GraphQLSchema GraphQLSchema;
+
         protected Schema(GraphQLSchema schema)
         {
             GraphQLSchema = schema;
@@ -24,6 +25,7 @@ namespace GraphQL.Net.SchemaAdapters
             return _typeMap[type] = new SchemaType(type, this);
         }
     }
+
     class Schema<TContext> : Schema
     {
         private readonly GraphQLSchema<TContext> _schema;
@@ -32,6 +34,8 @@ namespace GraphQL.Net.SchemaAdapters
         public Schema(GraphQLSchema<TContext> schema) : base(schema)
         {
             RootType = new SchemaRootType(this, schema.GetGQLType(typeof(TContext)));
+            QueryType = new SchemaQueryType(this, schema.GetGQLType(typeof(TContext)));
+            MutationType = new SchemaMutationType(this, schema.GetGQLType(typeof(TContext)));
             _schema = schema;
             _queryTypes = schema.Types
                 .Where(t => t.TypeKind != TypeKind.SCALAR)
@@ -46,6 +50,8 @@ namespace GraphQL.Net.SchemaAdapters
             => _schema.VariableTypes.TypeDictionary;
 
         public override ISchemaQueryType<Info> RootType { get; }
+        public override ISchemaQueryType<Info> QueryType { get; }
+        public override ISchemaQueryType<Info> MutationType { get; }
 
         public override EnumValue ResolveEnumValue(string name)
         {

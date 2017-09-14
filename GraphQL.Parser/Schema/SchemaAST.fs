@@ -170,6 +170,8 @@ and ISchema<'s> =
     /// The top-level type that queries select from.
     /// Most likely this will correspond to your DB context type.
     abstract member RootType : ISchemaQueryType<'s>
+    abstract member QueryType : ISchemaQueryType<'s>
+    abstract member MutationType : ISchemaQueryType<'s>
 /// A value within the GraphQL document. This is fully resolved, not a variable reference.
 and Value =
     | PrimitiveValue of Primitive

@@ -219,8 +219,8 @@ type IntroSchema =
                     schema.VariableTypes.Values |> Seq.map IntroType.Of
                     schema.QueryTypes.Values |> Seq.map IntroType.Of
                 ] |> Seq.concat
-            QueryType = IntroType.Of(schema.RootType)
-            MutationType = None // TODO: support mutation schema
+            QueryType = IntroType.Of(schema.QueryType)
+            MutationType = IntroType.Of(schema.MutationType) |> Some 
             SubscriptionType = None // TODO: support subscription schema
             Directives =
                 schema.Directives.Values |> Seq.map IntroDirective.Of

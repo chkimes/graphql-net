@@ -110,6 +110,8 @@ type RootType() =
 
 type FakeSchema() = 
     let root = new RootType() :> ISchemaQueryType<_>
+    let query = new RootType() :> ISchemaQueryType<_>
+    let mutation = new RootType() :> ISchemaQueryType<_>
     
     let types = 
         [ root
@@ -123,6 +125,8 @@ type FakeSchema() =
         member this.QueryTypes = upcast types
         member this.ResolveEnumValueByName(name) = None // no enums
         member this.RootType = root
+        member this.QueryType = query
+        member this.MutationType = mutation
 
 [<TestFixture>]
 type SchemaTest() = 

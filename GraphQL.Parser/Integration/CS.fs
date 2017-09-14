@@ -39,12 +39,16 @@ type SchemaCS<'s>() =
     abstract member ResolveEnumValue : name : string -> EnumValue
     default this.ResolveEnumValue(_) = Unchecked.defaultof<_>
     abstract member RootType : ISchemaQueryType<'s>
+    abstract member QueryType : ISchemaQueryType<'s>
+    abstract member MutationType : ISchemaQueryType<'s>
     interface ISchema<'s> with
         member this.Directives = this.Directives
         member this.QueryTypes = this.QueryTypes
         member this.VariableTypes = this.VariableTypes
         member this.ResolveEnumValueByName(name) = this.ResolveEnumValue(name) |> obj2option
         member this.RootType = this.RootType
+        member this.QueryType = this.QueryType
+        member this.MutationType = this.MutationType
 
 [<AbstractClass>]
 type SchemaQueryTypeCS<'s>() =

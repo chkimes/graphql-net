@@ -23,13 +23,7 @@ namespace GraphQL.Net
 
             // sniff queryable provider to determine how selector should be built
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
-
             var queryType = dummyQuery.GetType();
-            if (queryType.Namespace == "System.Data.Entity.DynamicProxies")
-            {
-                queryType = queryType.BaseType;
-            }
-
             var queryExecSelections = query.Selections.Values();
             var selector = GetSelector(schema, field.Type, queryExecSelections, schema.GetOptionsForQueryable(queryType));
 

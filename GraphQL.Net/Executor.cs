@@ -35,7 +35,7 @@ namespace GraphQL.Net
             }
             
             var queryExecSelections = query.Selections.Values();
-            var selector = GetSelector(schema, field.Type, queryExecSelections, schema.GetOptionsForQueryable(queryType));
+            var selector = GetSelector(schema, field.Type, queryExecSelections, expressionOptions);
 
             if (field.ResolutionType != ResolutionType.Unmodified)
             {

@@ -26,6 +26,14 @@ namespace GraphQL.Net
             // sniff queryable provider to determine how selector should be built
             var dummyQuery = replaced.Compile().DynamicInvoke(context, null);
             var queryType = dummyQuery.GetType();
+            var expressionOptions = schema.GetOptionsForQueryable(queryType)
+
+            if (expressionOptions.UseBaseType)
+            {
+                queryType = queryType.BaseType;
+                expressionOptions = schema.GetOptionsForQueryable(queryType);
+            }
+            
             var queryExecSelections = query.Selections.Values();
             var selector = GetSelector(schema, field.Type, queryExecSelections, schema.GetOptionsForQueryable(queryType));
 

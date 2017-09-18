@@ -313,6 +313,9 @@ namespace Tests.EF
             protected override void OnModelCreating(DbModelBuilder modelBuilder)
             {
                 Database.SetInitializer(new SqliteDropCreateDatabaseWhenModelChanges<EfContext>(modelBuilder));
+                modelBuilder.Entity<StarWarsTestSchema.ICharacter>()
+                    .HasMany(c => c.Friends)
+                    .WithMany();
                 base.OnModelCreating(modelBuilder);
             }
 

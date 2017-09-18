@@ -53,32 +53,23 @@ namespace Tests
             JEDI = 6
         }
 
-        public interface ICharacter
+        // Character "interface" declared as an abstract class to support EF tests
+        public abstract class ICharacter
         {
-            string Id { get; set; }
-            string Name { get; set; }
-            ICollection<ICharacter> Friends { get; set; }
-            ICollection<EpisodeEnum> AppearsIn { get; set; }
-            string SecretBackstory { get; set; }
+            public string Id { get; set; }
+            public string Name { get; set; }
+            public virtual ICollection<ICharacter> Friends { get; set; }
+            public ICollection<EpisodeEnum> AppearsIn { get; set; }
+            public string SecretBackstory { get; set; }
         }
 
         public class Human : ICharacter
         {
-            public string Id { get; set; }
-            public string Name { get; set; }
-            public ICollection<ICharacter> Friends { get; set; }
-            public ICollection<EpisodeEnum> AppearsIn { get; set; }
-            public string SecretBackstory { get; set; }
             public string HomePlanet { get; set; }
         }
 
         public class Droid : ICharacter
         {
-            public string Id { get; set; }
-            public string Name { get; set; }
-            public ICollection<ICharacter> Friends { get; set; }
-            public ICollection<EpisodeEnum> AppearsIn { get; set; }
-            public string SecretBackstory { get; set; }
             public string PrimaryFunction { get; set; }
         }
 

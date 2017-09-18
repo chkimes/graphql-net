@@ -95,7 +95,8 @@ namespace Tests
         public void FieldArgsQuery()
         {
             var gql = MemContext.CreateDefaultContext();
-            var results = gql.ExecuteQuery("{ __schema { queryType { fields { name, args { name, description, type { name, kind, ofType { name, kind } }, defaultValue } } } } }");
+            var results = gql.ExecuteQuery(
+              "query SchemaQuery { __schema { queryType {... TypeFragment }, mutationType {... TypeFragment } } }, fragment TypeFragment on __Type { fields { name, args { name, description, type { name, kind, ofType { name, kind } }, defaultValue } } }");
             
             Test.DeepEquals(
                 results,
@@ -213,55 +214,6 @@ namespace Tests
                               ]
                             },
                             {
-                              ""name"": ""mutate"",
-                              ""args"": [
-                                {
-                                  ""name"": ""id"",
-                                  ""description"": null,
-                                  ""type"": {
-                                    ""name"": null,
-                                    ""kind"": ""NON_NULL"",
-                                    ""ofType"": {
-                                      ""name"": ""Int"",
-                                      ""kind"": ""SCALAR""
-                                    }
-                                  },
-                                  ""defaultValue"": null
-                                },
-                                {
-                                  ""name"": ""newVal"",
-                                  ""description"": null,
-                                  ""type"": {
-                                    ""name"": null,
-                                    ""kind"": ""NON_NULL"",
-                                    ""ofType"": {
-                                      ""name"": ""Int"",
-                                      ""kind"": ""SCALAR""
-                                    }
-                                  },
-                                  ""defaultValue"": null
-                                }
-                              ]
-                            },
-                            {
-                              ""name"": ""addMutate"",
-                              ""args"": [
-                                {
-                                  ""name"": ""newVal"",
-                                  ""description"": null,
-                                  ""type"": {
-                                    ""name"": null,
-                                    ""kind"": ""NON_NULL"",
-                                    ""ofType"": {
-                                      ""name"": ""Int"",
-                                      ""kind"": ""SCALAR""
-                                    }
-                                  },
-                                  ""defaultValue"": null
-                                }
-                              ]
-                            },
-                            {
                               ""name"": ""hero"",
                               ""args"": [
                                 {
@@ -331,6 +283,59 @@ namespace Tests
                             {
                               ""name"": ""__typename"",
                               ""args"": []
+                            }
+                          ]
+                        },
+                        ""mutationType"": {
+                          ""fields"": [
+                            {
+                              ""name"": ""mutate"",
+                              ""args"": [
+                                {
+                                  ""name"": ""id"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                },
+                                {
+                                  ""name"": ""newVal"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""addMutate"",
+                              ""args"": [
+                                {
+                                  ""name"": ""newVal"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
                             }
                           ]
                         }

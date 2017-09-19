@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using GraphQL.Net;
 using NUnit.Framework;
 
@@ -123,7 +122,8 @@ namespace Tests
 
         public static void GuidParameter<TContext>(GraphQL<TContext> gql)
         {
-            var results = gql.ExecuteQuery("{ accountsByGuid(guid:\"00000000-0000-0000-0000-000000000000\") { id, someGuid } }");
+            var results =
+                gql.ExecuteQuery("{ accountsByGuid(guid:\"00000000-0000-0000-0000-000000000000\") { id, someGuid } }");
             Test.DeepEquals(results, @"{
                                            accountsByGuid: [
                                                { id: 1, someGuid: '00000000-0000-0000-0000-000000000000' },
@@ -145,13 +145,15 @@ namespace Tests
         public static void ByteArrayParameter<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery("{ account(id:1) { id, byteArray } }");
-            Test.DeepEquals(results, "{ account: { id: 1, byteArray: 'AQIDBA==' } }"); // [1, 2, 3, 4] serialized to base64 by Json.NET
+            Test.DeepEquals(results,
+                "{ account: { id: 1, byteArray: 'AQIDBA==' } }"); // [1, 2, 3, 4] serialized to base64 by Json.NET
         }
 
         public static void ChildListFieldWithParameters<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery("{ account(id:1) { id, name, usersWithActive(active:true) { id, name } } }");
-            Test.DeepEquals(results, "{ account: { id: 1, name: 'My Test Account', usersWithActive: [{ id: 1, name: 'Joe User' }] } }");
+            Test.DeepEquals(results,
+                "{ account: { id: 1, name: 'My Test Account', usersWithActive: [{ id: 1, name: 'Joe User' }] } }");
 
             results = gql.ExecuteQuery("{ account(id:1) { id, name, usersWithActive(active:false) { id, name } } }");
             Test.DeepEquals(results, "{ account: { id: 1, name: 'My Test Account', usersWithActive: [] } }");
@@ -159,130 +161,14 @@ namespace Tests
 
         public static void ChildFieldWithParameters<TContext>(GraphQL<TContext> gql)
         {
-            var results = gql.ExecuteQuery("{ account(id:1) { id, name, firstUserWithActive(active:true) { id, name } } }");
-            Test.DeepEquals(results, "{ account: { id: 1, name: 'My Test Account', firstUserWithActive: { id: 1, name: 'Joe User' } } }");
+            var results =
+                gql.ExecuteQuery("{ account(id:1) { id, name, firstUserWithActive(active:true) { id, name } } }");
+            Test.DeepEquals(results,
+                "{ account: { id: 1, name: 'My Test Account', firstUserWithActive: { id: 1, name: 'Joe User' } } }");
 
-            results = gql.ExecuteQuery("{ account(id:1) { id, name, firstUserWithActive(active:false) { id, name } } }");
+            results = gql.ExecuteQuery(
+                "{ account(id:1) { id, name, firstUserWithActive(active:false) { id, name } } }");
             Test.DeepEquals(results, "{ account: { id: 1, name: 'My Test Account', firstUserWithActive: null } }");
-        }
-
-        public static void Fragements<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery(
-                "{ heros { name, __typename, ...human, ...stormtrooper, ...droid } }, " +
-                "fragment human on Human { height }, " +
-                "fragment stormtrooper on Stormtrooper { specialization }, " +
-                "fragment droid on Droid { primaryFunction }");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, " +
-                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
-                );
-        }
-
-        public static void InlineFragements<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery(
-                "{ heros { name, __typename, ... on Human { height }, ... on Stormtrooper { specialization }, " +
-                "... on Droid { primaryFunction } } }");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448}, " +
-                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
-                );
-        }
-
-        public static void InlineFragementWithListField<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery(
-                "{ heros { name, __typename, ... on Human { height, vehicles { name } }, ... on Stormtrooper { specialization }, " +
-                "... on Droid { primaryFunction } } }");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human',  height: 5.6430448, vehicles: [ {name: 'Millennium falcon'}] }, " +
-                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, vehicles: [ {name: 'Speeder bike'}], specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', __typename: 'Droid', primaryFunction: 'Astromech' } ] }"
-                );
-        }
-
-        public static void FragementWithMultiLevelInheritance<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery("{ heros { name, __typename, ... on Stormtrooper { height, specialization } } }");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human'}, " +
-                "{ name: 'FN-2187', __typename: 'Stormtrooper',  height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', __typename: 'Droid' } ] }"
-                );
-        }
-
-        public static void InlineFragementWithoutTypenameField<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery("{ heros { name, ... on Stormtrooper { height, specialization } } }");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo'}, " +
-                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2' } ] }"
-                );
-        }
-
-        public static void InlineFragementWithoutTypenameFieldWithoutOtherFields<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery("{ heros { ... on Stormtrooper { height, specialization } } }");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ }, " +
-                "{ height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ } ] }"
-                );
-        }
-
-        public static void FragementWithoutTypenameField<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery(
-                "{ heros { name, ...stormtrooper } }, fragment stormtrooper on Stormtrooper { height, specialization } ");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo',}, " +
-                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper'}, " +
-                "{ name: 'R2-D2', } ] }"
-                );
-        }
-
-        public static void FragementWithMultipleTypenameFields<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery(
-                "{ heros { name, ...stormtrooper, __typename } }, fragment stormtrooper on Stormtrooper { height, specialization, __typename } ");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ name: 'Han Solo', __typename: 'Human'}, " +
-                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper', __typename: 'Stormtrooper'}, " +
-                "{ name: 'R2-D2', __typename: 'Droid'} ] }"
-                );
-        }
-
-        public static void FragementWithMultipleTypenameFieldsMixedWithInlineFragment<TContext>(GraphQL<TContext> gql)
-        {
-            var results = gql.ExecuteQuery(
-                "{ heros { ...stormtrooper, __typename, ... on Human {name}, ... on Droid {name}}}, fragment stormtrooper on Stormtrooper { name, height, specialization, __typename } ");
-            Test.DeepEquals(
-                results,
-                "{ heros: [ " +
-                "{ __typename: 'Human',  name: 'Han Solo'}, " +
-                "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper', __typename: 'Stormtrooper'}, " +
-                "{ __typename: 'Droid', name: 'R2-D2'} ] }"
-                );
         }
     }
 }

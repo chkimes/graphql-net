@@ -58,9 +58,12 @@
     <Compile Include="GraphQLSchema.cs" />
     <Compile Include="GraphQLType.cs" />
     <Compile Include="GraphQLTypeBuilder.cs" />
+    <Compile Include="IGraphQLType.cs" />
     <Compile Include="InteropHelpers.cs" />
     <Compile Include="ParameterReplacer.cs" />
     <Compile Include="ResolutionType.cs" />
+    <Compile Include="SchemaAdapters\SchemaMutationType.cs" />
+    <Compile Include="SchemaAdapters\SchemaQueryType.cs" />
     <Compile Include="VariableTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SchemaAdapters\Info.cs" />

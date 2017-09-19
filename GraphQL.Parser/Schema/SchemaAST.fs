@@ -119,6 +119,8 @@ type ISchemaQueryType<'s> =
     /// Get the fields of this type, keyed by name.
     /// May be empty, for example if the type is a primitive.
     abstract member Fields : IReadOnlyDictionary<string, ISchemaField<'s>>
+    abstract member PossibleTypes : IEnumerable<ISchemaQueryType<'s>>
+    abstract member Interfaces : IEnumerable<ISchemaQueryType<'s>>
 /// Represents a named core type, e.g. a "Time" type represented by an ISO-formatted string.
 /// The type may define validation rules that run on values after they have been checked to
 /// match the given core type.
@@ -138,6 +140,7 @@ and ISchemaField<'s> =
     abstract member DeclaringType : ISchemaQueryType<'s>
     abstract member FieldType : SchemaFieldType<'s>
     abstract member FieldName : string
+    abstract member IsList : bool
     abstract member Description : string option
     /// Get the possible arguments of this field, keyed by name.
     /// May be empty if the field accepts no arguments.
@@ -167,6 +170,8 @@ and ISchema<'s> =
     /// The top-level type that queries select from.
     /// Most likely this will correspond to your DB context type.
     abstract member RootType : ISchemaQueryType<'s>
+    abstract member QueryType : ISchemaQueryType<'s>
+    abstract member MutationType : ISchemaQueryType<'s>
 /// A value within the GraphQL document. This is fully resolved, not a variable reference.
 and Value =
     | PrimitiveValue of Primitive

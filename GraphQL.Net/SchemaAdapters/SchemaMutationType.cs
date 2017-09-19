@@ -6,11 +6,12 @@ using GraphQL.Parser.CS;
 
 namespace GraphQL.Net.SchemaAdapters
 {
-    class SchemaRootType : SchemaQueryTypeCS<Info>
+    class SchemaMutationType : SchemaQueryTypeCS<Info>
     {
-        public SchemaRootType(Schema schema, GraphQLType baseQueryType)
+        public SchemaMutationType(Schema schema, GraphQLType baseQueryType)
         {
             Fields = baseQueryType.Fields
+                .Where(f => f.IsMutation)
                 .Select(f => new SchemaField(this, f, schema))
                 .ToDictionary(f => f.FieldName, f => f as ISchemaField<Info>);
         }

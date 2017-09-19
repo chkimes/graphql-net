@@ -12,14 +12,14 @@ namespace GraphQL.Net
     {
         public string Name { get; protected set; }
         public string Description { get; set; }
-        public bool IsList { get; protected set; }
+        public bool IsList { get; internal set; }
 
         public bool IsPost { get; protected set; }
         public Func<object> PostFieldFunc { get; protected set; }
 
         public bool IsMutation { get; protected set; }
 
-        protected Type FieldCLRType { get; set; }
+        internal Type FieldCLRType { get; set; }
         protected Type ArgsCLRType { get; set; }
         internal GraphQLType DefiningType { get; private set; }
         internal GraphQLSchema Schema { get; set; }
@@ -34,6 +34,12 @@ namespace GraphQL.Net
         // lazily initialize type, fields may be defined before all types are loaded
         private GraphQLType _type;
         public GraphQLType Type => _type ?? (_type = Schema.GetGQLType(FieldCLRType));
+
+        // Set return type, e.g. union types.
+        internal void SetReturnType(GraphQLType type)
+        {
+            _type = type;
+        }
 
         public virtual IEnumerable<ISchemaArgument<Info>> Arguments
             => TypeHelpers.GetArgs(Schema.VariableTypes, ArgsCLRType);

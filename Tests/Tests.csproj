@@ -64,6 +64,8 @@
     <Compile Include="MemContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SchemaSetupTests.cs" />
+    <Compile Include="StarWarsTests.cs" />
+    <Compile Include="StarWarsTestSchema.cs" />
     <Compile Include="Test.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -105,12 +105,16 @@ type IntroType =
         else IntroType.Of(varType.Type)
     static member Of(queryType : ISchemaQueryType<'s>) =
         let fields = queryType.Fields.Values |> Seq.map IntroField.Of
+        let possibleTypes = queryType.PossibleTypes |> Seq.map IntroType.Of
+        let typeKind = if queryType.PossibleTypes |> Seq.isEmpty then TypeKind.OBJECT else TypeKind.INTERFACE
+        let interfaces = queryType.Interfaces |> Seq.map IntroType.Of
         { IntroType.Default with
-            Kind = TypeKind.OBJECT
+            Kind = typeKind
             Name = Some queryType.TypeName
             Description = queryType.Description
             Fields = fields |> Some
-            Interfaces = Some Seq.empty
+            PossibleTypes = possibleTypes |> Some
+            Interfaces = Some interfaces
         }
     static member Of(fieldType : SchemaFieldType<'s>) =
         match fieldType with
@@ -128,7 +132,12 @@ and IntroField =
     }
     static member Of(field : ISchemaField<'s>) =
         let args = field.Arguments.Values |> Seq.map IntroInputValue.Of
-        let ty = IntroType.Of(field.FieldType)
+        let ty = if field.IsList then
+                    { IntroType.Default with
+                        Kind = TypeKind.LIST
+                        OfType = IntroType.Of(field.FieldType) |> Some
+                    }
+                    else IntroType.Of(field.FieldType)
         {
             Name = field.FieldName
             Description = field.Description
@@ -200,6 +209,7 @@ type IntroSchema =
         Types : IntroType seq
         QueryType : IntroType
         MutationType : IntroType option
+        SubscriptionType : IntroType option
         Directives : IntroDirective seq
     }
     static member Of(schema : ISchema<'s>) =
@@ -209,8 +219,9 @@ type IntroSchema =
                     schema.VariableTypes.Values |> Seq.map IntroType.Of
                     schema.QueryTypes.Values |> Seq.map IntroType.Of
                 ] |> Seq.concat
-            QueryType = IntroType.Of(schema.RootType)
-            MutationType = None // TODO: support mutation schema
+            QueryType = IntroType.Of(schema.QueryType)
+            MutationType = IntroType.Of(schema.MutationType) |> Some 
+            SubscriptionType = None // TODO: support subscription schema
             Directives =
                 schema.Directives.Values |> Seq.map IntroDirective.Of
         }

@@ -17,6 +17,14 @@ namespace Tests
         }
 
         [Test]
+        public void EnumTypeDirectFields()
+        {
+            var gql = MemContext.CreateDefaultContext();
+            var results = gql.ExecuteQuery("{ __type(name: \"AccountType\") { name, description, kind } }");
+            Test.DeepEquals(results, "{ __type: { name: 'AccountType', description: null, kind: 'ENUM' } }");
+        }
+
+        [Test]
         public void TypeWithChildFields()
         {
             var gql = MemContext.CreateDefaultContext();
@@ -52,7 +60,7 @@ namespace Tests
                               { name: 'name', type: { name: 'String', kind: 'SCALAR', ofType: null } },
                               { name: 'account', type: { name: 'Account', kind: 'OBJECT', ofType: null } },
                               { name: 'nullRef', type: { name: 'NullRef', kind: 'OBJECT', ofType: null } },
-                              { name: 'total', type: { name: null, kind: 'NON_NULL', ofType: { name: 'Int', kind: 'SCALAR' } } },
+                             { name: 'total', type: { name: null, kind: 'NON_NULL', ofType: { name: 'Int', kind: 'SCALAR' } } },
                               { name: 'accountPaid', type: { name: null, kind: 'NON_NULL', ofType: { name: 'Boolean', kind: 'SCALAR' } } },
                               { name: 'abc', type: { name: 'String', kind: 'SCALAR', ofType: null } },
                               { name: 'sub', type: { name: 'Sub', kind: 'OBJECT', ofType: null } },
@@ -71,6 +79,7 @@ namespace Tests
             var schema = (IDictionary<string, object>) gql.ExecuteQuery("{ __schema { types { name, kind, interfaces { name } } } }")["__schema"];
             var types = (List<IDictionary<string, object>>) schema["types"];
 
+            Console.WriteLine(gql.ExecuteQuery("{ __schema { types { name, kind, interfaces { name } } } }")["__schema"]);
             var intType = types.First(t => (string) t["name"] == "Int");
             Assert.AreEqual(intType["name"], "Int");
             Assert.AreEqual(intType["kind"].ToString(), "SCALAR");
@@ -80,6 +89,357 @@ namespace Tests
             Assert.AreEqual(userType["name"], "User");
             Assert.AreEqual(userType["kind"].ToString(), "OBJECT");
             Assert.AreEqual(((List<IDictionary<string, object>>)userType["interfaces"]).Count, 0);
+        }
+
+        [Test]
+        public void FieldArgsQuery()
+        {
+            var gql = MemContext.CreateDefaultContext();
+            var results = gql.ExecuteQuery(
+              "query SchemaQuery { __schema { queryType {... TypeFragment }, mutationType {... TypeFragment } } }, fragment TypeFragment on __Type { fields { name, args { name, description, type { name, kind, ofType { name, kind } }, defaultValue } } }");
+            
+            Test.DeepEquals(
+                results,
+                @"{ 
+                    ""__schema"": {
+                        ""queryType"": {
+                          ""fields"": [
+                            {
+                              ""name"": ""users"",
+                              ""args"": []
+                            },
+                            {
+                              ""name"": ""user"",
+                              ""args"": [
+                                {
+                                  ""name"": ""id"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""account"",
+                              ""args"": [
+                                {
+                                  ""name"": ""id"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""accountPaidBy"",
+                              ""args"": [
+                                {
+                                  ""name"": ""paid"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": ""DateTime"",
+                                    ""kind"": ""INPUT_OBJECT"",
+                                    ""ofType"": null
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""accountsByGuid"",
+                              ""args"": [
+                                {
+                                  ""name"": ""guid"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Guid"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""accountsByType"",
+                              ""args"": [
+                                {
+                                  ""name"": ""accountType"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""AccountType"",
+                                      ""kind"": ""ENUM""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""mutateMes"",
+                              ""args"": [
+                                {
+                                  ""name"": ""id"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""hero"",
+                              ""args"": [
+                                {
+                                  ""name"": ""episode"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""EpisodeEnum"",
+                                      ""kind"": ""ENUM""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""human"",
+                              ""args"": [
+                                {
+                                  ""name"": ""id"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": ""String"",
+                                    ""kind"": ""SCALAR"",
+                                    ""ofType"": null
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""droid"",
+                              ""args"": [
+                              {
+                                ""name"": ""id"",
+                                ""description"": null,
+                                ""type"": {
+                                  ""name"": ""String"",
+                                  ""kind"": ""SCALAR"",
+                                  ""ofType"": null
+                                },
+                                ""defaultValue"": null
+                              }
+                              ]
+                            },
+                            {
+                              ""name"": ""__schema"",
+                              ""args"": []
+                            },
+                            {
+                              ""name"": ""__type"",
+                              ""args"": [
+                                {
+                                  ""name"": ""name"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": ""String"",
+                                    ""kind"": ""SCALAR"",
+                                    ""ofType"": null
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""__typename"",
+                              ""args"": []
+                            }
+                          ]
+                        },
+                        ""mutationType"": {
+                          ""fields"": [
+                            {
+                              ""name"": ""mutate"",
+                              ""args"": [
+                                {
+                                  ""name"": ""id"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                },
+                                {
+                                  ""name"": ""newVal"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            },
+                            {
+                              ""name"": ""addMutate"",
+                              ""args"": [
+                                {
+                                  ""name"": ""newVal"",
+                                  ""description"": null,
+                                  ""type"": {
+                                    ""name"": null,
+                                    ""kind"": ""NON_NULL"",
+                                    ""ofType"": {
+                                      ""name"": ""Int"",
+                                      ""kind"": ""SCALAR""
+                                    }
+                                  },
+                                  ""defaultValue"": null
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }");
+        }
+
+        [Test]
+        public void FullIntrospectionQuery()
+        {
+            var gql = MemContext.CreateDefaultContext();
+            var results = gql.ExecuteQuery(
+                @"query IntrospectionQuery {
+                    __schema {
+                      queryType { name }
+                      mutationType { name }
+                      subscriptionType { name }
+                      types {
+                        ...FullType
+                      }
+                      directives {
+                        name
+                        description
+                        locations
+                        args {
+                          ...InputValue
+                        }
+                      }
+                    }
+                  }
+                  fragment FullType on __Type {
+                    kind
+                    name
+                    description
+                    fields(includeDeprecated: true) {
+                      name
+                      description
+                      args {
+                        ...InputValue
+                      }
+                      type {
+                        ...TypeRef
+                      }
+                      isDeprecated
+                      deprecationReason
+                    }
+                    inputFields {
+                      ...InputValue
+                    }
+                    interfaces {
+                      ...TypeRef
+                    }
+                    enumValues(includeDeprecated: true) {
+                      name
+                      description
+                      isDeprecated
+                      deprecationReason
+                    }
+                    possibleTypes {
+                      ...TypeRef
+                    }
+                  }
+                  fragment InputValue on __InputValue {
+                    name
+                    description
+                    type { ...TypeRef }
+                    defaultValue
+                  }
+                  fragment TypeRef on __Type {
+                    kind
+                    name
+                    ofType {
+                      kind
+                      name
+                      ofType {
+                        kind
+                        name
+                        ofType {
+                          kind
+                          name
+                          ofType {
+                            kind
+                            name
+                            ofType {
+                              kind
+                              name
+                              ofType {
+                                kind
+                                name
+                                ofType {
+                                  kind
+                                  name
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                "
+                );
+            // Must not throw
+            // TODO: Add assertions
         }
     }
 }

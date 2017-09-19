@@ -23,6 +23,11 @@ namespace GraphQL.Net
             return Schema = new GraphQLSchema<TContext>(creationFunc);
         }
 
+        public EnumValue ResolveEnumValue(string name)
+        {
+            return _schema.VariableTypes.ResolveEnumValue(name);
+        }
+
         public static IDictionary<string, object> Execute(string query)
         {
             var gql = new GraphQL<TContext>();
@@ -47,7 +52,7 @@ namespace GraphQL.Net
                 throw new InvalidOperationException("Schema must be Completed before executing a query. Try calling the schema's Complete method.");
 
             if (queryContext == null)
-                throw new ArgumentException("Contexst must not be null.");
+                throw new ArgumentException("Context must not be null.");
 
             var document = GraphQLDocument<Info>.Parse(_schema.Adapter, queryStr);
             var context = DefaultExecContext.Instance; // TODO use a real IExecContext to support passing variables

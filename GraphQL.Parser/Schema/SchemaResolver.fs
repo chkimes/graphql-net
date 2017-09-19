@@ -115,7 +115,7 @@ type Resolver<'s>
     , recursionDepth : int
     , fragmentContext : string list
     ) =
-    static let maxRecursionDepth = 10 // should be plenty for real queries
+    static let maxRecursionDepth = 20 // should be plenty for real queries
     member private __.ResolveArguments
         ( schemaArgs : IReadOnlyDictionary<string, ISchemaArgument<'s>>
         , pargs : ParserAST.Argument WithSource seq

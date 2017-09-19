@@ -73,11 +73,18 @@ namespace Tests
             public string PrimaryFunction { get; set; }
         }
 
+        public class Starship
+        {
+            public string Id { get; set; }
+            public string Name { get; set; }
+            public double Length { get; set; }
+        }
+
         public static void Create<TContext>(GraphQLSchema<TContext> schema,
             Func<TContext, IQueryable<ICharacter>> herosProviderFunc)
         {
             schema.AddEnum<EpisodeEnum>();
-            
+
             var characterInterface = schema.AddInterfaceType<ICharacter>();
             characterInterface.AddAllFields();
 
@@ -88,6 +95,13 @@ namespace Tests
             var droidType = schema.AddType<Droid>();
             droidType.AddAllFields();
             droidType.AddInterface(characterInterface);
+
+            var starshipType = schema.AddType<Starship>();
+            starshipType.AddAllFields();
+
+            var searchResult =
+                schema.AddUnionType("SearchResult",
+                    new[] {droidType.GraphQLType, humanType.GraphQLType, starshipType.GraphQLType});
 
             schema.AddField(
                 "hero",
@@ -101,8 +115,14 @@ namespace Tests
                 (db, args) => herosProviderFunc(db).OfType<Human>().FirstOrDefault(c => c.Id == args.id));
             schema.AddField("droid", new {id = ""},
                 (db, args) => herosProviderFunc(db).OfType<Droid>().FirstOrDefault(c => c.Id == args.id));
+            schema.AddField("search", new {text = ""},
+                    (db, args) => args.text == "starship"
+                        ? new Starship() as object
+                        : (args.text == "droid"
+                            ? new Droid() as object
+                            : new Human() as object))
+                .WithReturnType(searchResult);
         }
-
 
         public static ICollection<ICharacter> CreateData()
         {

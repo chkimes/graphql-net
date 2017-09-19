@@ -262,6 +262,21 @@ namespace Tests
                               ]
                             },
                             {
+                              ""name"": ""search"",
+                              ""args"": [
+                              {
+                                ""name"": ""text"",
+                                ""description"": null,
+                                ""type"": {
+                                  ""name"": ""String"",
+                                  ""kind"": ""SCALAR"",
+                                  ""ofType"": null
+                                },
+                                ""defaultValue"": null
+                              }
+                              ]
+                            },
+                            {
                               ""name"": ""__schema"",
                               ""args"": []
                             },

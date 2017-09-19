@@ -277,6 +277,18 @@ namespace Tests.EF
         [Test]
         public static void StarWarsIntrospectionCharacterInterface() =>
             StarWarsTests.IntrospectionCharacterInterface(MemContext.CreateDefaultContext());
+        
+        [Test]
+        public static void UnionTypeStarship() =>
+            StarWarsTests.UnionTypeStarship(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void UnionTypeHuman() =>
+            StarWarsTests.UnionTypeHuman(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void UnionTypeDroid() =>
+            StarWarsTests.UnionTypeDroid(MemContext.CreateDefaultContext());
 
         [Test]
         public void AddAllFields()

@@ -82,6 +82,18 @@ namespace Tests
             StarWarsTests.IntrospectionCharacterInterface(MemContext.CreateDefaultContext());
 
         [Test]
+        public static void UnionTypeStarship() =>
+            StarWarsTests.UnionTypeStarship(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void UnionTypeHuman() =>
+            StarWarsTests.UnionTypeHuman(MemContext.CreateDefaultContext());
+
+        [Test]
+        public static void UnionTypeDroid() =>
+            StarWarsTests.UnionTypeDroid(MemContext.CreateDefaultContext());
+
+        [Test]
         public void AddAllFields()
         {
             var schema = GraphQL<MemContext>.CreateDefaultSchema(() => new MemContext());

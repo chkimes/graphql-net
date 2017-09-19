@@ -241,5 +241,41 @@ namespace Tests
             Test.DeepEquals(results,
                 "{ __type: { name: 'ICharacter', kind: 'INTERFACE' } }");
         }
+
+        public static void UnionTypeStarship<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                @"query UnionTypeStarshipQuery {
+                  search(text: ""starship"") {
+                    __typename
+                  }
+                }");
+            Test.DeepEquals(results,
+                "{ search: { __typename: 'Starship'} }");
+        }
+      
+        public static void UnionTypeHuman<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                @"query UnionTypeStarshipQuery {
+                  search(text: ""human"") {
+                    __typename
+                  }
+                }");
+            Test.DeepEquals(results,
+                "{ search: { __typename: 'Human'} }");
+        }
+      
+        public static void UnionTypeDroid<TContext>(GraphQL<TContext> gql)
+        {
+            var results = gql.ExecuteQuery(
+                @"query UnionTypeStarshipQuery {
+                  search(text: ""droid"") {
+                    __typename
+                  }
+                }");
+            Test.DeepEquals(results,
+                "{ search: { __typename: 'Droid'} }");
+        }
     }
 }

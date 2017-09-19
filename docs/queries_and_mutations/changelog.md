@@ -16,5 +16,7 @@
 
   * Better support of introspection.
 
+For details see PR \#83 \([https://github.com/ckimes89/graphql-net/pull/83](https://github.com/ckimes89/graphql-net/pull/83)\).
+
 
 

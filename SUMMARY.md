@@ -12,6 +12,9 @@
   * [Fragments](docs/queries_and_mutations/fragments.md)
   * [Mutations](docs/queries_and_mutations/mutations.md)
   * [Inline Fragments](docs/queries_and_mutations/inline-fragments.md)
-  * Changelog
+* [Schema and Types](schema-and-types.md)
+  * [Interfaces](schema-and-types/interfaces.md)
+  * [Union types](schema-and-types/union-types.md)
+* [Changelog](docs/queries_and_mutations/changelog.md)
 * [Development](docs/development/README.md)
 

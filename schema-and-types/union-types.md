@@ -36,7 +36,7 @@ The union type can be implemented using `GraphQLSchema.AddUnionType`:
 ```csharp
 var humanType = schema.AddType<Human>();
 humanType.AddAllFields();
-                        
+
 var droidType = schema.AddType<Droid>();
 droidType.AddAllFields();
 
@@ -45,8 +45,13 @@ starshipType.AddAllFields();
 
 var searchResult = schema.AddUnionType("SearchResult", new[] {droidType.GraphQLType, humanType.GraphQLType, starshipType.GraphQLType});
 
-schema.AddField("searchResult", new {text = ""}, (db, args) => /* Search for and return human, droid or starship. */)
-      .WithReturnType(searchResult);
+ schema.AddField("search", new {text = ""},
+                    (db, args) => args.text == "starship" 
+                        ? new Starship() as object
+                        : (args.text == "droid"
+                            ? new Droid() as object
+                            : new Human() as object))
+                .WithReturnType(searchResult);
 ```
 
 

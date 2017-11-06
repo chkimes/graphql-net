@@ -24,9 +24,9 @@ namespace GraphQL.Net
             return this;
         }
 
-        public GraphQLFieldBuilder<TContext, TField> WithReturnType(IGraphQLType type)
+        public GraphQLFieldBuilder<TContext, TField> WithReturnType(string graphQlTypeName)
         {
-            _field.SetReturnType(type as GraphQLType);
+            _field.SetReturnType(_field.Schema.GetGQLTypeByName(graphQlTypeName));
             return this;
         }
         

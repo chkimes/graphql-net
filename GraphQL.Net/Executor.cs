@@ -332,7 +332,7 @@ namespace GraphQL.Net
             return Expression.Condition(equals, Expression.Constant(null, returnExpr.Type), returnExpr);
         }
 
-        private static string CreatePropertyName(IGraphQLType graphQlType, IGraphQLType typeConditionType,
+        private static string CreatePropertyName(GraphQLType graphQlType, GraphQLType typeConditionType,
             string fieldName)
         {
             var isObjectAbstractType = graphQlType.TypeKind == TypeKind.UNION ||

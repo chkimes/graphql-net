@@ -99,9 +99,8 @@ namespace Tests
             var starshipType = schema.AddType<Starship>();
             starshipType.AddAllFields();
 
-            var searchResult =
-                schema.AddUnionType("SearchResult",
-                    new[] {droidType.GraphQLType, humanType.GraphQLType, starshipType.GraphQLType});
+            schema.AddUnionType("SearchResult",
+                new[] {typeof(Droid), typeof(Human), typeof(Starship)});
 
             schema.AddField(
                 "hero",
@@ -121,7 +120,7 @@ namespace Tests
                         : (args.text == "droid"
                             ? new Droid() as object
                             : new Human() as object))
-                .WithReturnType(searchResult);
+                .WithReturnType("SearchResult");
         }
 
         public static ICollection<ICharacter> CreateData()

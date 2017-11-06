@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Emit;
 using GraphQL.Net.SchemaAdapters;
 using GraphQL.Parser;
 
@@ -13,6 +12,7 @@ namespace GraphQL.Net
     {
         internal readonly VariableTypes VariableTypes = new VariableTypes();
         internal abstract GraphQLType GetGQLType(Type type);
+        internal abstract GraphQLType GetGQLTypeByName(string GraphQlTypeName);
         internal abstract GraphQLType GetGQLTypeByQueryType(Type queryType);
     }
 
@@ -77,7 +77,7 @@ namespace GraphQL.Net
             return new GraphQLTypeBuilder<TContext, TEntity>(this, gqlType);
         }
 
-        public IGraphQLType AddUnionType(string name, IEnumerable<IGraphQLType> possibleTypes, Type type= null,
+        public void AddUnionType(string name, IEnumerable<Type> possibleCLRTypes, Type type = null,
             string description = null)
         {
             if (_types.Any(t => t.Name == name))
@@ -88,10 +88,9 @@ namespace GraphQL.Net
                 TypeKind = TypeKind.UNION,
                 Name = name,
                 Description = description ?? "",
-                PossibleTypes = possibleTypes.Cast<GraphQLType>().ToList()
+                PossibleCLRTypes = possibleCLRTypes.ToList()
             };
             _types.Add(gqlType);
-            return gqlType;
         }
 
         public GraphQLTypeBuilder<TContext, TInterface> AddInterfaceType<TInterface>(string name = null, string description = null)
@@ -155,8 +154,10 @@ namespace GraphQL.Net
             VariableTypes.Complete();
 
             // The order is important:
-            // (1) Add the '__typename' field to every type.
-            // (2) Complete the types (generate the query-type).
+            // (1) Resolve possible Types of unions
+            // (2) Add the '__typename' field to every type.
+            // (3) Complete the types (generate the query-type).
+            ResolvePossibleTypesOfUnions();
             AddTypeNameFields();
             CompleteTypes(_types);
 
@@ -164,13 +165,13 @@ namespace GraphQL.Net
             Completed = true;
         }
         
-        private static void CompleteTypes(IEnumerable<GraphQLType> types)
+        private void CompleteTypes(IEnumerable<GraphQLType> types)
         {
             foreach (var type in types.Where(t => t.QueryType == null))
                 CompleteType(type);
         }
 
-        private static void CompleteType(GraphQLType type)
+        private void CompleteType(GraphQLType type)
         {
             // validation maybe perform somewhere else
             if (type.TypeKind == TypeKind.SCALAR && type.Fields.Count != 0)
@@ -264,13 +265,21 @@ namespace GraphQL.Net
                     .FirstOrDefault(t => t.Name.OrDefault() == args.name));
         }
 
+        private void ResolvePossibleTypesOfUnions()
+        {
+            foreach (var type in _types.Where(t => t.TypeKind == TypeKind.UNION))
+            {
+                type.PossibleTypes = type.PossibleCLRTypes.Select(GetGQLType).ToList();
+            }
+        }
+
         private void AddTypeNameFields()
         {
             var method = GetType().GetMethod("AddTypeNameField", BindingFlags.Instance | BindingFlags.NonPublic);
             foreach (var type in _types.Where(t => t.TypeKind != TypeKind.SCALAR))
             {
                 var genMethod = method.MakeGenericMethod(type.CLRType);
-                genMethod.Invoke(this, new object[] { type });
+                genMethod.Invoke(this, new object[] {type});
             }
         }
 
@@ -386,6 +395,9 @@ namespace GraphQL.Net
 
         internal override GraphQLType GetGQLType(Type type)
             => _types.FirstOrDefault(t => t.CLRType == type) ?? new GraphQLType(type) {TypeKind = TypeKind.SCALAR};
+
+        internal override GraphQLType GetGQLTypeByName(string name)
+            => _types.FirstOrDefault(t => t.Name == name);
 
         internal override GraphQLType GetGQLTypeByQueryType(Type queryType)
             =>

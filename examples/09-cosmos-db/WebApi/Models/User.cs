@@ -20,9 +20,6 @@ namespace WebApi.Models
         [JsonProperty(PropertyName = "id")]
         public string Id { get; set; }
 
-        [JsonProperty(PropertyName = "user_id")]
-        public string UserId { get; set; }
-
         [JsonProperty(PropertyName = "profile")]
         public Profile Profile { get; set; }
     }

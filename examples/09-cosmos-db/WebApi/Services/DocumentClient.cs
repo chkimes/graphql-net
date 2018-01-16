@@ -3,6 +3,7 @@ using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
 using Microsoft.Extensions.Configuration;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -12,8 +13,8 @@ namespace WebApi.Services
     public interface IMyDocumentClient
     {
         IDocumentClient Current { get; }
-        Task<Database> GetDatabaseAsync();
-        Task<DocumentCollection> GetUsersCollectionAsync();
+        Task<Database> GetOrCreateDatabaseAsync();
+        Task<DocumentCollection> GetOrCreateUsersCollectionAsync();
         Task<IQueryable<Models.User>> GetUsersIQueryableAsync();
     }
 
@@ -22,8 +23,9 @@ namespace WebApi.Services
         // private readonly IConfiguration config;
 
         private readonly string endpointUrl;
-        private readonly string databaseId;
         private readonly string authKey;
+        private readonly string databaseId;
+        private readonly string usersCollectionId = "users";
         private static readonly ConnectionPolicy connPolicy = new ConnectionPolicy()
         {
             ConnectionMode = ConnectionMode.Direct,
@@ -37,28 +39,91 @@ namespace WebApi.Services
             // this.config = config;
 
             endpointUrl = config["CosmosDb:EndpointUrl"];
-            databaseId = config["CosmosDb:DatabaseId"];
             authKey = config["CosmosDb:AuthorizationKey"];
+            databaseId = config["CosmosDb:DatabaseId"];
 
             Current = new DocumentClient(new Uri(endpointUrl), authKey, connectionPolicy: connPolicy);
+
+            Seed();
         }
 
-        public async Task<Database> GetDatabaseAsync()
+        public async Task<Database> GetOrCreateDatabaseAsync()
         {
             return Current.CreateDatabaseQuery().Where(db => db.Id == databaseId).ToArray().FirstOrDefault() 
                 ?? await Current.CreateDatabaseAsync(new Database { Id = databaseId });
         }
 
-        public async Task<DocumentCollection> GetUsersCollectionAsync()
+        public async Task<DocumentCollection> GetOrCreateUsersCollectionAsync()
         {
-            var db = await GetDatabaseAsync();
-            return Current.CreateDocumentCollectionQuery(db.SelfLink).Where(coll => coll.Id == "users").ToArray().FirstOrDefault();
+            var db = await GetOrCreateDatabaseAsync();
+            return Current.CreateDocumentCollectionQuery(db.SelfLink).Where(coll => coll.Id == usersCollectionId).ToArray().FirstOrDefault()
+                ?? await Current.CreateDocumentCollectionAsync(db.SelfLink, new DocumentCollection() { Id = usersCollectionId }, new RequestOptions() { OfferThroughput = 400 });
         }
 
         public async Task<IQueryable<Models.User>> GetUsersIQueryableAsync()
         {
-            var usersCollection = await GetUsersCollectionAsync();
-            return Current.CreateDocumentQuery<Models.User>(usersCollection.SelfLink);
+            var usersColl = await GetOrCreateUsersCollectionAsync();
+            return Current.CreateDocumentQuery<Models.User>(usersColl.SelfLink);
+        }
+
+        private async void Seed()
+        {
+            var users = await GetUsersIQueryableAsync();
+            if (users.Count() < 1)
+            {
+                // Create some users
+                var usersCollectionLink = UriFactory.CreateDocumentCollectionUri(databaseId, usersCollectionId);
+
+                var usersToInsert = new List<Models.User>
+                {
+                    // TODO: Expand the user properties out to be more realistic and use all sorts of types (e.g. enums)
+                    new Models.User()
+                    {
+                        Profile = new Models.Profile()
+                        {
+                            Age = 10,
+                            Gender = "female"
+                        }
+                    },
+                    new Models.User()
+                    {
+                        Profile = new Models.Profile()
+                        {
+                            Age = 20,
+                            Gender = "male"
+                        }
+                    },
+                    new Models.User()
+                    {
+                        Profile = new Models.Profile()
+                        {
+                            Age = 30,
+                            Gender = "female"
+                        }
+                    },
+                    new Models.User()
+                    {
+                        Profile = new Models.Profile()
+                        {
+                            Age = 40,
+                            Gender = "female"
+                        }
+                    },
+                    new Models.User()
+                    {
+                        Profile = new Models.Profile()
+                        {
+                            Age = 66,
+                            Gender = "male"
+                        }
+                    }
+                };
+
+                foreach (var userToInsert in usersToInsert)
+                {
+                    var user = await Current.CreateDocumentAsync(usersCollectionLink, userToInsert);
+                }
+            }
         }
     }
 }

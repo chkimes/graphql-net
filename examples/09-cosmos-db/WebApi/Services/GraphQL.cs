@@ -26,7 +26,11 @@ namespace WebApi.Services
             var schema = GraphQL<Context>.CreateDefaultSchema(() => new Context(documentClient));
 
             var user = schema.AddType<User>();
-            user.AddAllFields();
+            user.AddField(u => u.Id);
+            user.AddField(u => u.Profile);
+            user.AddField("totalUsers", (db, u) => db.Users.Count());
+
+            schema.AddType<Profile>().AddAllFields();
 
             schema.AddField("totalUsers", db => db.Users.Count());
             schema.AddListField("users", db => db.Users);

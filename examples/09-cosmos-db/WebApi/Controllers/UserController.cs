@@ -11,8 +11,8 @@ using Newtonsoft.Json;
 
 namespace WebApi.Controllers
 {
-    [Route("api/[controller]")]
-    public class ValuesController : ControllerBase
+    [Route("[controller]")]
+    public class UserController : ControllerBase
     {
         // Place to store the Config object and use in this controller
         private readonly IConfiguration config;
@@ -20,7 +20,7 @@ namespace WebApi.Controllers
         private readonly IGraphQL gql;
 
         // Constructor that that takes IConfiguration is called on instantiation thanks to Dependency injection
-        public ValuesController(IConfiguration config, IMyDocumentClient documentClient, IGraphQL gql)
+        public UserController(IConfiguration config, IMyDocumentClient documentClient, IGraphQL gql)
         {
             this.config = config;
             this.documentClient = documentClient;

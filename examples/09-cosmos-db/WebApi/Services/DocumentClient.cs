@@ -1,6 +1,5 @@
 ﻿using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
-using Microsoft.Azure.Documents.Linq;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -24,11 +23,11 @@ namespace WebApi.Services
         private readonly string authKey;
         private readonly string databaseId;
         private readonly string usersCollectionId = "users";
-        private static readonly ConnectionPolicy connPolicy = new ConnectionPolicy()
-        {
-            ConnectionMode = ConnectionMode.Direct,
-            ConnectionProtocol = Protocol.Tcp
-        };
+        private static readonly ConnectionPolicy connPolicy = new ConnectionPolicy();
+        //{
+        //    ConnectionMode = ConnectionMode.Direct,
+        //    ConnectionProtocol = Protocol.Tcp
+        //};
 
         public IDocumentClient Current { get; private set; }
 
@@ -45,11 +44,11 @@ namespace WebApi.Services
 
             Current = new DocumentClient(new Uri(endpointUrl), authKey, connectionPolicy: connPolicy);
 
-            Seed();
+            Task.WaitAll(Seed());
             Reflect();
         }
 
-        private async void Reflect()
+        private void Reflect()
         {
             // Store db selfLink
             var database = Current.CreateDatabaseQuery().Where(db => db.Id == databaseId).ToArray().FirstOrDefault();
@@ -85,7 +84,7 @@ namespace WebApi.Services
             return Current.CreateDocumentQuery<Models.User>(usersColl.SelfLink);
         }
 
-        private async void Seed()
+        private async Task Seed()
         {
             var users = await GetUsersIQueryableAsync();
             if (users.Count() < 1)

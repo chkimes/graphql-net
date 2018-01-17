@@ -74,7 +74,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n  \"query\": \"{ users {id, profile { age } } }\"\r\n}"
+					"raw": "{\r\n  \"query\": \"{ users { id, profile { age } } }\"\r\n}"
 				},
 				"url": {
 					"raw": "localhost:53366/graphql",
@@ -147,7 +147,7 @@
 			"response": []
 		},
 		{
-			"name": "* user { id, totalUsers }",
+			"name": "user(id) { id, totalUsers, profile }",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -158,7 +158,35 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n  \"query\": \"{ user { id, totalUsers } }\"\r\n}"
+					"raw": "{\r\n  \"query\": \"{ user(id:\\\"84d2d957-8f94-45df-bbca-8a393c15a7ad\\\") { id, totalUsers } }\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "users { id, totalUsers }",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{ users { id, totalUsers } }\"\r\n}"
 				},
 				"url": {
 					"raw": "localhost:53366/graphql",

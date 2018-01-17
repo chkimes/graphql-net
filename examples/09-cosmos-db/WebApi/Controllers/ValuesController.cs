@@ -45,21 +45,25 @@ namespace WebApi.Controllers
 
         // GET api/values/5
         [HttpGet("{id}")]
-        public string Get(int id)
+        public string Get(string id)
         {
             var q2 = @"{
-                        user(id: ""asdf"") {
+                        user(id: ""b7893bd2-4cd6-4ae1-a005-12b2e37de6bd"") {
                             id,
                             profile
                         }
                       }";
 
-            var q3 = @"{
-                        totalUsers
-                      }";
+            var queryResult = gql.Current.ExecuteQuery(q2);
 
-            var queryResult = gql.Current.ExecuteQuery(q3);
+            return JsonConvert.SerializeObject(queryResult, Formatting.Indented);
+        }
 
+        // GET api/values/count
+        [HttpGet("count")]
+        public string GetCount()
+        {
+            var queryResult = gql.Current.ExecuteQuery(@"{ totalUsers }");
             return JsonConvert.SerializeObject(queryResult, Formatting.Indented);
         }
 

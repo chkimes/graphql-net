@@ -13,9 +13,7 @@ namespace WebApi.Services
     public interface IMyDocumentClient
     {
         IDocumentClient Current { get; }
-        Task<Database> GetOrCreateDatabaseAsync();
-        Task<DocumentCollection> GetOrCreateUsersCollectionAsync();
-        Task<IQueryable<Models.User>> GetUsersIQueryableAsync();
+        Dictionary<string, string> CollectionSelfLinks { get; }
     }
 
     public class MyDocumentClient : IMyDocumentClient
@@ -34,6 +32,9 @@ namespace WebApi.Services
 
         public IDocumentClient Current { get; private set; }
 
+        private string databaseSelfLink;
+        public Dictionary<string, string> CollectionSelfLinks { get; private set; }
+
         public MyDocumentClient(IConfiguration config)
         {
             // this.config = config;
@@ -45,22 +46,40 @@ namespace WebApi.Services
             Current = new DocumentClient(new Uri(endpointUrl), authKey, connectionPolicy: connPolicy);
 
             Seed();
+            Reflect();
         }
 
-        public async Task<Database> GetOrCreateDatabaseAsync()
+        private async void Reflect()
+        {
+            // Store db selfLink
+            var database = Current.CreateDatabaseQuery().Where(db => db.Id == databaseId).ToArray().FirstOrDefault();
+            databaseSelfLink = database.SelfLink;
+
+            // Store all collection selfLink
+            var collections = Current.CreateDocumentCollectionQuery(database.SelfLink).Where(coll => coll.Id == usersCollectionId).ToArray();
+            CollectionSelfLinks = new Dictionary<string, string>();
+            foreach (var collection in collections)
+            {
+                CollectionSelfLinks.Add(collection.Id, collection.SelfLink);
+            }
+        }
+        
+        #region Seed stuff
+
+        private async Task<Database> GetOrCreateDatabaseAsync()
         {
             return Current.CreateDatabaseQuery().Where(db => db.Id == databaseId).ToArray().FirstOrDefault() 
                 ?? await Current.CreateDatabaseAsync(new Database { Id = databaseId });
         }
 
-        public async Task<DocumentCollection> GetOrCreateUsersCollectionAsync()
+        private async Task<DocumentCollection> GetOrCreateUsersCollectionAsync()
         {
             var db = await GetOrCreateDatabaseAsync();
             return Current.CreateDocumentCollectionQuery(db.SelfLink).Where(coll => coll.Id == usersCollectionId).ToArray().FirstOrDefault()
                 ?? await Current.CreateDocumentCollectionAsync(db.SelfLink, new DocumentCollection() { Id = usersCollectionId }, new RequestOptions() { OfferThroughput = 400 });
         }
 
-        public async Task<IQueryable<Models.User>> GetUsersIQueryableAsync()
+        private async Task<IQueryable<Models.User>> GetUsersIQueryableAsync()
         {
             var usersColl = await GetOrCreateUsersCollectionAsync();
             return Current.CreateDocumentQuery<Models.User>(usersColl.SelfLink);
@@ -125,5 +144,7 @@ namespace WebApi.Services
                 }
             }
         }
+
+        #endregion
     }
 }

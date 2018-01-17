@@ -16,6 +16,12 @@ namespace WebApi
             this.documentClient = documentClient;
         }
 
-        public IQueryable<Models.User> Users { get { return documentClient.GetUsersIQueryableAsync().Result; } set { } }
+        public IQueryable<Models.User> Users
+        {
+            get
+            {
+                return documentClient.Current.CreateDocumentQuery<Models.User>(documentClient.CollectionSelfLinks["users"]);
+            }
+        }
     }
 }

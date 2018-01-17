@@ -29,26 +29,27 @@ namespace WebApi.Controllers
 
         // GET api/values
         [HttpGet]
-        public async Task<IEnumerable<User>> Get()
+        public string Get()
         {
-            return (await documentClient.GetUsersIQueryableAsync()).ToArray();
+            var q1 = @"{
+                         users {
+                           id,
+                           profile
+                         }
+                       }";
+
+            var queryResult = gql.Current.ExecuteQuery(q1);
+
+            return JsonConvert.SerializeObject(queryResult, Formatting.Indented);
         }
 
         // GET api/values/5
         [HttpGet("{id}")]
         public string Get(int id)
         {
-            var q1 = @"{
-                        users {
-                            id,
-                            userId,
-                            profile
-                        }";
-
             var q2 = @"{
                         user(id: ""asdf"") {
                             id,
-                            userId,
                             profile
                         }
                       }";

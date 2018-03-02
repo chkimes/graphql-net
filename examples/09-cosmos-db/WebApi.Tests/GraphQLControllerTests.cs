@@ -20,7 +20,7 @@ namespace WebApi.Tests
 
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(Path.GetFullPath(@"../../../../WebApi/"))
-                .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile("appsettings.Development.json", optional: false)
                 .Build();
 
             _server = new TestServer(new WebHostBuilder()

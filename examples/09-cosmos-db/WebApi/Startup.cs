@@ -29,21 +29,21 @@ namespace WebApi
             services.AddWebApi();
 
             services.AddSingleton<IMyDocumentClient, MyDocumentClient>();
+            services.AddSingleton<IMyDocumentClientInitializer, MyDocumentClientInitializer>();
 
             services.AddSingleton<IGraphQL, Services.GraphQL>();
-            
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IMyDocumentClientInitializer docClientIniter)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+                Task.WaitAll(docClientIniter.Reset());
             }
 
-            app.UseMvc();
+            app.UseMvc();            
         }
     }
 }

@@ -1,23 +1,24 @@
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
-using System;
+using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Xunit;
+using WebApi.Models;
 
 namespace WebApi.Tests
 {
-    public class GraphQLControllerTests
+    public class BaseTests
     {
         private readonly TestServer _server;
         private readonly HttpClient _client;
 
-        public GraphQLControllerTests()
+        public BaseTests()
         {
             // Arrange
-
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(Path.GetFullPath(@"../../../../WebApi/"))
                 .AddJsonFile("appsettings.Development.json", optional: false)
@@ -31,7 +32,7 @@ namespace WebApi.Tests
             _client = _server.CreateClient();
         }
 
-        private async Task<string> Get(string query)
+        protected async Task<string> Get(string query)
         {
             var request = "/graphql";
             if (!string.IsNullOrEmpty(query))
@@ -44,15 +45,11 @@ namespace WebApi.Tests
             return await response.Content.ReadAsStringAsync();
         }
 
-
-        [Fact]
-        public async void Test1()
+        protected async Task<IEnumerable<User>> GetUsers(string query)
         {
-            // Act
-            var resp = await Get(@"{ users { id, profile } }");
-
-            // Assert
-            Assert.Equal("expected", resp);
+            var resp = await Get(query);
+            var users = JObject.Parse(resp)["data"]["users"].Children().Select(j => j.ToObject<User>());
+            return users;
         }
     }
 }

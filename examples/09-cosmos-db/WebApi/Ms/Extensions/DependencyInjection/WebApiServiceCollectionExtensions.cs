@@ -45,6 +45,5 @@ namespace Microsoft.Extensions.DependencyInjection
 
             return builder;
         }
-
     }
 }

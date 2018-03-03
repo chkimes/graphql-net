@@ -51,5 +51,12 @@ namespace WebApi.Tests
             var users = JObject.Parse(resp)["data"]["users"].Children().Select(j => j.ToObject<User>());
             return users;
         }
+
+        protected async Task<User> GetUser(string query)
+        {
+            var resp = await Get(query);
+            var user = JObject.Parse(resp)["data"]["user"].ToObject<User>();
+            return user;
+        }
     }
 }

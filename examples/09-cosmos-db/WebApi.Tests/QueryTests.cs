@@ -1,11 +1,5 @@
-using Newtonsoft.Json;
-using System.Linq;
-using WebApi.Models;
-using WebApi.Services;
-using WebApi.Tests.Models;
-using Xunit;
 using FluentAssertions;
-using Newtonsoft.Json.Linq;
+using Xunit;
 using Seeder = WebApi.Services.MyDocumentClientInitializer;
 
 namespace WebApi.Tests

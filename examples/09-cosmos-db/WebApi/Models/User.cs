@@ -1,8 +1,4 @@
 ﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace WebApi.Models
 {
@@ -13,5 +9,10 @@ namespace WebApi.Models
 
         [JsonProperty(PropertyName = "profile")]
         public Profile Profile { get; set; }
+
+        [JsonProperty(PropertyName = "accountId")]
+        public string AccountId { get; set; }
+        [JsonProperty(PropertyName = "account")]
+        public Account Account { get; set; }
     }
 }

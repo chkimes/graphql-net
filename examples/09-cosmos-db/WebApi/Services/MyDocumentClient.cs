@@ -18,6 +18,10 @@ namespace WebApi.Services
         Task<DocumentCollection> GetOrCreateUsersCollectionAsync();
         IQueryable<Models.User> GetUsers();
 
+        string AccountsCollectionSelfLink { get; }
+        Task<DocumentCollection> GetOrCreateAccountsCollectionAsync();
+        IQueryable<Models.Account> GetAccounts();
+
         // etc
     }
 
@@ -31,6 +35,11 @@ namespace WebApi.Services
 
         private readonly string usersCollectionId = "users";
         public string UsersCollectionSelfLink { get; private set; }
+
+        private readonly string accountsCollectionId = "accounts";
+        public string AccountsCollectionSelfLink { get; private set; }
+
+        // etc
 
         private static readonly ConnectionPolicy connPolicy = new ConnectionPolicy();
         //{
@@ -46,12 +55,16 @@ namespace WebApi.Services
             authKey = config["CosmosDb:AuthorizationKey"];
             databaseId = config["CosmosDb:DatabaseId"];
 
+            // Allow Fiddler interception
+            connPolicy.EnableEndpointDiscovery = false;
+
             Current = new DocumentClient(new Uri(endpointUrl), authKey, connectionPolicy: connPolicy);
 
             // Setup
             Task.WaitAll(GetOrCreateDatabaseAsync());
             Task.WaitAll(new [] {
                 GetOrCreateUsersCollectionAsync(),
+                GetOrCreateAccountsCollectionAsync()
                 // etc
             });
         }
@@ -77,5 +90,17 @@ namespace WebApi.Services
             return Current.CreateDocumentQuery<Models.User>(UsersCollectionSelfLink);
         }
 
+        public async Task<DocumentCollection> GetOrCreateAccountsCollectionAsync()
+        {
+            var accountsColl = Current.CreateDocumentCollectionQuery(DatabaseSelfLink).Where(c => c.Id == accountsCollectionId).ToArray().FirstOrDefault()
+                ?? await Current.CreateDocumentCollectionAsync(DatabaseSelfLink, new DocumentCollection() { Id = accountsCollectionId }, new RequestOptions() { OfferThroughput = 400 });
+            AccountsCollectionSelfLink = accountsColl.SelfLink;
+            return accountsColl;
+        }
+
+        public IQueryable<Models.Account> GetAccounts()
+        {
+            return Current.CreateDocumentQuery<Models.Account>(AccountsCollectionSelfLink);
+        }
     }
 }

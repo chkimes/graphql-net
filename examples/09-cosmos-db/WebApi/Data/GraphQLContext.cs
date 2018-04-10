@@ -19,5 +19,13 @@ namespace WebApi.Data
                 return documentClient.GetUsers();
             }
         }
+
+        public IQueryable<Models.Account> Accounts
+        {
+            get
+            {
+                return documentClient.GetAccounts();
+            }
+        }
     }
 }

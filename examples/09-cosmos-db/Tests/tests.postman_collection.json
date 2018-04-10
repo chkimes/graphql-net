@@ -1,0 +1,234 @@
+{
+	"info": {
+		"name": "tests",
+		"_postman_id": "9a085afc-8fe3-9b41-bb1b-c1d1cb7ef157",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "users { id }",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{users{id}}\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": null
+			},
+			"response": []
+		},
+		{
+			"name": "users { id, profile }",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{users{id,profile}}\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "* users { id, profile { age } }",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{ users { id, profile { age } } }\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": "System.NullReferenceException\r\n  HResult=0x80004003\r\n  Message=Object reference not set to an instance of an object.\r\n  Source=GraphQL.Net\r\n  StackTrace:\r\n   at GraphQL.Net.Executor`1.MapResults(Object queryObject, IEnumerable`1 selections, GraphQLSchema`1 schema)\r\n   at GraphQL.Net.Executor`1.<>c__DisplayClass3_1.<MapResults>b__1(Object o)\r\n   at System.Linq.Enumerable.WhereSelectEnumerableIterator`2.MoveNext()\r\n   at System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)\r\n   at System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)\r\n   at GraphQL.Net.Executor`1.MapResults(Object queryObject, IEnumerable`1 selections, GraphQLSchema`1 schema)\r\n   at GraphQL.Net.Executor`1.<>c__DisplayClass1_0.<Execute>b__0(Object o)\r\n   at System.Linq.Enumerable.WhereSelectEnumerableIterator`2.MoveNext()\r\n   at System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)\r\n   at System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)\r\n   at GraphQL.Net.Executor`1.Execute(GraphQLSchema`1 schema, TContext context, GraphQLField field, ExecSelection`1 query)\r\n   at GraphQL.Net.GraphQL`1.ExecuteQuery(String queryStr, TContext queryContext)\r\n   at GraphQL.Net.GraphQL`1.ExecuteQuery(String queryStr)\r\n   at WebApi.Controllers.GraphQLController.Post(GraphQLRequest request) in C:\\src\\graphql-net\\examples\\09-cosmos-db\\WebApi\\Controllers\\GraphQLController.cs:line 72\r\n   at Microsoft.Extensions.Internal.ObjectMethodExecutor.Execute(Object target, Object[] parameters)\r\n   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeActionMethodAsync>d__12.MoveNext()\r\n"
+			},
+			"response": []
+		},
+		{
+			"name": "user(id) { id }",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{ user(id:\\\"84d2d957-8f94-45df-bbca-8a393c15a7ad\\\") { id } }\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "user(id) { id, totalUsers }",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{ user(id:\\\"84d2d957-8f94-45df-bbca-8a393c15a7ad\\\") { id, totalUsers } }\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "user(id) { id, totalUsers, profile }",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{ user(id:\\\"84d2d957-8f94-45df-bbca-8a393c15a7ad\\\") { id, totalUsers } }\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "users { id, totalUsers }",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{ users { id, totalUsers } }\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": "System.NullReferenceException\r\n  HResult=0x80004003\r\n  Message=Object reference not set to an instance of an object.\r\n  Source=GraphQL.Net\r\n  StackTrace:\r\n   at GraphQL.Net.Executor`1.Execute(GraphQLSchema`1 schema, TContext context, GraphQLField field, ExecSelection`1 query)\r\n   at GraphQL.Net.GraphQL`1.ExecuteQuery(String queryStr, TContext queryContext)\r\n   at GraphQL.Net.GraphQL`1.ExecuteQuery(String queryStr)\r\n   at WebApi.Controllers.GraphQLController.Post(GraphQLRequest request) in C:\\src\\graphql-net\\examples\\09-cosmos-db\\WebApi\\Controllers\\GraphQLController.cs:line 72\r\n   at Microsoft.Extensions.Internal.ObjectMethodExecutor.Execute(Object target, Object[] parameters)\r\n   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeActionMethodAsync>d__12.MoveNext()\r\n"
+			},
+			"response": []
+		},
+		{
+			"name": "* totalUsers",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"query\": \"{ totalUsers }\"\r\n}"
+				},
+				"url": {
+					"raw": "localhost:53366/graphql",
+					"host": [
+						"localhost"
+					],
+					"port": "53366",
+					"path": [
+						"graphql"
+					]
+				},
+				"description": "System.ArgumentNullException\r\n  HResult=0x80004003\r\n  Message=Value cannot be null.\r\nParameter name: type\r\n  Source=System.Core\r\n  StackTrace:\r\n   at System.Linq.Expressions.Expression.New(Type type)\r\n   at GraphQL.Net.Executor`1.GetMemberInit(GraphQLSchema`1 schema, Type queryType, IEnumerable`1 selectionsEnumerable, Expression baseBindingExpr, ExpressionOptions options)\r\n   at GraphQL.Net.Executor`1.GetSelector(GraphQLSchema`1 schema, GraphQLType gqlType, IEnumerable`1 selections, ExpressionOptions options)\r\n   at GraphQL.Net.Executor`1.Execute(GraphQLSchema`1 schema, TContext context, GraphQLField field, ExecSelection`1 query)\r\n   at GraphQL.Net.GraphQL`1.ExecuteQuery(String queryStr, TContext queryContext)\r\n   at GraphQL.Net.GraphQL`1.ExecuteQuery(String queryStr)\r\n   at WebApi.Controllers.GraphQLController.Post(GraphQLRequest request) in C:\\src\\graphql-net\\examples\\09-cosmos-db\\WebApi\\Controllers\\GraphQLController.cs:line 72\r\n   at Microsoft.Extensions.Internal.ObjectMethodExecutor.Execute(Object target, Object[] parameters)\r\n   at Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker.<InvokeActionMethodAsync>d__12.MoveNext()\r\n"
+			},
+			"response": []
+		}
+	]
+}

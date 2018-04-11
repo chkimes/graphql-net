@@ -129,6 +129,12 @@ namespace GraphQL.Net
                 _type.OwnFields.Add(CreateGenericField(prop));
         }
 
+        public void AddAllFields(Dictionary<string, string> aliasDictionary)
+        {
+            foreach (var key in aliasDictionary.Keys)
+                _type.OwnFields.Add(CreateGenericField(key, aliasDictionary[key]));
+        }
+
         // unsafe generic magic to create a GQLField instance
         private GraphQLField CreateGenericField(PropertyInfo prop)
         {
@@ -143,6 +149,23 @@ namespace GraphQL.Net
             var exprFunc = argsExpr.Compile();
 
             return GraphQLField.New(_schema, prop.Name.ToCamelCase(), (Func<object, LambdaExpression>) exprFunc, prop.PropertyType, _type);
+        }
+
+        private GraphQLField CreateGenericField(string sourceProp, string alias)
+        {
+            PropertyInfo prop = typeof(TEntity).GetProperty(sourceProp);
+
+            // build selector expression, e.g.: (db, p) => p.Id
+            var entityParam = Expression.Parameter(typeof(TEntity), "p");
+            var memberExpr = Expression.MakeMemberAccess(entityParam, prop);
+            var lambda = Expression.Lambda(memberExpr, GraphQLSchema<TContext>.DbParam, entityParam);
+
+            // build args func wrapping selector expression, e.g. o => (db, p) => p.Id
+            var objectParam = Expression.Parameter(typeof(object), "o");
+            var argsExpr = Expression.Lambda(Expression.Quote(lambda), objectParam);
+            var exprFunc = argsExpr.Compile();
+
+            return GraphQLField.New(_schema, alias.ToCamelCase(), (Func<object, LambdaExpression>)exprFunc, prop.PropertyType, _type);
         }
 
         public GraphQLFieldBuilder<TContext, TField> AddPostField<TField>(string name, Func<TField> fieldFunc)

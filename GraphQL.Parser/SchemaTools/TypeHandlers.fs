@@ -472,6 +472,7 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
                 typesByName.Add(name, definedType)
             match definedType.BottomType with
             | EnumType enumType ->
+                typesByName.Add(enumType.EnumName, CoreVariableType.EnumType enumType)
                 for { ValueName = valueName } as typeValue in enumType.Values.Values do
                     match enumValuesByName.TryFind(valueName) with
                     | None ->
@@ -479,7 +480,7 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
                             {
                                 Type = enumType
                                 Value = typeValue
-                            }
+                            }                        
                     | Some existing ->
                         invalid <|
                             sprintf "The enum value name ``%s'' is defined more than once, in enum types ``%s'' and ``%s''"

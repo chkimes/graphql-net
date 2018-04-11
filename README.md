@@ -1,7 +1,7 @@
 # GraphQL.Net
 An implementation of GraphQL for .NET and IQueryable
 
-[docs](https://ckimes89.gitbooks.io/graphql-net/content)
+[Gitbook documentation](https://ckimes89.gitbooks.io/graphql-net/content)
 
 ## Description
 Many of the .NET GraphQL implementations that have come out so far only seem to work in memory.
@@ -143,6 +143,9 @@ Add GraphQL.Net to your project via the Package Manager Console.
 ```
 PM> Install-Package GraphQL.Net
 ```
+
+## Changelog
+The changelog can be found [docs/changelog](/docs/queries_and_mutations/changelog.md).
 
 ## TODO
 Support directives like @skip.

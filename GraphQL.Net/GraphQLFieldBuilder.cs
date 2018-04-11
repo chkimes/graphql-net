@@ -24,10 +24,20 @@ namespace GraphQL.Net
             return this;
         }
 
-        // TODO: This should be removed once we figure out a better way to do it
+        public GraphQLFieldBuilder<TContext, TField> WithReturnType(string graphQlTypeName)
+        {
+            _field.SetReturnType(_field.Schema.GetGQLTypeByName(graphQlTypeName));
+            return this;
+        }
+        
         internal GraphQLFieldBuilder<TContext, TField> WithResolutionType(ResolutionType type)
         {
             _field.ResolutionType = type;
+            
+            if (_field.IsList && (type == ResolutionType.First || type == ResolutionType.FirstOrDefault))
+            {
+                _field.IsList = false;
+            }
             return this;
         }
     }

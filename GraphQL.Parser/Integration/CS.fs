@@ -39,12 +39,16 @@ type SchemaCS<'s>() =
     abstract member ResolveEnumValue : name : string -> EnumValue
     default this.ResolveEnumValue(_) = Unchecked.defaultof<_>
     abstract member RootType : ISchemaQueryType<'s>
+    abstract member QueryType : ISchemaQueryType<'s>
+    abstract member MutationType : ISchemaQueryType<'s>
     interface ISchema<'s> with
         member this.Directives = this.Directives
         member this.QueryTypes = this.QueryTypes
         member this.VariableTypes = this.VariableTypes
         member this.ResolveEnumValueByName(name) = this.ResolveEnumValue(name) |> obj2option
         member this.RootType = this.RootType
+        member this.QueryType = this.QueryType
+        member this.MutationType = this.MutationType
 
 [<AbstractClass>]
 type SchemaQueryTypeCS<'s>() =
@@ -52,19 +56,24 @@ type SchemaQueryTypeCS<'s>() =
     abstract member Description : string
     default this.Description = null
     abstract member Info : 's
-    default this.Info = Unchecked.defaultof<'s>
+    default this.Info = Unchecked.defaultof<'s>    
     abstract member Fields : IReadOnlyDictionary<string, ISchemaField<'s>>
+    abstract member PossibleTypes : IEnumerable<ISchemaQueryType<'s>> 
+    abstract member Interfaces : IEnumerable<ISchemaQueryType<'s>> 
     interface ISchemaQueryType<'s> with
         member this.TypeName = this.TypeName
         member this.Description = this.Description |> obj2option
-        member this.Info = this.Info
+        member this.Info = this.Info        
         member this.Fields = this.Fields
+        member this.PossibleTypes = this.PossibleTypes
+        member this.Interfaces = this.Interfaces
 
 [<AbstractClass>]
 type SchemaFieldCS<'s>() =
     abstract member DeclaringType : ISchemaQueryType<'s>
     abstract member FieldType : SchemaFieldType<'s>
     abstract member FieldName : string
+    abstract member IsList : bool
     abstract member Description : string
     default this.Description = null
     abstract member Info : 's
@@ -77,6 +86,7 @@ type SchemaFieldCS<'s>() =
         member this.DeclaringType = this.DeclaringType
         member this.FieldType = this.FieldType
         member this.FieldName = this.FieldName
+        member this.IsList = this.IsList
         member this.Description = this.Description |> obj2option
         member this.Info = this.Info
         member this.Arguments = this.Arguments

@@ -13,8 +13,6 @@ namespace GraphQL.Net
 {
     internal static class Executor<TContext>
     {
-        private const string TypenameFieldSelector = "__typename";
-
         public static object Execute
             (GraphQLSchema<TContext> schema, TContext context, GraphQLField field, ExecSelection<Info> query)
         {
@@ -113,13 +111,35 @@ namespace GraphQL.Net
                 return null;
             var dict = new Dictionary<string, object>();
             var type = queryObject.GetType();
+            var graphQlQueryType = schema.GetGQLTypeByQueryType(queryObject.GetType());
+
+            var queryTypeToSelections = CreateQueryTypeToSelectionsMapping(graphQlQueryType, selections.ToList());
+            if (!queryTypeToSelections.ContainsKey(type))
+            {
+                return dict;
+            }
+            
             foreach (var map in selections)
             {
                 var key = map.Name;
                 var field = map.SchemaField.Field();
-                var obj = field.IsPost
-                    ? field.PostFieldFunc()
-                    : type.GetProperty(field.Name).GetGetMethod().Invoke(queryObject, new object[] { });
+                var typeConditionType = map.TypeCondition?.Value?.Type();
+                var propertyName = field.Name == "__typename" ? field.Name : CreatePropertyName(graphQlQueryType, typeConditionType, field.Name);
+
+                object obj = null;
+
+                if (field.IsPost)
+                {
+                    obj = field.PostFieldFunc();
+                }
+                else if (type.GetProperty(propertyName) != null)
+                {
+                    obj = type.GetProperty(propertyName).GetGetMethod().Invoke(queryObject, new object[] {});
+                }
+                else
+                {
+                    continue;
+                }
 
 
                 // Filter fields for selections with type conditions - the '__typename'-property has to be present.
@@ -156,22 +176,24 @@ namespace GraphQL.Net
                     //  => (2) include results of selections with the same type-condition-name of any ancestor-type.
                     //
                     var selectionConditionTypeName = map.TypeCondition.Value?.TypeName;
-                    var typenameProp = type.GetRuntimeProperty(TypenameFieldSelector);
-                    var resultTypeName = (string)typenameProp?.GetValue(queryObject);
+                    var typenameProp = type.GetRuntimeProperty("__typename");
+                    var resultTypeName = (string) typenameProp?.GetValue(queryObject);
 
                     // (1) type-condition-name != result.__typename
                     if (selectionConditionTypeName != resultTypeName)
                     {
                         // (2) Check ancestor types
                         var resultGraphQlType = schema.Types.FirstOrDefault(t => t.Name == resultTypeName);
-                        if (resultGraphQlType != null && !IsEqualToAnyAncestorType(resultGraphQlType, selectionConditionTypeName))
+                        if (resultGraphQlType != null &&
+                            resultGraphQlType.Name != selectionConditionTypeName &&
+                            resultGraphQlType.Interfaces.All(i => i.Name != selectionConditionTypeName))
                         {
                             continue;
                         }
                     }
                 }
 
-                if (obj == null)
+                if (obj == null && !dict.ContainsKey(key))
                 {
                     dict.Add(key, null);
                     continue;
@@ -179,7 +201,9 @@ namespace GraphQL.Net
 
                 if (field.IsPost && map.Selections.Any())
                 {
-                    var selector = GetSelector(schema, field.Type, map.Selections.Values(), new ExpressionOptions(null, castAssignment: true, nullCheckLists: true, typeCheckInheritance: true));
+                    var selector = GetSelector(schema, field.Type, map.Selections.Values(),
+                        new ExpressionOptions(null, castAssignment: true, nullCheckLists: true,
+                            typeCheckInheritance: true));
                     obj = selector.Compile().DynamicInvoke(obj);
                 }
 
@@ -210,21 +234,48 @@ namespace GraphQL.Net
             }
             return dict;
         }
-
-        private static bool IsEqualToAnyAncestorType(GraphQLType type, string referenceTypeName)
-        {
-            return type != null && (type.Name == referenceTypeName || IsEqualToAnyAncestorType(type?.BaseType, referenceTypeName));
-        }
-
+        
         private static LambdaExpression GetSelector(GraphQLSchema<TContext> schema, GraphQLType gqlType, IEnumerable<ExecSelection<Info>> selections, ExpressionOptions options)
         {
             var parameter = Expression.Parameter(gqlType.CLRType, "p");
-            var init = GetMemberInit(schema, gqlType.QueryType, selections, parameter, options);
+            var init = GetMemberInit(schema, gqlType, selections, parameter, options);
             return Expression.Lambda(init, parameter);
         }
-
-        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, Type queryType, IEnumerable<ExecSelection<Info>> selectionsEnumerable, Expression baseBindingExpr, ExpressionOptions options)
+        
+        private static IDictionary<Type, IEnumerable<ExecSelection<Info>>> CreateQueryTypeToSelectionsMapping(
+            GraphQLType queryGraphQlType, IList<ExecSelection<Info>> selections)
         {
+            var abstractFieldSelection = selections
+                .Where(m => !m.SchemaField.Field().IsPost)
+                .Where(s => s.TypeCondition == null);
+            var typeConditionSelection = selections
+                .Where(m => !m.SchemaField.Field().IsPost)
+                .Where(s => s.TypeCondition != null)
+                .GroupBy(
+                    s => s.TypeCondition?.Value?.Type().QueryType ?? queryGraphQlType.QueryType
+                )
+                .ToDictionary(s => s.Key, s => s.AsEnumerable());
+
+            return new List<GraphQLType> {queryGraphQlType}.Concat(queryGraphQlType.PossibleTypes)
+                .ToDictionary(
+                    t => t.QueryType,
+                    t =>
+                        abstractFieldSelection
+                            .Concat(
+                                // Add type condition selection bindings
+                                typeConditionSelection.ContainsKey(t.QueryType)
+                                    ? typeConditionSelection[t.QueryType]
+                                    : new List<ExecSelection<Info>>())
+                            .Concat(
+                                t.Interfaces.SelectMany(i => typeConditionSelection.ContainsKey(i.QueryType)
+                                    ? typeConditionSelection[i.QueryType]
+                                    : new List<ExecSelection<Info>>()))
+                );
+        }
+
+        private static ConditionalExpression GetMemberInit(GraphQLSchema<TContext> schema, GraphQLType graphQlType, IEnumerable<ExecSelection<Info>> selectionsEnumerable, Expression parameterExpression, ExpressionOptions options)
+        {
+            var queryType = graphQlType.QueryType;
             // Avoid possible multiple enumeration of selections-enumerable
             var selections = selectionsEnumerable as IList<ExecSelection<Info>> ?? selectionsEnumerable.ToList();
 
@@ -233,30 +284,22 @@ namespace GraphQL.Net
                                                        selections.Any(s => s.TypeCondition != null);
 
             // Any '__typename' selection have to be replaced by the '__typename' selection of the target type' '__typename'-field.
-            var typeNameConditionHasToBeReplaced = selections.Any(s => s.Name == TypenameFieldSelector);
+            var typeNameConditionHasToBeReplaced = selections.Any(s => s.Name == "__typename");
             
-            // Remove all '__typename'-selections as well as duplicates in the selections caused by fragments type condition selections.
-            selections = selections
-                .Where(s => s.Name != TypenameFieldSelector)
-                .GroupBy(s => s.Name)
-                .Select(g => g.First())
-                .ToList();
-
-            var bindings = selections
-                .Where(m => !m.SchemaField.Field().IsPost)
-                .Select(map => GetBinding(schema, map, queryType, baseBindingExpr, options))
-                .ToList();
+            var bindingsWithPossibleDuplicates =
+                selections.Where(s => !s.SchemaField.Info.Field.IsPost)
+                    .Where(s => s.Name != "__typename")
+                    .Select(s => GetBinding(schema, s, graphQlType, parameterExpression, options))
+                    .ToList();
+            var uniqueBindingMemberNames = bindingsWithPossibleDuplicates.Select(b => b.Member.Name).Distinct();
+            var bindings =
+                uniqueBindingMemberNames.Select(name => bindingsWithPossibleDuplicates.First(b => b.Member.Name == name));
 
             // Add selection for '__typename'-field of the proper type
             if (typeConditionButNoTypeNameSelection || typeNameConditionHasToBeReplaced)
             {
                 // Find the base types' `__typename` field
-                var graphQlType = schema.GetGQLType(baseBindingExpr.Type);
-                while (graphQlType?.BaseType != null)
-                {
-                    graphQlType = graphQlType.BaseType;
-                }
-                var typeNameField = graphQlType?.OwnFields.Find(f => f.Name == TypenameFieldSelector);
+                var typeNameField = graphQlType?.Fields.Find(f => f.Name == "__typename");
                 if (typeNameField != null && !typeNameField.IsPost)
                 {
                     var typeNameExecSelection = new ExecSelection<Info>(
@@ -266,16 +309,21 @@ namespace GraphQL.Net
                             schema.Adapter),
                         new FSharpOption<string>(typeNameField?.Name),
                         null,
-                        new WithSource<ExecArgument<Info>>[] { },
-                        new WithSource<ExecDirective<Info>>[] { },
-                        new WithSource<ExecSelection<Info>>[] { }
-                        );
-                    bindings = bindings.Concat(new[] { GetBinding(schema, typeNameExecSelection, queryType, baseBindingExpr, options) }).ToList();
+                        new WithSource<ExecArgument<Info>>[] {},
+                        new WithSource<ExecDirective<Info>>[] {},
+                        new WithSource<ExecSelection<Info>>[] {}
+                    );
+                    bindings =
+                        bindings
+                            .Where(b => b.Member.Name != "__typename")
+                            .Concat(new[]
+                                {GetBinding(schema, typeNameExecSelection, graphQlType, parameterExpression, options)})
+                            .ToList();
                 }
             }
 
             var memberInit = Expression.MemberInit(Expression.New(queryType), bindings);
-            return NullPropagate(baseBindingExpr, memberInit);
+            return NullPropagate(parameterExpression, memberInit);
         }
 
         private static ConditionalExpression NullPropagate(Expression baseExpr, Expression returnExpr)
@@ -284,11 +332,32 @@ namespace GraphQL.Net
             return Expression.Condition(equals, Expression.Constant(null, returnExpr.Type), returnExpr);
         }
 
-        private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, Type toType, Expression baseBindingExpr, ExpressionOptions options)
+        private static string CreatePropertyName(GraphQLType graphQlType, GraphQLType typeConditionType,
+            string fieldName)
         {
+            var isObjectAbstractType = graphQlType.TypeKind == TypeKind.UNION ||
+                                       graphQlType.TypeKind == TypeKind.INTERFACE;
+            var isTypeConditionInterface = typeConditionType?.TypeKind == TypeKind.INTERFACE;
+            return isObjectAbstractType && !isTypeConditionInterface && typeConditionType != null
+                ? GraphQLSchema<TContext>.CreatePossibleTypePropertyName(typeConditionType.Name, fieldName)
+                : fieldName;
+        }
+
+        private static MemberBinding GetBinding(GraphQLSchema<TContext> schema, ExecSelection<Info> map, GraphQLType graphQlType, Expression baseBindingExpr, ExpressionOptions options)
+        {
+            var toType = graphQlType.QueryType;
             var field = map.SchemaField.Field();
-            var needsTypeCheck = baseBindingExpr.Type != field.DefiningType.CLRType;
-            var toMember = toType.GetProperty(map.SchemaField.FieldName);
+            var needsTypeCheck = baseBindingExpr.Type != map.SchemaField.DeclaringType?.Info?.Type?.CLRType;
+            var propertyName = CreatePropertyName(graphQlType, map.TypeCondition?.Value?.Type(),
+                map.SchemaField.FieldName);
+            var toMember = toType.GetProperty(
+                propertyName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (toMember == null)
+            {
+                throw new Exception($"The field '{map.SchemaField.FieldName}' does not exist on type '{graphQlType.Name}'.");
+            } 
             // expr is form of: (context, entity) => entity.Field
             var expr = field.GetExpression(map.Arguments.Values());
 
@@ -321,9 +390,17 @@ namespace GraphQL.Net
             // If there aren't any children, then we can assume that this is a scalar entity and we don't have to map child fields
             if (!map.Selections.Any())
             {
-                if (options.CastAssignment && expr.Body.Type != toMember.PropertyType)
-                    replacedContext = Expression.Convert(replacedContext, toMember.PropertyType);
-                return Expression.Bind(toMember, replacedContext);
+                if (!field.IsList)
+                {
+                    if (options.CastAssignment && expr.Body.Type != toMember.PropertyType)
+                        replacedContext = Expression.Convert(replacedContext, toMember.PropertyType);
+                    return Expression.Bind(toMember, replacedContext);
+                }
+
+                return Expression.Bind(toMember,
+                    options.NullCheckLists
+                        ? NullPropagate(replacedContext, replacedContext)
+                        : replacedContext);
             }
 
             // If binding a single entity, just use the already built selector expression (replaced context)
@@ -333,7 +410,7 @@ namespace GraphQL.Net
             var bindChildrenTo = map.SchemaField.Field().IsList ? listParameter : replacedContext;
 
             // Now that we have our new binding parameter, build the tree for the rest of the children
-            var memberInit = GetMemberInit(schema, field.Type.QueryType, map.Selections.Values(), bindChildrenTo, options);
+            var memberInit = GetMemberInit(schema, field.Type, map.Selections.Values(), bindChildrenTo, options);
 
             // For single entities, we're done and we can just bind to the memberInit expression
             if (!field.IsList)

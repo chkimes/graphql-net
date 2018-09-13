@@ -121,6 +121,7 @@ namespace Tests.EF
             schema.AddType<Sub>().AddField(s => s.Id);
             schema.AddListField("users", db => db.Users);
             schema.AddField("user", new { id = 0 }, (db, args) => db.Users.FirstOrDefault(u => u.Id == args.id));
+            schema.AddField("userByName", new { name = "" }, (db, args) => db.Users.FirstOrDefault(u => u.Name == args.name));
         }
 
         private static string GetAbcPostField() => "easy as 123"; // mimic an in-memory function
@@ -275,6 +276,9 @@ namespace Tests.EF
             var results = gql.ExecuteQuery("{ user(id:1) { id, name } }");
             Test.DeepEquals(results, "{ user: { id: 1, name: 'Joe User' } }");
         }
+
+        [Test]
+        public void LookupSingleEntityError() => GenericTests.LookupSingleEntityError(CreateDefaultContext());
 
         class Sub
         {

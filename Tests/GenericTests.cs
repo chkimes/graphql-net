@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using GraphQL.Net;
+using GraphQL.Parser;
 using NUnit.Framework;
 
 namespace Tests
@@ -12,7 +13,7 @@ namespace Tests
             var results = gql.ExecuteQuery("{ user(id:1) { id, name } }");
             Test.DeepEquals(results, "{ user: { id: 1, name: 'Joe User' } }");
         }
-
+               
         public static void AliasOneField<TContext>(GraphQL<TContext> gql)
         {
             var results = gql.ExecuteQuery("{ user(id:1) { idAlias : id, name } }");
@@ -283,6 +284,11 @@ namespace Tests
                 "{ name: 'FN-2187', height: 4.9, specialization: 'Imperial Snowtrooper', __typename: 'Stormtrooper'}, " +
                 "{ __typename: 'Droid', name: 'R2-D2'} ] }"
                 );
+        }
+
+        public static void LookupSingleEntityError<TContext>(GraphQL<TContext> gql)
+        {
+            Assert.Throws<ValidationException>(() => gql.ExecuteQuery("{ userByName(name:JoeUser) { id, name } }"));
         }
     }
 }

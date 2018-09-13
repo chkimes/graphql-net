@@ -495,7 +495,10 @@ type RootTypeHandler(metaHandler : IMetaTypeHandler) as this =
 
     member this.ResolveEnumValueByName(name) =
         initialize()
-        enumValuesByName.TryFind(name)
+        let res = enumValuesByName.TryFind(name)
+        if res = None then
+            invalid <| sprintf "The enum value name ``%s'' is not defined" name
+        res
 
     member this.TypeDictionary =
         initialize()

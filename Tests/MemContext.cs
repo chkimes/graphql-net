@@ -133,6 +133,7 @@ namespace Tests
             schema.AddType<Sub>().AddField(s => s.Id);
             schema.AddListField("users", db => db.Users.AsQueryable());
             schema.AddField("user", new { id = 0 }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Id == args.id));
+            schema.AddField("userByName", new { name = "" }, (db, args) => db.Users.AsQueryable().FirstOrDefault(u => u.Name == args.name));
         }
 
         private static string GetAbcPostField() => "easy as 123"; // mimic an in-memory function

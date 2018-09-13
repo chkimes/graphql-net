@@ -288,14 +288,7 @@ namespace Tests
 
         public static void LookupSingleEntityError<TContext>(GraphQL<TContext> gql)
         {
-            try
-            {
-                var results = gql.ExecuteQuery("{ userByName(name:JoeUser) { id, name } }");
-                Assert.Fail();
-            }
-            catch (ValidationException)
-            {
-            }
+            Assert.Throws<ValidationException>(() => gql.ExecuteQuery("{ userByName(name:JoeUser) { id, name } }"));
         }
     }
 }
